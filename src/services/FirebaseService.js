@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs, query, orderBy } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { firebaseConfig } from '../config';
 
 const app = initializeApp(firebaseConfig);
@@ -25,6 +25,26 @@ export async function getTransactions() {
     }));
   } catch (error) {
     console.error('Error getting transactions: ', error);
+    throw error;
+  }
+}
+
+export async function updateTransaction(id, updatedData) {
+  try {
+    const transactionRef = doc(db, 'transactions', id);
+    await updateDoc(transactionRef, updatedData);
+  } catch (error) {
+    console.error('Error updating transaction: ', error);
+    throw error;
+  }
+}
+
+export async function deleteTransaction(id) {
+  try {
+    const transactionRef = doc(db, 'transactions', id);
+    await deleteDoc(transactionRef);
+  } catch (error) {
+    console.error('Error deleting transaction: ', error);
     throw error;
   }
 }

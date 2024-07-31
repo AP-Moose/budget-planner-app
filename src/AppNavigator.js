@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from './screens/HomeScreen';
 import AddTransactionScreen from './screens/AddTransactionScreen';
+import TransactionDetailScreen from './screens/TransactionDetailScreen';
 import CategoryScreen from './screens/CategoryScreen';
 import Header from './components/Header';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +29,11 @@ function HomeStack() {
         name="AddTransaction" 
         component={AddTransactionScreen} 
         options={{ title: 'Add Transaction' }} 
+      />
+      <Stack.Screen 
+        name="TransactionDetail" 
+        component={TransactionDetailScreen} 
+        options={{ title: 'Transaction Details' }} 
       />
     </Stack.Navigator>
   );

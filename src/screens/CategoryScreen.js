@@ -12,13 +12,13 @@ function CategoryScreen() {
   async function loadTransactions() {
     try {
       const transactions = await getTransactions();
-      const categoryTotals = transactions.reduce((acc, transaction) => {
+      const categorySums = transactions.reduce((acc, transaction) => {
         if (transaction.type === 'expense') {
           acc[transaction.category] = (acc[transaction.category] || 0) + transaction.amount;
         }
         return acc;
       }, {});
-      setCategories(categoryTotals);
+      setCategories(categorySums);
     } catch (error) {
       console.error('Error loading transactions:', error);
     }
@@ -47,26 +47,32 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+    backgroundColor: '#f5f5f5',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 20,
+    color: '#333',
   },
   categoryItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 10,
   },
   categoryName: {
     fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
   },
   categoryAmount: {
     fontSize: 16,
     fontWeight: 'bold',
+    color: '#F44336',
   },
 });
 
