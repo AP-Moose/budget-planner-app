@@ -1,47 +1,99 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Button } from 'react-native';
-import { addTransaction, getTransactions } from '../services/FirebaseService';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { getTransactions } from '../services/FirebaseService';
+import TransactionList from '../components/TransactionList';
 
 function HomeScreen({ navigation }) {
-  const [testMessage, setTestMessage] = useState('');
+  const [balance, setBalance] = useState(0);
+  const [transactions, setTransactions] = useState([]);
 
   useEffect(() => {
-    async function testDatabase() {
-      try {
-        // Test writing to Firestore
-        const newTransaction = {
-          amount: 50,
-          description: 'Test transaction',
-          date: new Date(),
-          type: 'expense'
-        };
-        const docId = await addTransaction(newTransaction);
-        console.log('Test transaction added with ID:', docId);
-
-        // Test reading from Firestore
-        const transactions = await getTransactions();
-        console.log('Transactions:', transactions);
-
-        setTestMessage('Database connection successful');
-      } catch (e) {
-        console.error('Database test error:', e);
-        setTestMessage('Error connecting to database');
-      }
-    }
-
-    testDatabase();
+    loadTransactions();
   }, []);
 
+  async function loadTransactions() {
+    try {
+      const fetchedTransactions = await getTransactions();
+      setTransactions(fetchedTransactions);
+      calculateBalance(fetchedTransactions);
+    } catch (error) {
+      console.error('Error loading transactions:', error);
+    }
+  }
+
+  function calculateBalance(transactions) {
+    const total = transactions.reduce((acc, transaction) => {
+      return transaction.type === 'income' ? acc + transaction.amount : acc - transaction.amount;
+    }, 0);
+    setBalance(total);
+  }
+
   return (
-    <View>
-      <Text>Welcome to Budget Planner</Text>
-      <Text>Database test: {testMessage}</Text>
-      <Button
-        title="Add Transaction"
-        onPress={() => navigation.navigate('AddTransaction')}
-      />
+    <View style={styles.container}>
+      <View style={styles.balanceContainer}>
+        <Text style={styles.balanceTitle}>Current Balance</Text>
+        <Text style={styles.balanceAmount}>${balance.toFixed(2)}</Text>
+      </View>
+
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={[styles.button, styles.incomeButton]}
+          onPress={() => navigation.navigate('AddTransaction', { type: 'income' })}
+        >
+          <Text style={styles.buttonText}>Add Income</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, styles.expenseButton]}
+          onPress={() => navigation.navigate('AddTransaction', { type: 'expense' })}
+        >
+          <Text style={styles.buttonText}>Add Expense</Text>
+        </TouchableOpacity>
+      </View>
+
+      <TransactionList transactions={transactions} />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+  },
+  balanceContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  balanceTitle: {
+    fontSize: 18,
+    color: '#666',
+  },
+  balanceAmount: {
+    fontSize: 36,
+    fontWeight: 'bold',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  button: {
+    padding: 15,
+    borderRadius: 5,
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  incomeButton: {
+    backgroundColor: '#4CAF50',
+  },
+  expenseButton: {
+    backgroundColor: '#F44336',
+  },
+  buttonText: {
+    color: 'white',
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+});
 
 export default HomeScreen;

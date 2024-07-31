@@ -1,25 +1,58 @@
 import React from 'react';
-import { View, Text, FlatList } from 'react-native';
+import { View, Text, FlatList, StyleSheet } from 'react-native';
 
-function TransactionList() {
-  // TODO: Fetch transactions from Firebase
-  const transactions = [
-    { id: '1', amount: 100, category: 'Income', date: '2024-07-30' },
-    { id: '2', amount: -50, category: 'Groceries', date: '2024-07-31' },
-  ];
+function TransactionList({ transactions }) {
+  const renderItem = ({ item }) => (
+    <View style={styles.transactionItem}>
+      <Text style={styles.description}>{item.description}</Text>
+      <Text style={[styles.amount, item.type === 'income' ? styles.income : styles.expense]}>
+        ${item.amount.toFixed(2)}
+      </Text>
+    </View>
+  );
 
   return (
-    <View>
-      <Text>Recent Transactions</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Recent Transactions</Text>
       <FlatList
         data={transactions}
+        renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <Text>{`${item.date}: ${item.category} - $${item.amount}`}</Text>
-        )}
       />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  transactionItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  description: {
+    fontSize: 16,
+  },
+  amount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  income: {
+    color: '#4CAF50',
+  },
+  expense: {
+    color: '#F44336',
+  },
+});
 
 export default TransactionList;

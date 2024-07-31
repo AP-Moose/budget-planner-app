@@ -1,34 +1,30 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs } from 'firebase/firestore';
-import firebaseConfig from '../config';
+import { getFirestore, collection, addDoc, getDocs, query, orderBy } from 'firebase/firestore';
+import { firebaseConfig } from '../config';
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-
-// Initialize Firestore
 const db = getFirestore(app);
 
-export const addTransaction = async (transaction) => {
+export async function addTransaction(transaction) {
   try {
     const docRef = await addDoc(collection(db, 'transactions'), transaction);
-    console.log('Transaction added with ID: ', docRef.id);
     return docRef.id;
-  } catch (e) {
-    console.error('Error adding transaction: ', e);
-    throw e;
+  } catch (error) {
+    console.error('Error adding transaction: ', error);
+    throw error;
   }
-};
+}
 
-export const getTransactions = async () => {
+export async function getTransactions() {
   try {
-    const querySnapshot = await getDocs(collection(db, 'transactions'));
-    const transactions = [];
-    querySnapshot.forEach((doc) => {
-      transactions.push({ id: doc.id, ...doc.data() });
-    });
-    return transactions;
-  } catch (e) {
-    console.error('Error getting transactions: ', e);
-    throw e;
+    const q = query(collection(db, 'transactions'), orderBy('date', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error('Error getting transactions: ', error);
+    throw error;
   }
-};
+}
