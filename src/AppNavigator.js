@@ -24,6 +24,7 @@ function HomeStack() {
         name="HomeScreen" 
         component={HomeScreen} 
         options={{ title: 'Budget Planner' }} 
+        initialParams={{ refresh: false }}
       />
       <Stack.Screen 
         name="AddTransaction" 
@@ -56,7 +57,20 @@ function AppNavigator() {
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeStack} options={{ headerShown: false }} />
+      <Tab.Screen 
+        name="Home" 
+        component={HomeStack} 
+        options={{ headerShown: false }} 
+        listeners={({ navigation }) => ({
+          tabPress: e => {
+            // Prevent default behavior
+            e.preventDefault();
+            
+            // Reset the stack to HomeScreen with refresh param
+            navigation.navigate('HomeScreen', { refresh: true });
+          },
+        })}
+      />
       <Tab.Screen name="Categories" component={CategoryScreen} />
     </Tab.Navigator>
   );

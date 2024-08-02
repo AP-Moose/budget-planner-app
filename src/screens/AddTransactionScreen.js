@@ -1,47 +1,52 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import RNPickerSelect from 'react-native-picker-select';
 import { addTransaction } from '../services/FirebaseService';
-
-const categories = [
-  { label: 'Food', value: 'Food' },
-  { label: 'Transport', value: 'Transport' },
-  { label: 'Entertainment', value: 'Entertainment' },
-  { label: 'Bills', value: 'Bills' },
-  { label: 'Other', value: 'Other' },
-];
+import { INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../utils/categories';
 
 function AddTransactionScreen({ navigation, route }) {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('Other');
+  const [category, setCategory] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const transactionType = route.params?.type || 'expense';
 
+  const categories = transactionType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+
   async function handleSubmit() {
-    if (!amount || !description) {
-      alert('Please fill in all fields');
+    if (isSubmitting) return;
+    if (!amount || !description || !category) {
+      Alert.alert('Invalid Input', 'Please fill in all fields');
       return;
     }
 
+    setIsSubmitting(true);
     const transaction = {
       amount: parseFloat(amount),
       description,
       category,
       type: transactionType,
-      date: new Date(),
+      date: new Date().toISOString(),
     };
 
     try {
       await addTransaction(transaction);
-      navigation.goBack();
+      Alert.alert(
+        'Success',
+        'Transaction added successfully',
+        [{ text: 'OK', onPress: () => navigation.navigate('HomeScreen', { refresh: true }) }],
+        { onDismiss: () => navigation.navigate('HomeScreen', { refresh: true }) }
+      );
     } catch (error) {
       console.error('Error adding transaction:', error);
-      alert('Failed to add transaction. Please try again.');
+      Alert.alert('Error', 'Failed to add transaction. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       <Text style={styles.title}>Add {transactionType.charAt(0).toUpperCase() + transactionType.slice(1)}</Text>
       <TextInput
         style={styles.input}
@@ -58,17 +63,22 @@ function AddTransactionScreen({ navigation, route }) {
       />
       <RNPickerSelect
         onValueChange={(value) => setCategory(value)}
-        items={categories}
+        items={categories.map(cat => ({ label: cat, value: cat }))}
         style={pickerSelectStyles}
         value={category}
         placeholder={{ label: "Select a category", value: null }}
       />
-      <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-        <Text style={styles.buttonText}>Add Transaction</Text>
+      <TouchableOpacity 
+        style={[styles.button, isSubmitting && styles.disabledButton]} 
+        onPress={handleSubmit}
+        disabled={isSubmitting}
+      >
+        <Text style={styles.buttonText}>{isSubmitting ? 'Adding...' : 'Add Transaction'}</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -121,6 +131,9 @@ const pickerSelectStyles = StyleSheet.create({
     color: 'black',
     paddingRight: 30,
     marginBottom: 20,
+  },
+  disabledButton: {
+    backgroundColor: '#cccccc',
   },
 });
 

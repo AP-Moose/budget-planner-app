@@ -2,20 +2,15 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import RNPickerSelect from 'react-native-picker-select';
 import { updateTransaction, deleteTransaction } from '../services/FirebaseService';
-
-const categories = [
-  { label: 'Food', value: 'Food' },
-  { label: 'Transport', value: 'Transport' },
-  { label: 'Entertainment', value: 'Entertainment' },
-  { label: 'Bills', value: 'Bills' },
-  { label: 'Other', value: 'Other' },
-];
+import { INCOME_CATEGORIES, EXPENSE_CATEGORIES, getCategoryType } from '../utils/categories';
 
 function TransactionDetailScreen({ route, navigation }) {
   const { transaction } = route.params;
   const [amount, setAmount] = useState(transaction.amount.toString());
   const [description, setDescription] = useState(transaction.description);
   const [category, setCategory] = useState(transaction.category);
+
+  const categories = getCategoryType(transaction.category) === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
 
   async function handleUpdate() {
     if (!amount || !description || !category) {
@@ -28,11 +23,15 @@ function TransactionDetailScreen({ route, navigation }) {
         amount: parseFloat(amount), 
         description, 
         category,
-        type: transaction.type, // Preserve the original transaction type
-        date: transaction.date // Preserve the original date
+        type: getCategoryType(category),
+        date: transaction.date
       });
-      Alert.alert('Success', 'Transaction updated successfully');
-      navigation.goBack();
+      Alert.alert(
+        'Success',
+        'Transaction updated successfully',
+        [{ text: 'OK', onPress: () => navigation.navigate('HomeScreen', { refresh: true }) }],
+        { onDismiss: () => navigation.navigate('HomeScreen', { refresh: true }) }
+      );
     } catch (error) {
       console.error('Error updating transaction:', error);
       Alert.alert('Error', 'Failed to update transaction. Please try again.');
@@ -51,8 +50,12 @@ function TransactionDetailScreen({ route, navigation }) {
           onPress: async () => {
             try {
               await deleteTransaction(transaction.id);
-              Alert.alert('Success', 'Transaction deleted successfully');
-              navigation.goBack();
+              Alert.alert(
+                'Success',
+                'Transaction deleted successfully',
+                [{ text: 'OK', onPress: () => navigation.navigate('HomeScreen', { refresh: true }) }],
+                { onDismiss: () => navigation.navigate('HomeScreen', { refresh: true }) }
+              );
             } catch (error) {
               console.error('Error deleting transaction:', error);
               Alert.alert('Error', 'Failed to delete transaction. Please try again.');
@@ -81,7 +84,7 @@ function TransactionDetailScreen({ route, navigation }) {
       />
       <RNPickerSelect
         onValueChange={(value) => setCategory(value)}
-        items={categories}
+        items={categories.map(cat => ({ label: cat, value: cat }))}
         style={pickerSelectStyles}
         value={category}
         placeholder={{ label: "Select a category", value: null }}

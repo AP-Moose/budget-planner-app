@@ -1,17 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { getTransactions } from '../services/FirebaseService';
 import TransactionList from '../components/TransactionList';
 
-function HomeScreen({ navigation }) {
+function HomeScreen({ navigation, route }) {
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState([]);
 
-  useEffect(() => {
-    loadTransactions();
-  }, []);
-
-  async function loadTransactions() {
+  const loadTransactions = useCallback(async () => {
     try {
       const fetchedTransactions = await getTransactions();
       setTransactions(fetchedTransactions);
@@ -19,7 +16,20 @@ function HomeScreen({ navigation }) {
     } catch (error) {
       console.error('Error loading transactions:', error);
     }
-  }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (route.params?.refresh) {
+        loadTransactions();
+        navigation.setParams({ refresh: undefined });
+      }
+    }, [route.params?.refresh, loadTransactions, navigation])
+  );
+
+  useEffect(() => {
+    loadTransactions();
+  }, [loadTransactions]);
 
   function calculateBalance(transactions) {
     const total = transactions.reduce((acc, transaction) => {
@@ -27,6 +37,10 @@ function HomeScreen({ navigation }) {
     }, 0);
     setBalance(total);
   }
+
+  const handleTransactionPress = useCallback((transaction) => {
+    navigation.navigate('TransactionDetail', { transaction });
+  }, [navigation]);
 
   return (
     <View style={styles.container}>
@@ -50,7 +64,10 @@ function HomeScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <TransactionList transactions={transactions} />
+      <TransactionList 
+        transactions={transactions} 
+        onTransactionPress={handleTransactionPress}
+      />
     </View>
   );
 }

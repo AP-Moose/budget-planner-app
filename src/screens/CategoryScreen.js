@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { getTransactions } from '../services/FirebaseService';
+import { EXPENSE_CATEGORIES, getCategoryName } from '../utils/categories';
 
 function CategoryScreen() {
   const [categories, setCategories] = useState({});
@@ -26,7 +27,7 @@ function CategoryScreen() {
 
   const renderItem = ({ item }) => (
     <View style={styles.categoryItem}>
-      <Text style={styles.categoryName}>{item[0]}</Text>
+      <Text style={styles.categoryName}>{getCategoryName(item[0])}</Text>
       <Text style={styles.categoryAmount}>${item[1].toFixed(2)}</Text>
     </View>
   );

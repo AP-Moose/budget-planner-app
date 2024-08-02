@@ -1,18 +1,16 @@
 import React from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { getCategoryName } from '../utils/categories';
 
-function TransactionList({ transactions }) {
-  const navigation = useNavigation();
-
+function TransactionList({ transactions, onTransactionPress }) {
   const renderItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.transactionItem} 
-      onPress={() => navigation.navigate('TransactionDetail', { transaction: item })}
+      onPress={() => onTransactionPress(item)}
     >
       <View style={styles.transactionInfo}>
         <Text style={styles.description}>{item.description}</Text>
-        <Text style={styles.category}>{item.category}</Text>
+        <Text style={styles.category}>{getCategoryName(item.category)}</Text>
       </View>
       <View style={styles.amountContainer}>
         <Text style={[styles.amount, item.type === 'income' ? styles.income : styles.expense]}>
@@ -26,12 +24,16 @@ function TransactionList({ transactions }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Recent Transactions</Text>
-      <FlatList
-        data={transactions}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-      />
+      {transactions.length === 0 ? (
+        <Text style={styles.noTransactions}>No transactions to display.</Text>
+      ) : (
+        <FlatList
+          data={transactions}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+        />
+      )}
     </View>
   );
 }
@@ -95,6 +97,12 @@ const styles = StyleSheet.create({
   date: {
     fontSize: 12,
     color: '#888',
+  },
+  noTransactions: {
+    textAlign: 'center',
+    marginTop: 20,
+    fontSize: 16,
+    color: '#666',
   },
 });
 
