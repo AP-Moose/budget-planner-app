@@ -9,6 +9,7 @@ function CategoryScreen({ navigation }) {
   const [incomeCategories, setIncomeCategories] = useState({});
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [totalIncome, setTotalIncome] = useState(0);
+  const [activeTab, setActiveTab] = useState('expense');
 
   const loadTransactions = useCallback(async () => {
     try {
@@ -64,36 +65,37 @@ function CategoryScreen({ navigation }) {
     );
   };
 
-  const renderSectionHeader = (title, total) => (
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <Text style={styles.sectionTotal}>Total: ${total.toFixed(2)}</Text>
-    </View>
-  );
+  const renderCategories = () => {
+    const categories = activeTab === 'expense' ? expenseCategories : incomeCategories;
+    const total = activeTab === 'expense' ? totalExpenses : totalIncome;
+
+    return Object.entries(categories).map((category) => 
+      renderCategoryItem(category, total, activeTab)
+    );
+  };
 
   return (
     <View style={styles.container}>
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'expense' && styles.activeTab]}
+          onPress={() => setActiveTab('expense')}
+        >
+          <Text style={styles.tabText}>Expenses</Text>
+          <Text style={styles.tabAmount}>Total: ${totalExpenses.toFixed(2)}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'income' && styles.activeTab]}
+          onPress={() => setActiveTab('income')}
+        >
+          <Text style={styles.tabText}>Income</Text>
+          <Text style={styles.tabAmount}>Total: ${totalIncome.toFixed(2)}</Text>
+        </TouchableOpacity>
+      </View>
       <FlatList
-        data={[
-          { type: 'expense', data: Object.entries(expenseCategories) },
-          { type: 'income', data: Object.entries(incomeCategories) }
-        ]}
-        renderItem={({ item }) => (
-          <View>
-            {renderSectionHeader(
-              item.type === 'expense' ? 'Expense Categories' : 'Income Categories',
-              item.type === 'expense' ? totalExpenses : totalIncome
-            )}
-            {item.data.map((category) => 
-              renderCategoryItem(
-                category, 
-                item.type === 'expense' ? totalExpenses : totalIncome,
-                item.type
-              )
-            )}
-          </View>
-        )}
-        keyExtractor={(item, index) => item.type + index}
+        data={renderCategories()}
+        renderItem={({ item }) => item}
+        keyExtractor={(item, index) => index.toString()}
       />
     </View>
   );
@@ -104,17 +106,28 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  sectionHeader: {
-    padding: 20,
+  tabContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 10,
     backgroundColor: '#e0e0e0',
   },
-  sectionTitle: {
-    fontSize: 20,
+  tab: {
+    flex: 1,
+    padding: 10,
+    alignItems: 'center',
+    borderRadius: 5,
+  },
+  activeTab: {
+    backgroundColor: '#fff',
+  },
+  tabText: {
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
   },
-  sectionTotal: {
-    fontSize: 16,
+  tabAmount: {
+    fontSize: 14,
     color: '#666',
     marginTop: 5,
   },
