@@ -5,6 +5,7 @@ import HomeScreen from './screens/HomeScreen';
 import AddTransactionScreen from './screens/AddTransactionScreen';
 import TransactionDetailScreen from './screens/TransactionDetailScreen';
 import CategoryScreen from './screens/CategoryScreen';
+import CategoryDetailScreen from './screens/CategoryDetailScreen';
 import Header from './components/Header';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -35,6 +36,34 @@ function HomeStack() {
         name="TransactionDetail" 
         component={TransactionDetailScreen} 
         options={{ title: 'Transaction Details' }} 
+      />
+      <Stack.Screen 
+        name="CategoryDetail" 
+        component={CategoryDetailScreen} 
+        options={({ route }) => ({ title: route.params.category })}
+      />
+    </Stack.Navigator>
+  );
+}
+
+function CategoriesStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={({ route }) => ({
+        header: ({ navigation, options }) => {
+          return <Header title={options.title || route.name} />;
+        },
+      })}
+    >
+      <Stack.Screen 
+        name="CategoriesScreen" 
+        component={CategoryScreen} 
+        options={{ title: 'Categories' }} 
+      />
+      <Stack.Screen 
+        name="CategoryDetail" 
+        component={CategoryDetailScreen} 
+        options={({ route }) => ({ title: route.params.category })}
       />
     </Stack.Navigator>
   );
@@ -71,7 +100,11 @@ function AppNavigator() {
           },
         })}
       />
-      <Tab.Screen name="Categories" component={CategoryScreen} />
+      <Tab.Screen 
+        name="Categories" 
+        component={CategoriesStack}
+        options={{ headerShown: false }}
+      />
     </Tab.Navigator>
   );
 }

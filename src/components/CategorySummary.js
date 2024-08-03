@@ -15,13 +15,17 @@ function CategorySummary({ transactions }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Category Summary</Text>
+      <Text style={styles.totalExpenses}>Total Expenses: ${totalExpenses.toFixed(2)}</Text>
       {EXPENSE_CATEGORIES.map((category) => {
-        const amount = categorySums[category.id] || 0;
+        const amount = categorySums[category] || 0;
         const percentage = totalExpenses > 0 ? (amount / totalExpenses) * 100 : 0;
         return (
-          <View key={category.id} style={styles.categoryItem}>
-            <Text style={styles.categoryName}>{category.name}</Text>
-            <Text style={styles.categoryAmount}>${amount.toFixed(2)} ({percentage.toFixed(1)}%)</Text>
+          <View key={category} style={styles.categoryItem}>
+            <Text style={styles.categoryName}>{getCategoryName(category)}</Text>
+            <View style={styles.amountContainer}>
+              <Text style={styles.categoryAmount}>${amount.toFixed(2)}</Text>
+              <Text style={styles.categoryPercentage}>({percentage.toFixed(1)}%)</Text>
+            </View>
           </View>
         );
       })}
@@ -41,6 +45,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 10,
   },
+  totalExpenses: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 15,
+    color: '#F44336',
+  },
   categoryItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -48,10 +58,18 @@ const styles = StyleSheet.create({
   },
   categoryName: {
     fontSize: 14,
+    flex: 1,
+  },
+  amountContainer: {
+    alignItems: 'flex-end',
   },
   categoryAmount: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  categoryPercentage: {
+    fontSize: 12,
+    color: '#666',
   },
 });
 

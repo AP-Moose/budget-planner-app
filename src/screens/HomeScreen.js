@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, FlatList } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getTransactions } from '../services/FirebaseService';
 import TransactionList from '../components/TransactionList';
@@ -42,8 +42,8 @@ function HomeScreen({ navigation, route }) {
     navigation.navigate('TransactionDetail', { transaction });
   }, [navigation]);
 
-  return (
-    <View style={styles.container}>
+  const renderHeader = () => (
+    <>
       <View style={styles.balanceContainer}>
         <Text style={styles.balanceTitle}>Current Balance</Text>
         <Text style={styles.balanceAmount}>${balance.toFixed(2)}</Text>
@@ -64,17 +64,34 @@ function HomeScreen({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-      <TransactionList 
-        transactions={transactions} 
-        onTransactionPress={handleTransactionPress}
-      />
-    </View>
+      <Text style={styles.sectionTitle}>Recent Transactions</Text>
+    </>
+  );
+
+  return (
+    <FlatList
+      style={styles.container}
+      ListHeaderComponent={renderHeader}
+      data={transactions.slice(0, 5)}
+      renderItem={({ item }) => (
+        <TransactionList
+          transactions={[item]}
+          onTransactionPress={handleTransactionPress}
+          showTitle={false}
+        />
+      )}
+      keyExtractor={(item) => item.id}
+      contentContainerStyle={styles.listContent}
+    />
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  listContent: {
     padding: 20,
   },
   balanceContainer: {
@@ -110,6 +127,13 @@ const styles = StyleSheet.create({
     color: 'white',
     textAlign: 'center',
     fontWeight: 'bold',
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 20,
+    marginBottom: 10,
+    color: '#333',
   },
 });
 

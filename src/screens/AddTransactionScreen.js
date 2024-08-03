@@ -8,6 +8,7 @@ function AddTransactionScreen({ navigation, route }) {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
+  const [variabilityType, setVariabilityType] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const transactionType = route.params?.type || 'expense';
 
@@ -15,7 +16,7 @@ function AddTransactionScreen({ navigation, route }) {
 
   async function handleSubmit() {
     if (isSubmitting) return;
-    if (!amount || !description || !category) {
+    if (!amount || !description || !category || !variabilityType) {
       Alert.alert('Invalid Input', 'Please fill in all fields');
       return;
     }
@@ -26,6 +27,7 @@ function AddTransactionScreen({ navigation, route }) {
       description,
       category,
       type: transactionType,
+      variabilityType,
       date: new Date().toISOString(),
     };
 
@@ -67,6 +69,16 @@ function AddTransactionScreen({ navigation, route }) {
         style={pickerSelectStyles}
         value={category}
         placeholder={{ label: "Select a category", value: null }}
+      />
+      <RNPickerSelect
+        onValueChange={(value) => setVariabilityType(value)}
+        items={[
+          { label: 'Fixed', value: 'fixed' },
+          { label: 'Variable', value: 'variable' },
+        ]}
+        style={pickerSelectStyles}
+        value={variabilityType}
+        placeholder={{ label: "Select variability type", value: null }}
       />
       <TouchableOpacity 
         style={[styles.button, isSubmitting && styles.disabledButton]} 

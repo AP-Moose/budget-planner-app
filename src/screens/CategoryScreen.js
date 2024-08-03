@@ -1,44 +1,99 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { getTransactions } from '../services/FirebaseService';
-import { EXPENSE_CATEGORIES, getCategoryName } from '../utils/categories';
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCategoryName } from '../utils/categories';
 
-function CategoryScreen() {
-  const [categories, setCategories] = useState({});
+function CategoryScreen({ navigation }) {
+  const [expenseCategories, setExpenseCategories] = useState({});
+  const [incomeCategories, setIncomeCategories] = useState({});
+  const [totalExpenses, setTotalExpenses] = useState(0);
+  const [totalIncome, setTotalIncome] = useState(0);
 
-  useEffect(() => {
-    loadTransactions();
-  }, []);
-
-  async function loadTransactions() {
+  const loadTransactions = useCallback(async () => {
     try {
       const transactions = await getTransactions();
-      const categorySums = transactions.reduce((acc, transaction) => {
+      const expenseSums = {};
+      const incomeSums = {};
+      let expenseTotal = 0;
+      let incomeTotal = 0;
+
+      transactions.forEach(transaction => {
         if (transaction.type === 'expense') {
-          acc[transaction.category] = (acc[transaction.category] || 0) + transaction.amount;
+          expenseSums[transaction.category] = (expenseSums[transaction.category] || 0) + transaction.amount;
+          expenseTotal += transaction.amount;
+        } else if (transaction.type === 'income') {
+          incomeSums[transaction.category] = (incomeSums[transaction.category] || 0) + transaction.amount;
+          incomeTotal += transaction.amount;
         }
-        return acc;
-      }, {});
-      setCategories(categorySums);
+      });
+
+      setExpenseCategories(expenseSums);
+      setIncomeCategories(incomeSums);
+      setTotalExpenses(expenseTotal);
+      setTotalIncome(incomeTotal);
     } catch (error) {
       console.error('Error loading transactions:', error);
     }
-  }
+  }, []);
 
-  const renderItem = ({ item }) => (
-    <View style={styles.categoryItem}>
-      <Text style={styles.categoryName}>{getCategoryName(item[0])}</Text>
-      <Text style={styles.categoryAmount}>${item[1].toFixed(2)}</Text>
+  useFocusEffect(
+    useCallback(() => {
+      loadTransactions();
+    }, [loadTransactions])
+  );
+
+  const handleCategoryPress = (category, amount, type) => {
+    navigation.navigate('CategoryDetail', { category, amount, type });
+  };
+
+  const renderCategoryItem = (item, total, type) => {
+    const [categoryId, amount] = item;
+    const percentage = total > 0 ? (amount / total) * 100 : 0;
+    return (
+      <TouchableOpacity 
+        style={styles.categoryItem}
+        onPress={() => handleCategoryPress(categoryId, amount, type)}
+      >
+        <Text style={styles.categoryName}>{getCategoryName(categoryId)}</Text>
+        <View style={styles.amountContainer}>
+          <Text style={styles.categoryAmount}>${amount.toFixed(2)}</Text>
+          <Text style={styles.categoryPercentage}>({percentage.toFixed(1)}%)</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderSectionHeader = (title, total) => (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <Text style={styles.sectionTotal}>Total: ${total.toFixed(2)}</Text>
     </View>
   );
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Expense Categories</Text>
       <FlatList
-        data={Object.entries(categories)}
-        renderItem={renderItem}
-        keyExtractor={(item) => item[0]}
+        data={[
+          { type: 'expense', data: Object.entries(expenseCategories) },
+          { type: 'income', data: Object.entries(incomeCategories) }
+        ]}
+        renderItem={({ item }) => (
+          <View>
+            {renderSectionHeader(
+              item.type === 'expense' ? 'Expense Categories' : 'Income Categories',
+              item.type === 'expense' ? totalExpenses : totalIncome
+            )}
+            {item.data.map((category) => 
+              renderCategoryItem(
+                category, 
+                item.type === 'expense' ? totalExpenses : totalIncome,
+                item.type
+              )
+            )}
+          </View>
+        )}
+        keyExtractor={(item, index) => item.type + index}
       />
     </View>
   );
@@ -47,14 +102,21 @@ function CategoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
     backgroundColor: '#f5f5f5',
   },
-  title: {
-    fontSize: 24,
+  sectionHeader: {
+    padding: 20,
+    backgroundColor: '#e0e0e0',
+  },
+  sectionTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 20,
     color: '#333',
+  },
+  sectionTotal: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 5,
   },
   categoryItem: {
     flexDirection: 'row',
@@ -63,17 +125,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 8,
     padding: 15,
-    marginBottom: 10,
+    marginHorizontal: 20,
+    marginVertical: 10,
   },
   categoryName: {
     fontSize: 16,
     fontWeight: '500',
     color: '#333',
+    flex: 1,
+  },
+  amountContainer: {
+    alignItems: 'flex-end',
   },
   categoryAmount: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#F44336',
+  },
+  categoryPercentage: {
+    fontSize: 14,
+    color: '#666',
   },
 });
 

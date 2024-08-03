@@ -23,7 +23,6 @@ function TransactionList({ transactions, onTransactionPress }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Recent Transactions</Text>
       {transactions.length === 0 ? (
         <Text style={styles.noTransactions}>No transactions to display.</Text>
       ) : (
