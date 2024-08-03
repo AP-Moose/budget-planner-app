@@ -4,15 +4,19 @@ import { SwipeListView } from 'react-native-swipe-list-view';
 import { useFocusEffect } from '@react-navigation/native';
 import { getTransactions, deleteTransaction } from '../services/FirebaseService';
 import { getCategoryName } from '../utils/categories';
+import SearchBar from '../components/SearchBar';
 
 function HomeScreen({ navigation, route }) {
   const [transactions, setTransactions] = useState([]);
+  const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [balance, setBalance] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadTransactions = useCallback(async () => {
     try {
       const fetchedTransactions = await getTransactions();
       setTransactions(fetchedTransactions);
+      setFilteredTransactions(fetchedTransactions);
       const newBalance = fetchedTransactions.reduce((sum, transaction) => {
         return transaction.type === 'income' ? sum + transaction.amount : sum - transaction.amount;
       }, 0);
@@ -27,6 +31,16 @@ function HomeScreen({ navigation, route }) {
       loadTransactions();
     }, [loadTransactions])
   );
+
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+    const filtered = transactions.filter(
+      (transaction) =>
+        transaction.description.toLowerCase().includes(query.toLowerCase()) ||
+        getCategoryName(transaction.category).toLowerCase().includes(query.toLowerCase())
+    );
+    setFilteredTransactions(filtered);
+  };
 
   const handleAddTransaction = (type) => {
     navigation.navigate('AddTransaction', { type });
@@ -80,8 +94,13 @@ function HomeScreen({ navigation, route }) {
         <Text style={styles.balanceTitle}>Current Balance</Text>
         <Text style={styles.balanceAmount}>${balance.toFixed(2)}</Text>
       </View>
+      <SearchBar
+        value={searchQuery}
+        onChangeText={handleSearch}
+        placeholder="Search transactions..."
+      />
       <SwipeListView
-        data={transactions}
+        data={filteredTransactions}
         renderItem={renderItem}
         renderHiddenItem={renderHiddenItem}
         rightOpenValue={-75}

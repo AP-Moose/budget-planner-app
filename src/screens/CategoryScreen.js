@@ -1,8 +1,12 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getTransactions } from '../services/FirebaseService';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCategoryName } from '../utils/categories';
+import { PieChart } from 'react-native-svg-charts';
+import SearchBar from '../components/SearchBar';
+
+const screenWidth = Dimensions.get('window').width;
 
 function CategoryScreen({ navigation }) {
   const [expenseCategories, setExpenseCategories] = useState({});
@@ -10,6 +14,7 @@ function CategoryScreen({ navigation }) {
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [totalIncome, setTotalIncome] = useState(0);
   const [activeTab, setActiveTab] = useState('expense');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadTransactions = useCallback(async () => {
     try {
@@ -69,9 +74,32 @@ function CategoryScreen({ navigation }) {
     const categories = activeTab === 'expense' ? expenseCategories : incomeCategories;
     const total = activeTab === 'expense' ? totalExpenses : totalIncome;
 
-    return Object.entries(categories).map((category) => 
+    const filteredCategories = Object.entries(categories).filter(([categoryId]) => 
+      getCategoryName(categoryId).toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    return filteredCategories.map((category) => 
       renderCategoryItem(category, total, activeTab)
     );
+  };
+
+  const getChartData = () => {
+    const categories = activeTab === 'expense' ? expenseCategories : incomeCategories;
+    const total = activeTab === 'expense' ? totalExpenses : totalIncome;
+    const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'];
+    
+    return Object.entries(categories).map(([categoryId, amount], index) => ({
+      key: categoryId,
+      value: amount,
+      svg: { fill: colors[index % colors.length] },
+      arc: { outerRadius: '100%', padAngle: 0.02 },
+      name: getCategoryName(categoryId),
+      percentage: ((amount / total) * 100).toFixed(1)
+    }));
+  };
+
+  const handleSearch = (query) => {
+    setSearchQuery(query);
   };
 
   return (
@@ -91,6 +119,27 @@ function CategoryScreen({ navigation }) {
           <Text style={styles.tabText}>Income</Text>
           <Text style={styles.tabAmount}>Total: ${totalIncome.toFixed(2)}</Text>
         </TouchableOpacity>
+      </View>
+      <SearchBar
+        value={searchQuery}
+        onChangeText={handleSearch}
+        placeholder="Search categories..."
+      />
+      <View style={styles.chartContainer}>
+        <PieChart
+          style={{ height: 200, width: 200 }}
+          data={getChartData()}
+          innerRadius="50%"
+          outerRadius="100%"
+        />
+      </View>
+      <View style={styles.legendContainer}>
+        {getChartData().map((item, index) => (
+          <View key={index} style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: item.svg.fill }]} />
+            <Text style={styles.legendText}>{item.name}</Text>
+          </View>
+        ))}
       </View>
       <FlatList
         data={renderCategories()}
@@ -158,6 +207,32 @@ const styles = StyleSheet.create({
   categoryPercentage: {
     fontSize: 14,
     color: '#666',
+  },
+  chartContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 20,
+  },
+  legendContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 10,
+    marginBottom: 5,
+  },
+  legendColor: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 5,
+  },
+  legendText: {
+    fontSize: 12,
   },
 });
 
