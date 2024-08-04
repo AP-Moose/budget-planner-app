@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, query, orderBy, updateDoc, deleteDoc, doc, where } from 'firebase/firestore';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
 import { firebaseConfig } from '../config';
 import { getCategoryType } from '../utils/categories';
 
@@ -33,6 +33,15 @@ export const logOut = async () => {
     await signOut(auth);
   } catch (error) {
     console.error('Error signing out: ', error);
+    throw error;
+  }
+};
+
+export const resetPassword = async (email) => {
+  try {
+    await sendPasswordResetEmail(auth, email);
+  } catch (error) {
+    console.error('Error resetting password: ', error);
     throw error;
   }
 };
@@ -84,8 +93,6 @@ export const getTransactions = async () => {
     }));
   } catch (error) {
     console.error('Error getting transactions:', error);
-    // You might want to add some analytics here to track errors in production
-    // For example: analytics.logError('getTransactions', error);
     throw new Error('Failed to fetch transactions. Please try again later.');
   }
 };

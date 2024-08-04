@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "budget-planner-app",
+    "name": "Budget Planner",
     "slug": "budget-planner-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -11,17 +11,33 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "io.davesousa.budgetplanner"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      }
+        "backgroundColor": "#FFFFFF"
+      },
+      "package": "io.davesousa.budgetplanner"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "description": "A simple and intuitive budget planner app to help you manage your finances.",
+    "primaryColor": "#4CAF50",
+    "extra": {
+      "eas": {
+        "projectId": "e77891c2-7b88-4b6f-bae1-84c8d8d2d083"
+      }
+    },
+    "owner": "ap-moose"
   }
 }

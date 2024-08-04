@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import { useFocusEffect } from '@react-navigation/native';
 import { getTransactions, deleteTransaction } from '../services/FirebaseService';
@@ -11,13 +11,9 @@ function HomeScreen({ navigation, route }) {
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [balance, setBalance] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   const loadTransactions = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
       const fetchedTransactions = await getTransactions();
       setTransactions(fetchedTransactions);
       setFilteredTransactions(fetchedTransactions);
@@ -27,14 +23,6 @@ function HomeScreen({ navigation, route }) {
       setBalance(newBalance);
     } catch (error) {
       console.error('Error loading transactions:', error);
-      setError(error);
-      Alert.alert(
-        'Error',
-        'Unable to load transactions. Please try again later.',
-        [{ text: 'OK' }]
-      );
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -100,25 +88,6 @@ function HomeScreen({ navigation, route }) {
     </View>
   );
 
-  if (loading) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text>Loading transactions...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text>Error loading transactions. Please try again.</Text>
-        <TouchableOpacity onPress={loadTransactions} style={styles.retryButton}>
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <View style={styles.balanceContainer}>
@@ -162,21 +131,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  retryButton: {
-    marginTop: 20,
-    padding: 10,
-    backgroundColor: '#4CAF50',
-    borderRadius: 5,
-  },
-  retryButtonText: {
-    color: '#FFF',
-    fontWeight: 'bold',
   },
   balanceContainer: {
     backgroundColor: '#4CAF50',
