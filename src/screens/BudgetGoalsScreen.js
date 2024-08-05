@@ -38,6 +38,7 @@ function BudgetGoalsScreen() {
       setNewGoal({ category: '', amount: '' });
       setIsAddingGoal(false);
       loadGoals();
+      Alert.alert('Success', 'Goal Added');
     } catch (error) {
       console.error('Error adding budget goal:', error);
       Alert.alert('Error', 'Failed to add budget goal. Please try again.');
@@ -63,6 +64,7 @@ function BudgetGoalsScreen() {
     try {
       await deleteBudgetGoal(goalId);
       loadGoals();
+      Alert.alert('Success', 'Goal Deleted');
     } catch (error) {
       console.error('Error deleting budget goal:', error);
       Alert.alert('Error', 'Failed to delete budget goal. Please try again.');
@@ -70,13 +72,17 @@ function BudgetGoalsScreen() {
   };
 
   const renderItem = ({ item }) => (
-    <TouchableOpacity onPress={() => setEditingGoal(item)} style={styles.goalItem}>
+    <TouchableOpacity 
+      style={styles.goalItem}
+      onPress={() => setEditingGoal(item)}
+      activeOpacity={0.2}
+    >
       <Text style={styles.goalCategory}>{item.category}</Text>
       <Text style={styles.goalAmount}>${item.amount}</Text>
     </TouchableOpacity>
   );
 
-  const renderHiddenItem = (data) => (
+  const renderHiddenItem = (data, rowMap) => (
     <View style={styles.rowBack}>
       <TouchableOpacity
         style={[styles.backRightBtn, styles.backRightBtnRight]}
@@ -151,14 +157,15 @@ function BudgetGoalsScreen() {
         </View>
       ) : (
         <SwipeListView
-          ListHeaderComponent={ListHeaderComponent}
-          data={goals}
-          renderItem={renderItem}
-          renderHiddenItem={renderHiddenItem}
-          rightOpenValue={-75}
-          disableLeftSwipe
-          keyExtractor={(item) => item.id}
-        />
+            ListHeaderComponent={ListHeaderComponent}
+            data={goals}
+            renderItem={renderItem}
+            renderHiddenItem={renderHiddenItem}
+            leftOpenValue={0}
+            rightOpenValue={-75}
+            disableRightSwipe
+            keyExtractor={(item) => item.id}
+            />
       )}
     </KeyboardAvoidingView>
   );
