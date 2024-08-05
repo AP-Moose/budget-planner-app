@@ -1,62 +1,46 @@
 import React, { useState } from 'react';
-import { View, TextInput, Button, StyleSheet, Alert, Image, Text, TouchableOpacity } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, Alert, Image, Text, KeyboardAvoidingView, Platform } from 'react-native';
 import { signIn, signUp, resetPassword } from '../services/FirebaseService';
-
-const validateEmail = (email) => {
-  const re = /\S+@\S+\.\S+/;
-  return re.test(email);
-};
-
-const validatePassword = (password) => {
-  return password.length >= 6;
-};
+import { validateEmail, validatePassword, sanitizeInput } from '../utils/validation';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLogin, setIsLogin] = useState(true);
 
-  const handleLogin = async () => {
-    if (!validateEmail(email) || !validatePassword(password)) {
-      Alert.alert('Invalid Input', 'Please enter a valid email and password (at least 6 characters).');
+  const handleSubmit = async () => {
+    const sanitizedEmail = sanitizeInput(email);
+    const sanitizedPassword = sanitizeInput(password);
+
+    if (!validateEmail(sanitizedEmail) || !validatePassword(sanitizedPassword)) {
+      Alert.alert('Invalid Input', 'Please enter a valid email and password (at least 8 characters, including uppercase, lowercase, and number).');
       return;
     }
 
     try {
-      await signIn(email, password);
-      navigation.navigate('Home');
-    } catch (error) {
-      console.error('Login Error:', error.message);
-      Alert.alert('Login Error', error.message);
-    }
-  };
-
-  const handleSignUp = async () => {
-    if (!validateEmail(email) || !validatePassword(password)) {
-      Alert.alert('Invalid Input', 'Please enter a valid email and password (at least 6 characters).');
-      return;
-    }
-
-    try {
-      await signUp(email, password);
-      Alert.alert('Success', 'Account created successfully. You can now log in.');
-    } catch (error) {
-      console.error('Sign Up Error:', error.message);
-      if (error.message.includes('email-already-in-use')) {
-        Alert.alert('Sign Up Error', 'This email is already registered. Please try logging in or use a different email.');
+      if (isLogin) {
+        await signIn(sanitizedEmail, sanitizedPassword);
+        navigation.navigate('Home');
       } else {
-        Alert.alert('Sign Up Error', error.message);
+        await signUp(sanitizedEmail, sanitizedPassword);
+        Alert.alert('Success', 'Account created successfully. You can now log in.');
+        setIsLogin(true);
       }
+    } catch (error) {
+      console.error('Authentication Error:', error.message);
+      Alert.alert('Authentication Error', error.message);
     }
   };
 
   const handleForgotPassword = async () => {
-    if (!validateEmail(email)) {
+    const sanitizedEmail = sanitizeInput(email);
+    if (!validateEmail(sanitizedEmail)) {
       Alert.alert('Invalid Email', 'Please enter a valid email address.');
       return;
     }
 
     try {
-      await resetPassword(email);
+      await resetPassword(sanitizedEmail);
       Alert.alert('Password Reset', 'If an account exists for this email, a password reset link has been sent.');
     } catch (error) {
       console.error('Password Reset Error:', error.message);
@@ -65,7 +49,10 @@ const LoginScreen = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
+    >
       <Image
         source={require('../../assets/logo.png')}
         style={styles.logo}
@@ -86,14 +73,20 @@ const LoginScreen = ({ navigation }) => {
         onChangeText={setPassword}
         secureTextEntry
       />
-      <View style={styles.buttonContainer}>
-        <Button title="Login" onPress={handleLogin} />
-        <Button title="Sign Up" onPress={handleSignUp} />
-      </View>
-      <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPassword}>
-        <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+      <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+        <Text style={styles.submitButtonText}>{isLogin ? 'Login' : 'Sign Up'}</Text>
       </TouchableOpacity>
-    </View>
+      <TouchableOpacity style={styles.switchButton} onPress={() => setIsLogin(!isLogin)}>
+        <Text style={styles.switchButtonText}>
+          {isLogin ? 'Need an account? Sign Up' : 'Already have an account? Login'}
+        </Text>
+      </TouchableOpacity>
+      {isLogin && (
+        <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPassword}>
+          <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+        </TouchableOpacity>
+      )}
+    </KeyboardAvoidingView>
   );
 };
 
@@ -106,37 +99,52 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   logo: {
-    width: 192,
-    height: 192,
+    width: 120,
+    height: 120,
     marginBottom: 20,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 30,
     color: '#333',
   },
   input: {
-    height: 40,
+    height: 50,
     width: '100%',
-    borderColor: 'gray',
+    borderColor: '#ddd',
     borderWidth: 1,
-    marginBottom: 12,
-    paddingLeft: 8,
+    marginBottom: 15,
+    paddingHorizontal: 15,
     backgroundColor: '#fff',
+    borderRadius: 8,
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  submitButton: {
+    backgroundColor: '#4CAF50',
     width: '100%',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
     marginTop: 10,
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  switchButton: {
+    marginTop: 20,
+  },
+  switchButtonText: {
+    color: '#3498db',
+    fontSize: 16,
   },
   forgotPassword: {
     marginTop: 20,
   },
   forgotPasswordText: {
     color: '#3498db',
-    textDecorationLine: 'underline',
+    fontSize: 16,
   },
 });
 

@@ -79,6 +79,37 @@ function AuthStack() {
   );
 }
 
+function MainTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+
+          if (route.name === 'HomeTab') {
+            iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'CategoriesTab') {
+            iconName = focused ? 'list' : 'list-outline';
+          }
+
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+      })}
+    >
+      <Tab.Screen 
+        name="HomeTab" 
+        component={HomeStack} 
+        options={{ headerShown: false, title: 'Home' }} 
+      />
+      <Tab.Screen 
+        name="CategoriesTab" 
+        component={CategoriesStack}
+        options={{ headerShown: false, title: 'Categories' }}
+      />
+    </Tab.Navigator>
+  );
+}
+
 function AppNavigator() {
   const [user, setUser] = useState(null);
   const [initializing, setInitializing] = useState(true);
@@ -99,43 +130,14 @@ function AppNavigator() {
     return null;
   }
 
-  if (!user) {
-    return <AuthStack />;
-  }
-
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
-
-          if (route.name === 'Home') {
-            iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Categories') {
-            iconName = focused ? 'list' : 'list-outline';
-          }
-
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-      })}
-    >
-      <Tab.Screen 
-        name="Home" 
-        component={HomeStack} 
-        options={{ headerShown: false }} 
-        listeners={({ navigation }) => ({
-          tabPress: e => {
-            e.preventDefault();
-            navigation.navigate('HomeScreen', { refresh: true });
-          },
-        })}
-      />
-      <Tab.Screen 
-        name="Categories" 
-        component={CategoriesStack}
-        options={{ headerShown: false }}
-      />
-    </Tab.Navigator>
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {user ? (
+        <Stack.Screen name="Main" component={MainTabs} />
+      ) : (
+        <Stack.Screen name="Auth" component={AuthStack} />
+      )}
+    </Stack.Navigator>
   );
 }
 

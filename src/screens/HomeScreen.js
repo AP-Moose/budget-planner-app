@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import { useFocusEffect } from '@react-navigation/native';
@@ -6,11 +6,12 @@ import { getTransactions, deleteTransaction } from '../services/FirebaseService'
 import { getCategoryName } from '../utils/categories';
 import SearchBar from '../components/SearchBar';
 
-function HomeScreen({ navigation, route }) {
+function HomeScreen({ navigation }) {
   const [transactions, setTransactions] = useState([]);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [balance, setBalance] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const listRef = useRef(null);
 
   const loadTransactions = useCallback(async () => {
     try {
@@ -32,7 +33,7 @@ function HomeScreen({ navigation, route }) {
     }, [loadTransactions])
   );
 
-  const handleSearch = (query) => {
+  const handleSearch = useCallback((query) => {
     setSearchQuery(query);
     const filtered = transactions.filter(
       (transaction) =>
@@ -40,17 +41,17 @@ function HomeScreen({ navigation, route }) {
         getCategoryName(transaction.category).toLowerCase().includes(query.toLowerCase())
     );
     setFilteredTransactions(filtered);
-  };
+  }, [transactions]);
 
-  const handleAddTransaction = (type) => {
+  const handleAddTransaction = useCallback((type) => {
     navigation.navigate('AddTransaction', { type });
-  };
+  }, [navigation]);
 
-  const handleTransactionPress = (transaction) => {
+  const handleTransactionPress = useCallback((transaction) => {
     navigation.navigate('TransactionDetail', { transaction });
-  };
+  }, [navigation]);
 
-  const handleDeleteTransaction = async (transactionId) => {
+  const handleDeleteTransaction = useCallback(async (transactionId) => {
     try {
       await deleteTransaction(transactionId);
       Alert.alert('Success', 'Transaction deleted successfully');
@@ -59,34 +60,38 @@ function HomeScreen({ navigation, route }) {
       console.error('Error deleting transaction:', error);
       Alert.alert('Error', 'Failed to delete transaction. Please try again.');
     }
-  };
+  }, [loadTransactions]);
 
-  const renderItem = (data, rowMap) => (
+  const renderItem = useCallback(({ item }) => (
     <TouchableOpacity
       style={styles.rowFront}
-      onPress={() => handleTransactionPress(data.item)}
+      onPress={() => handleTransactionPress(item)}
     >
       <View style={styles.transactionInfo}>
-        <Text style={styles.transactionCategory}>{getCategoryName(data.item.category)}</Text>
-        <Text style={styles.transactionDescription}>{data.item.description}</Text>
-        <Text style={styles.transactionDate}>{new Date(data.item.date).toLocaleDateString()}</Text>
+        <Text style={styles.transactionCategory}>{getCategoryName(item.category)}</Text>
+        <Text style={styles.transactionDescription}>{item.description}</Text>
+        <Text style={styles.transactionDate}>{new Date(item.date).toLocaleDateString()}</Text>
       </View>
-      <Text style={[styles.transactionAmount, data.item.type === 'income' ? styles.incomeAmount : styles.expenseAmount]}>
-        {data.item.type === 'income' ? '+' : '-'}${data.item.amount.toFixed(2)}
+      <Text style={[styles.transactionAmount, item.type === 'income' ? styles.incomeAmount : styles.expenseAmount]}>
+        {item.type === 'income' ? '+' : '-'}${item.amount.toFixed(2)}
       </Text>
     </TouchableOpacity>
-  );
+  ), [handleTransactionPress]);
 
-  const renderHiddenItem = (data, rowMap) => (
+  const renderHiddenItem = useCallback(({ item }) => (
     <View style={styles.rowBack}>
       <TouchableOpacity
         style={[styles.backRightBtn, styles.backRightBtnRight]}
-        onPress={() => handleDeleteTransaction(data.item.id)}
+        onPress={() => handleDeleteTransaction(item.id)}
       >
         <Text style={styles.backTextWhite}>Delete</Text>
       </TouchableOpacity>
     </View>
-  );
+  ), [handleDeleteTransaction]);
+
+  const onRowDidOpen = useCallback((rowKey) => {
+    console.log('This row opened', rowKey);
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -100,14 +105,20 @@ function HomeScreen({ navigation, route }) {
         placeholder="Search transactions..."
       />
       <SwipeListView
+        ref={listRef}
         data={filteredTransactions}
         renderItem={renderItem}
         renderHiddenItem={renderHiddenItem}
         rightOpenValue={-75}
-        previewRowKey={'0'}
-        previewOpenValue={-40}
-        previewOpenDelay={3000}
+        disableRightSwipe
         keyExtractor={(item) => item.id}
+        onRowDidOpen={onRowDidOpen}
+        closeOnRowBeginSwipe
+        removeClippedSubviews={true}
+        initialNumToRender={10}
+        maxToRenderPerBatch={20}
+        updateCellsBatchingPeriod={50}
+        windowSize={21}
       />
       <View style={styles.buttonContainer}>
         <TouchableOpacity
@@ -235,4 +246,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default HomeScreen;
+export default React.memo(HomeScreen);
