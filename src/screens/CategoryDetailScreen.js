@@ -1,14 +1,16 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import { useFocusEffect } from '@react-navigation/native';
-import { getTransactions, deleteTransaction } from '../services/FirebaseService';
-import { getCategoryName } from '../utils/categories';
+import { getTransactions, deleteTransaction, updateTransaction } from '../services/FirebaseService';
+import { getCategoryName, INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../utils/categories';
+import RNPickerSelect from 'react-native-picker-select';
 
 function CategoryDetailScreen({ route, navigation }) {
   const { category, type } = route.params;
   const [transactions, setTransactions] = useState([]);
   const [totalAmount, setTotalAmount] = useState(0);
+  const [editingTransaction, setEditingTransaction] = useState(null);
 
   const loadCategoryTransactions = useCallback(async () => {
     try {
@@ -30,10 +32,6 @@ function CategoryDetailScreen({ route, navigation }) {
     }, [loadCategoryTransactions])
   );
 
-  const handleTransactionPress = (transaction) => {
-    navigation.navigate('TransactionDetail', { transaction });
-  };
-
   const handleDeleteTransaction = async (transactionId) => {
     try {
       await deleteTransaction(transactionId);
@@ -45,10 +43,24 @@ function CategoryDetailScreen({ route, navigation }) {
     }
   };
 
+  const handleUpdateTransaction = async () => {
+    if (!editingTransaction) return;
+
+    try {
+      await updateTransaction(editingTransaction.id, editingTransaction);
+      setEditingTransaction(null);
+      Alert.alert('Success', 'Transaction updated successfully');
+      loadCategoryTransactions();
+    } catch (error) {
+      console.error('Error updating transaction:', error);
+      Alert.alert('Error', 'Failed to update transaction. Please try again.');
+    }
+  };
+
   const renderItem = (data) => (
     <TouchableOpacity
       style={styles.rowFront}
-      onPress={() => handleTransactionPress(data.item)}
+      onPress={() => setEditingTransaction(data.item)}
     >
       <View style={styles.transactionInfo}>
         <Text style={styles.transactionDate}>
@@ -89,6 +101,36 @@ function CategoryDetailScreen({ route, navigation }) {
         previewOpenDelay={3000}
         keyExtractor={(item) => item.id}
       />
+      {editingTransaction && (
+        <View style={styles.editContainer}>
+          <TextInput
+            style={styles.input}
+            value={editingTransaction.amount.toString()}
+            onChangeText={(text) => setEditingTransaction({...editingTransaction, amount: parseFloat(text) || 0})}
+            keyboardType="numeric"
+            placeholder="Amount"
+          />
+          <TextInput
+            style={styles.input}
+            value={editingTransaction.description}
+            onChangeText={(text) => setEditingTransaction({...editingTransaction, description: text})}
+            placeholder="Description"
+          />
+          <RNPickerSelect
+            onValueChange={(value) => setEditingTransaction({...editingTransaction, category: value})}
+            items={type === 'income' ? INCOME_CATEGORIES.map(cat => ({ label: cat, value: cat })) : EXPENSE_CATEGORIES.map(cat => ({ label: cat, value: cat }))}
+            style={pickerSelectStyles}
+            value={editingTransaction.category}
+            placeholder={{ label: "Select a category", value: null }}
+          />
+          <TouchableOpacity style={styles.updateButton} onPress={handleUpdateTransaction}>
+            <Text style={styles.buttonText}>Update Transaction</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.cancelButton} onPress={() => setEditingTransaction(null)}>
+            <Text style={styles.buttonText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -164,6 +206,68 @@ const styles = StyleSheet.create({
   transactionAmount: {
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  editContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#fff',
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+  },
+  input: {
+    backgroundColor: '#f9f9f9',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 5,
+  },
+  updateButton: {
+    backgroundColor: '#4CAF50',
+    padding: 15,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  cancelButton: {
+    backgroundColor: '#F44336',
+    padding: 15,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+});
+
+const pickerSelectStyles = StyleSheet.create({
+  inputIOS: {
+    fontSize: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: 'gray',
+    borderRadius: 4,
+    color: 'black',
+    paddingRight: 30,
+    backgroundColor: '#fff',
+    marginBottom: 20,
+  },
+  inputAndroid: {
+    fontSize: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderWidth: 0.5,
+    borderColor: 'gray',
+    borderRadius: 8,
+    color: 'black',
+    paddingRight: 30,
+    backgroundColor: '#fff',
+    marginBottom: 20,
   },
 });
 

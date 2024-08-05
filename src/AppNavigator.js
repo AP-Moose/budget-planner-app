@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from './screens/HomeScreen';
-import AddTransactionScreen from './screens/AddTransactionScreen';
-import TransactionDetailScreen from './screens/TransactionDetailScreen';
 import CategoryScreen from './screens/CategoryScreen';
 import CategoryDetailScreen from './screens/CategoryDetailScreen';
+import BudgetGoalsScreen from './screens/BudgetGoalsScreen';
 import LoginScreen from './screens/LoginScreen';
 import Header from './components/Header';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,20 +23,9 @@ function HomeStack() {
       })}
     >
       <Stack.Screen 
-        name="HomeScreen" 
+        name="Home" 
         component={HomeScreen} 
         options={{ title: 'Budget Planner' }} 
-        initialParams={{ refresh: false }}
-      />
-      <Stack.Screen 
-        name="AddTransaction" 
-        component={AddTransactionScreen} 
-        options={{ title: 'Add Transaction' }} 
-      />
-      <Stack.Screen 
-        name="TransactionDetail" 
-        component={TransactionDetailScreen} 
-        options={{ title: 'Transaction Details' }} 
       />
       <Stack.Screen 
         name="CategoryDetail" 
@@ -58,7 +46,7 @@ function CategoriesStack() {
       })}
     >
       <Stack.Screen 
-        name="CategoriesScreen" 
+        name="Categories" 
         component={CategoryScreen} 
         options={{ title: 'Categories' }} 
       />
@@ -71,10 +59,20 @@ function CategoriesStack() {
   );
 }
 
-function AuthStack() {
+function BudgetGoalsStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Login" component={LoginScreen} />
+    <Stack.Navigator
+      screenOptions={({ route }) => ({
+        header: ({ navigation, options }) => {
+          return <Header title={options.title || route.name} />;
+        },
+      })}
+    >
+      <Stack.Screen 
+        name="BudgetGoals" 
+        component={BudgetGoalsScreen} 
+        options={{ title: 'Budget Goals' }} 
+      />
     </Stack.Navigator>
   );
 }
@@ -90,6 +88,8 @@ function MainTabs() {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'CategoriesTab') {
             iconName = focused ? 'list' : 'list-outline';
+          } else if (route.name === 'BudgetGoalsTab') {
+            iconName = focused ? 'flag' : 'flag-outline';
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -106,7 +106,20 @@ function MainTabs() {
         component={CategoriesStack}
         options={{ headerShown: false, title: 'Categories' }}
       />
+      <Tab.Screen 
+        name="BudgetGoalsTab" 
+        component={BudgetGoalsStack}
+        options={{ headerShown: false, title: 'Goals' }}
+      />
     </Tab.Navigator>
+  );
+}
+
+function AuthStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Login" component={LoginScreen} />
+    </Stack.Navigator>
   );
 }
 

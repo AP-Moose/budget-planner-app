@@ -125,3 +125,70 @@ export const deleteTransaction = async (id) => {
     throw error;
   }
 };
+
+export const addBudgetGoal = async (goal) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const goalToSave = {
+      ...goal,
+      amount: Number(goal.amount),
+      userId: user.uid
+    };
+
+    const docRef = await addDoc(collection(db, 'budgetGoals'), goalToSave);
+    return docRef.id;
+  } catch (error) {
+    console.error('Error adding budget goal: ', error);
+    throw error;
+  }
+};
+
+export const getBudgetGoals = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const q = query(
+      collection(db, 'budgetGoals'),
+      where('userId', '==', user.uid)
+    );
+    
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      amount: Number(doc.data().amount)
+    }));
+  } catch (error) {
+    console.error('Error getting budget goals:', error);
+    throw error;
+  }
+};
+
+export const updateBudgetGoal = async (id, updatedData) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const goalRef = doc(db, 'budgetGoals', id);
+    await updateDoc(goalRef, updatedData);
+  } catch (error) {
+    console.error('Error updating budget goal: ', error);
+    throw error;
+  }
+};
+
+export const deleteBudgetGoal = async (id) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const goalRef = doc(db, 'budgetGoals', id);
+    await deleteDoc(goalRef);
+  } catch (error) {
+    console.error('Error deleting budget goal: ', error);
+    throw error;
+  }
+};
