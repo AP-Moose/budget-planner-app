@@ -1,10 +1,11 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import RNPickerSelect from 'react-native-picker-select';
 import { getBudgetGoals, addBudgetGoal, updateBudgetGoal, deleteBudgetGoal } from '../services/FirebaseService';
 import { EXPENSE_CATEGORIES } from '../utils/categories';
+import BudgetGoalsDashboard from '../components/Dashboards/BudgetGoalsDashboard';
 
 function BudgetGoalsScreen() {
   const [goals, setGoals] = useState([]);
@@ -93,80 +94,77 @@ function BudgetGoalsScreen() {
     </View>
   );
 
-  const ListHeaderComponent = useCallback(() => (
-    <>
-      {!editingGoal && !isAddingGoal && (
-        <TouchableOpacity style={styles.addButton} onPress={() => setIsAddingGoal(true)}>
-          <Text style={styles.buttonText}>Add New Goal</Text>
-        </TouchableOpacity>
-      )}
-    </>
-  ), [editingGoal, isAddingGoal]);
-
   return (
     <KeyboardAvoidingView 
       style={styles.container} 
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
     >
-      {editingGoal ? (
-        <View style={styles.formContainer}>
-          <RNPickerSelect
-            onValueChange={(value) => setEditingGoal(prev => ({...prev, category: value}))}
-            items={EXPENSE_CATEGORIES.map(cat => ({ label: cat, value: cat }))}
-            style={pickerSelectStyles}
-            value={editingGoal.category}
-            placeholder={{ label: "Select a category", value: null }}
-          />
-          <TextInput
-            style={styles.input}
-            value={editingGoal.amount.toString()}
-            onChangeText={(text) => setEditingGoal(prev => ({...prev, amount: text}))}
-            keyboardType="numeric"
-            placeholder="Amount"
-          />
-          <TouchableOpacity style={styles.updateButton} onPress={handleUpdateGoal}>
-            <Text style={styles.buttonText}>Update Goal</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.cancelButton} onPress={() => setEditingGoal(null)}>
-            <Text style={styles.buttonText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      ) : isAddingGoal ? (
-        <View style={styles.formContainer}>
-          <RNPickerSelect
-            onValueChange={(value) => setNewGoal(prev => ({...prev, category: value}))}
-            items={EXPENSE_CATEGORIES.map(cat => ({ label: cat, value: cat }))}
-            style={pickerSelectStyles}
-            value={newGoal.category}
-            placeholder={{ label: "Select a category", value: null }}
-          />
-          <TextInput
-            style={styles.input}
-            value={newGoal.amount}
-            onChangeText={(text) => setNewGoal(prev => ({...prev, amount: text}))}
-            keyboardType="numeric"
-            placeholder="Amount"
-          />
-          <TouchableOpacity style={styles.addButton} onPress={handleAddGoal}>
-            <Text style={styles.buttonText}>Add Goal</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.cancelButton} onPress={() => setIsAddingGoal(false)}>
-            <Text style={styles.buttonText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <SwipeListView
-            ListHeaderComponent={ListHeaderComponent}
-            data={goals}
-            renderItem={renderItem}
-            renderHiddenItem={renderHiddenItem}
-            leftOpenValue={0}
-            rightOpenValue={-75}
-            disableRightSwipe
-            keyExtractor={(item) => item.id}
+      <ScrollView>
+        <BudgetGoalsDashboard />
+        {editingGoal ? (
+          <View style={styles.formContainer}>
+            <RNPickerSelect
+              onValueChange={(value) => setEditingGoal(prev => ({...prev, category: value}))}
+              items={EXPENSE_CATEGORIES.map(cat => ({ label: cat, value: cat }))}
+              style={pickerSelectStyles}
+              value={editingGoal.category}
+              placeholder={{ label: "Select a category", value: null }}
             />
-      )}
+            <TextInput
+              style={styles.input}
+              value={editingGoal.amount.toString()}
+              onChangeText={(text) => setEditingGoal(prev => ({...prev, amount: text}))}
+              keyboardType="numeric"
+              placeholder="Amount"
+            />
+            <TouchableOpacity style={styles.updateButton} onPress={handleUpdateGoal}>
+              <Text style={styles.buttonText}>Update Goal</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancelButton} onPress={() => setEditingGoal(null)}>
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        ) : isAddingGoal ? (
+          <View style={styles.formContainer}>
+            <RNPickerSelect
+              onValueChange={(value) => setNewGoal(prev => ({...prev, category: value}))}
+              items={EXPENSE_CATEGORIES.map(cat => ({ label: cat, value: cat }))}
+              style={pickerSelectStyles}
+              value={newGoal.category}
+              placeholder={{ label: "Select a category", value: null }}
+            />
+            <TextInput
+              style={styles.input}
+              value={newGoal.amount}
+              onChangeText={(text) => setNewGoal(prev => ({...prev, amount: text}))}
+              keyboardType="numeric"
+              placeholder="Amount"
+            />
+            <TouchableOpacity style={styles.addButton} onPress={handleAddGoal}>
+              <Text style={styles.buttonText}>Add Goal</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancelButton} onPress={() => setIsAddingGoal(false)}>
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <TouchableOpacity style={styles.addButton} onPress={() => setIsAddingGoal(true)}>
+              <Text style={styles.buttonText}>Add New Goal</Text>
+            </TouchableOpacity>
+            <SwipeListView
+              data={goals}
+              renderItem={renderItem}
+              renderHiddenItem={renderHiddenItem}
+              leftOpenValue={0}
+              rightOpenValue={-75}
+              disableRightSwipe
+              keyExtractor={(item) => item.id}
+            />
+          </>
+        )}
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }

@@ -1,11 +1,14 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import { useFocusEffect } from '@react-navigation/native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { getTransactions, deleteTransaction, addTransaction, updateTransaction } from '../services/FirebaseService';
 import { getCategoryName, INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../utils/categories';
 import SearchBar from '../components/SearchBar';
 import RNPickerSelect from 'react-native-picker-select';
+import HomeDashboard from '../components/Dashboards/HomeDashboard';
+import { Ionicons } from '@expo/vector-icons';
 
 function HomeScreen({ navigation }) {
   const [transactions, setTransactions] = useState([]);
@@ -13,23 +16,31 @@ function HomeScreen({ navigation }) {
   const [balance, setBalance] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingTransaction, setEditingTransaction] = useState(null);
-  const [newTransaction, setNewTransaction] = useState({ type: 'expense', amount: '', description: '', category: '' });
+  const [newTransaction, setNewTransaction] = useState({ type: 'expense', amount: '', description: '', category: '', date: new Date() });
   const [isAddingTransaction, setIsAddingTransaction] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const listRef = useRef(null);
 
   const loadTransactions = useCallback(async () => {
     try {
       const fetchedTransactions = await getTransactions();
-      setTransactions(fetchedTransactions);
-      setFilteredTransactions(fetchedTransactions);
-      const newBalance = fetchedTransactions.reduce((sum, transaction) => {
+      const filteredByMonth = fetchedTransactions.filter(transaction => {
+        const transactionDate = new Date(transaction.date);
+        return transactionDate.getMonth() === currentMonth.getMonth() &&
+               transactionDate.getFullYear() === currentMonth.getFullYear();
+      });
+      setTransactions(filteredByMonth);
+      setFilteredTransactions(filteredByMonth);
+      const newBalance = filteredByMonth.reduce((sum, transaction) => {
         return transaction.type === 'income' ? sum + transaction.amount : sum - transaction.amount;
       }, 0);
       setBalance(newBalance);
     } catch (error) {
       console.error('Error loading transactions:', error);
+      Alert.alert('Error', 'Failed to load transactions. Please try again.');
     }
-  }, []);
+  }, [currentMonth]);
 
   useFocusEffect(
     useCallback(() => {
@@ -79,12 +90,8 @@ function HomeScreen({ navigation }) {
     }
 
     try {
-      await addTransaction({
-        ...newTransaction,
-        amount: parseFloat(newTransaction.amount),
-        date: new Date()
-      });
-      setNewTransaction({ type: 'expense', amount: '', description: '', category: '' });
+      await addTransaction(newTransaction);
+      setNewTransaction({ type: 'expense', amount: '', description: '', category: '', date: new Date() });
       setIsAddingTransaction(false);
       Alert.alert('Success', 'Transaction added successfully');
       loadTransactions();
@@ -92,6 +99,17 @@ function HomeScreen({ navigation }) {
       console.error('Error adding transaction:', error);
       Alert.alert('Error', 'Failed to add transaction. Please try again.');
     }
+  };
+
+  const onChangeDate = (event, selectedDate) => {
+    const currentDate = selectedDate || newTransaction.date;
+    setShowDatePicker(Platform.OS === 'ios');
+    setNewTransaction({ ...newTransaction, date: currentDate });
+  };
+
+  const navigateMonth = (direction) => {
+    const newDate = new Date(currentMonth.setMonth(currentMonth.getMonth() + direction));
+    setCurrentMonth(newDate);
   };
 
   const renderItem = useCallback(({ item }) => (
@@ -121,113 +139,136 @@ function HomeScreen({ navigation }) {
     </View>
   ), [handleDeleteTransaction]);
 
-  const ListHeaderComponent = useCallback(() => (
-    <>
-      <View style={styles.balanceContainer}>
-        <Text style={styles.balanceTitle}>Current Balance</Text>
-        <Text style={styles.balanceAmount}>${balance.toFixed(2)}</Text>
-      </View>
-      <SearchBar
-        value={searchQuery}
-        onChangeText={handleSearch}
-        placeholder="Search transactions..."
-      />
-      {!editingTransaction && !isAddingTransaction && (
-        <TouchableOpacity style={styles.addButton} onPress={() => setIsAddingTransaction(true)}>
-          <Text style={styles.buttonText}>Add New Transaction</Text>
-        </TouchableOpacity>
-      )}
-    </>
-  ), [balance, searchQuery, editingTransaction, isAddingTransaction, handleSearch]);
-
   return (
     <KeyboardAvoidingView 
       style={styles.container} 
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
     >
-      {editingTransaction ? (
-        <View style={styles.editContainer}>
-          <TextInput
-            style={styles.input}
-            value={editingTransaction.amount.toString()}
-            onChangeText={(text) => setEditingTransaction(prev => ({...prev, amount: text}))}
-            keyboardType="numeric"
-            placeholder="Amount"
-          />
-          <TextInput
-            style={styles.input}
-            value={editingTransaction.description}
-            onChangeText={(text) => setEditingTransaction(prev => ({...prev, description: text}))}
-            placeholder="Description"
-          />
-          <RNPickerSelect
-            onValueChange={(value) => setEditingTransaction(prev => ({...prev, category: value}))}
-            items={editingTransaction.type === 'income' ? INCOME_CATEGORIES.map(cat => ({ label: cat, value: cat })) : EXPENSE_CATEGORIES.map(cat => ({ label: cat, value: cat }))}
-            style={pickerSelectStyles}
-            value={editingTransaction.category}
-            placeholder={{ label: "Select a category", value: null }}
-          />
-          <TouchableOpacity style={styles.updateButton} onPress={handleUpdateTransaction}>
-            <Text style={styles.buttonText}>Update Transaction</Text>
+      <ScrollView>
+        <HomeDashboard />
+        <View style={styles.monthNavigation}>
+          <TouchableOpacity onPress={() => navigateMonth(-1)}>
+            <Ionicons name="chevron-back" size={24} color="black" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.cancelButton} onPress={() => setEditingTransaction(null)}>
-            <Text style={styles.buttonText}>Cancel</Text>
+          <Text style={styles.currentMonth}>
+            {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+          </Text>
+          <TouchableOpacity onPress={() => navigateMonth(1)}>
+            <Ionicons name="chevron-forward" size={24} color="black" />
           </TouchableOpacity>
         </View>
-      ) : isAddingTransaction ? (
-        <View style={styles.addContainer}>
-          <RNPickerSelect
-            onValueChange={(value) => setNewTransaction(prev => ({...prev, type: value}))}
-            items={[
-              { label: 'Expense', value: 'expense' },
-              { label: 'Income', value: 'income' },
-            ]}
-            style={pickerSelectStyles}
-            value={newTransaction.type}
-          />
-          <TextInput
-            style={styles.input}
-            value={newTransaction.amount}
-            onChangeText={(text) => setNewTransaction(prev => ({...prev, amount: text}))}
-            keyboardType="numeric"
-            placeholder="Amount"
-          />
-          <TextInput
-            style={styles.input}
-            value={newTransaction.description}
-            onChangeText={(text) => setNewTransaction(prev => ({...prev, description: text}))}
-            placeholder="Description"
-          />
-          <RNPickerSelect
-            onValueChange={(value) => setNewTransaction(prev => ({...prev, category: value}))}
-            items={newTransaction.type === 'income' ? INCOME_CATEGORIES.map(cat => ({ label: cat, value: cat })) : EXPENSE_CATEGORIES.map(cat => ({ label: cat, value: cat }))}
-            style={pickerSelectStyles}
-            value={newTransaction.category}
-            placeholder={{ label: "Select a category", value: null }}
-          />
-          <TouchableOpacity style={styles.addButton} onPress={handleAddTransaction}>
-            <Text style={styles.buttonText}>Add Transaction</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.cancelButton} onPress={() => setIsAddingTransaction(false)}>
-            <Text style={styles.buttonText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <SwipeListView
-          ListHeaderComponent={ListHeaderComponent}
-          data={filteredTransactions}
-          renderItem={renderItem}
-          renderHiddenItem={renderHiddenItem}
-          rightOpenValue={-75}
-          disableRightSwipe
-          keyExtractor={(item) => item.id}
-          closeOnRowBeginSwipe
-          initialNumToRender={10}
-          maxToRenderPerBatch={20}
-          updateCellsBatchingPeriod={50}
-          windowSize={21}
+        <TouchableOpacity style={styles.currentMonthButton} onPress={() => setCurrentMonth(new Date())}>
+          <Text style={styles.buttonText}>Back to Current Month</Text>
+        </TouchableOpacity>
+        <SearchBar
+          value={searchQuery}
+          onChangeText={handleSearch}
+          placeholder="Search transactions..."
         />
+        {editingTransaction ? (
+          <View style={styles.editContainer}>
+            <TextInput
+              style={styles.input}
+              value={editingTransaction.amount.toString()}
+              onChangeText={(text) => setEditingTransaction(prev => ({...prev, amount: text}))}
+              keyboardType="numeric"
+              placeholder="Amount"
+            />
+            <TextInput
+              style={styles.input}
+              value={editingTransaction.description}
+              onChangeText={(text) => setEditingTransaction(prev => ({...prev, description: text}))}
+              placeholder="Description"
+            />
+            <RNPickerSelect
+              onValueChange={(value) => setEditingTransaction(prev => ({...prev, category: value}))}
+              items={editingTransaction.type === 'income' ? INCOME_CATEGORIES.map(cat => ({ label: cat, value: cat })) : EXPENSE_CATEGORIES.map(cat => ({ label: cat, value: cat }))}
+              style={pickerSelectStyles}
+              value={editingTransaction.category}
+              placeholder={{ label: "Select a category", value: null }}
+            />
+            <TouchableOpacity style={styles.updateButton} onPress={handleUpdateTransaction}>
+              <Text style={styles.buttonText}>Update Transaction</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancelButton} onPress={() => setEditingTransaction(null)}>
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        ) : isAddingTransaction ? (
+          <View style={styles.addContainer}>
+            <RNPickerSelect
+              onValueChange={(value) => setNewTransaction(prev => ({...prev, type: value}))}
+              items={[
+                { label: 'Expense', value: 'expense' },
+                { label: 'Income', value: 'income' },
+              ]}
+              style={pickerSelectStyles}
+              value={newTransaction.type}
+            />
+            <TextInput
+              style={styles.input}
+              value={newTransaction.amount}
+              onChangeText={(text) => setNewTransaction(prev => ({...prev, amount: text}))}
+              keyboardType="numeric"
+              placeholder="Amount"
+            />
+            <TextInput
+              style={styles.input}
+              value={newTransaction.description}
+              onChangeText={(text) => setNewTransaction(prev => ({...prev, description: text}))}
+              placeholder="Description"
+            />
+            <RNPickerSelect
+              onValueChange={(value) => setNewTransaction(prev => ({...prev, category: value}))}
+              items={newTransaction.type === 'income' ? INCOME_CATEGORIES.map(cat => ({ label: cat, value: cat })) : EXPENSE_CATEGORIES.map(cat => ({ label: cat, value: cat }))}
+              style={pickerSelectStyles}
+              value={newTransaction.category}
+              placeholder={{ label: "Select a category", value: null }}
+            />
+            <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
+              <Text style={styles.dateButtonText}>
+                {newTransaction.date.toLocaleDateString()}
+              </Text>
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={newTransaction.date}
+                mode="date"
+                display="default"
+                onChange={onChangeDate}
+              />
+            )}
+            <TouchableOpacity style={styles.addButton} onPress={handleAddTransaction}>
+              <Text style={styles.buttonText}>Add Transaction</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancelButton} onPress={() => setIsAddingTransaction(false)}>
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <SwipeListView
+            data={filteredTransactions}
+            renderItem={renderItem}
+            renderHiddenItem={renderHiddenItem}
+            rightOpenValue={-75}
+            disableRightSwipe
+            keyExtractor={(item) => item.id}
+            closeOnRowBeginSwipe
+            initialNumToRender={10}
+            maxToRenderPerBatch={20}
+            updateCellsBatchingPeriod={50}
+            windowSize={21}
+          />
+        )}
+      </ScrollView>
+      {!editingTransaction && !isAddingTransaction && (
+        <TouchableOpacity 
+          style={styles.floatingAddButton} 
+          onPress={() => setIsAddingTransaction(true)}
+        >
+          <Ionicons name="add" size={24} color="white" />
+        </TouchableOpacity>
       )}
     </KeyboardAvoidingView>
   );
@@ -238,21 +279,23 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  balanceContainer: {
-    backgroundColor: '#4CAF50',
-    padding: 20,
+  monthNavigation: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#e0e0e0',
   },
-  balanceTitle: {
-    color: '#FFF',
+  currentMonth: {
     fontSize: 18,
     fontWeight: 'bold',
   },
-  balanceAmount: {
-    color: '#FFF',
-    fontSize: 36,
-    fontWeight: 'bold',
-    marginTop: 10,
+  currentMonthButton: {
+    backgroundColor: '#4CAF50',
+    padding: 10,
+    margin: 10,
+    borderRadius: 5,
+    alignItems: 'center',
   },
   rowFront: {
     backgroundColor: '#FFF',
@@ -359,10 +402,36 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
   },
-});
-
-const pickerSelectStyles = StyleSheet.create({
-  inputIOS: {
+  floatingAddButton: {
+    position: 'absolute',
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    right: 20,
+    bottom: 20,
+    backgroundColor: '#03A9F4',
+    borderRadius: 28,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  dateButton: {
+    backgroundColor: '#f0f0f0',
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 10,
+  },
+  dateButtonText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  });
+    
+  const pickerSelectStyles = StyleSheet.create({
+    inputIOS: {
     fontSize: 16,
     paddingVertical: 12,
     paddingHorizontal: 10,
@@ -373,8 +442,8 @@ const pickerSelectStyles = StyleSheet.create({
     paddingRight: 30,
     backgroundColor: '#fff',
     marginBottom: 20,
-  },
-  inputAndroid: {
+    },
+    inputAndroid: {
     fontSize: 16,
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -385,7 +454,7 @@ const pickerSelectStyles = StyleSheet.create({
     paddingRight: 30,
     backgroundColor: '#fff',
     marginBottom: 20,
-  },
-});
+    },
+    });
 
-export default HomeScreen;
+    export default HomeScreen;
