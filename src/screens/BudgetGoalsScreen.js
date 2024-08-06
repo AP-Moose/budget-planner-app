@@ -1,23 +1,41 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { SwipeListView } from 'react-native-swipe-list-view';
 import RNPickerSelect from 'react-native-picker-select';
-import { getBudgetGoals, addBudgetGoal, updateBudgetGoal, deleteBudgetGoal } from '../services/FirebaseService';
+import { getBudgetGoals, addBudgetGoal, updateBudgetGoal, deleteBudgetGoal, getTransactions } from '../services/FirebaseService';
 import { EXPENSE_CATEGORIES } from '../utils/categories';
-import BudgetGoalsDashboard from '../components/Dashboards/BudgetGoalsDashboard';
 import { Ionicons } from '@expo/vector-icons';
 
 function BudgetGoalsScreen() {
-  const [goals, setGoals] = useState([]);
-  const [newGoal, setNewGoal] = useState({ category: '', amount: '' });
-  const [editingGoal, setEditingGoal] = useState(null);
+  const [budgetGoals, setBudgetGoals] = useState([]);
+  const [actualExpenses, setActualExpenses] = useState({});
+  const [currentMonth, setCurrentMonth] = useState('');
+  const [selectedGoal, setSelectedGoal] = useState(null);
   const [isAddingGoal, setIsAddingGoal] = useState(false);
+  const [newGoal, setNewGoal] = useState({ category: '', amount: '' });
 
   const loadGoals = useCallback(async () => {
     try {
       const fetchedGoals = await getBudgetGoals();
-      setGoals(fetchedGoals);
+      setBudgetGoals(fetchedGoals);
+
+      const now = new Date();
+      const currentMonthName = now.toLocaleString('default', { month: 'long' });
+      setCurrentMonth(currentMonthName);
+
+      const transactions = await getTransactions();
+      const currentMonthTransactions = transactions.filter(t => 
+        t.date.getMonth() === now.getMonth() && t.date.getFullYear() === now.getFullYear()
+      );
+
+      const expenses = currentMonthTransactions.reduce((acc, t) => {
+        if (t.type === 'expense') {
+          acc[t.category] = (acc[t.category] || 0) + t.amount;
+        }
+        return acc;
+      }, {});
+
+      setActualExpenses(expenses);
     } catch (error) {
       console.error('Error loading budget goals:', error);
       Alert.alert('Error', 'Failed to load budget goals. Please try again.');
@@ -29,6 +47,8 @@ function BudgetGoalsScreen() {
       loadGoals();
     }, [loadGoals])
   );
+
+  const formatCurrency = (amount) => `$${parseFloat(amount).toFixed(2)}`;
 
   const handleAddGoal = async () => {
     if (!newGoal.category || !newGoal.amount) {
@@ -48,14 +68,15 @@ function BudgetGoalsScreen() {
   };
 
   const handleUpdateGoal = async () => {
-    if (!editingGoal || !editingGoal.category || !editingGoal.amount) {
+    if (!selectedGoal || !selectedGoal.category || !selectedGoal.amount) {
       Alert.alert('Error', 'Please select a category and enter an amount.');
       return;
     }
     try {
-      await updateBudgetGoal(editingGoal.id, editingGoal);
-      setEditingGoal(null);
+      await updateBudgetGoal(selectedGoal.id, selectedGoal);
+      setSelectedGoal(null);
       loadGoals();
+      Alert.alert('Success', 'Goal Updated');
     } catch (error) {
       console.error('Error updating budget goal:', error);
       Alert.alert('Error', 'Failed to update budget goal. Please try again.');
@@ -73,27 +94,37 @@ function BudgetGoalsScreen() {
     }
   };
 
-  const renderItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.goalItem}
-      onPress={() => setEditingGoal(item)}
-      activeOpacity={0.2}
-    >
-      <Text style={styles.goalCategory}>{item.category}</Text>
-      <Text style={styles.goalAmount}>${item.amount}</Text>
-    </TouchableOpacity>
-  );
+  const renderGoalItem = (goal) => {
+    const spent = actualExpenses[goal.category] || 0;
+    const budgeted = parseFloat(goal.amount);
+    const percentUsed = (spent / budgeted) * 100;
 
-  const renderHiddenItem = (data, rowMap) => (
-    <View style={styles.rowBack}>
+    return (
       <TouchableOpacity
-        style={[styles.backRightBtn, styles.backRightBtnRight]}
-        onPress={() => handleDeleteGoal(data.item.id)}
+        key={goal.id}
+        style={styles.goalItem}
+        onPress={() => setSelectedGoal(goal)}
       >
-        <Text style={styles.backTextWhite}>Delete</Text>
+        <Text style={styles.goalCategory}>{goal.category}</Text>
+        <View style={styles.goalDetails}>
+          <Text style={styles.goalAmount}>Budget: {formatCurrency(budgeted)}</Text>
+          <Text style={styles.goalAmount}>Spent: {formatCurrency(spent)}</Text>
+        </View>
+        <View style={styles.progressBar}>
+          <View 
+            style={[
+              styles.progressFill, 
+              { 
+                width: `${Math.min(percentUsed, 100)}%`,
+                backgroundColor: percentUsed <= 100 ? '#4ECDC4' : '#FF6B6B'
+              }
+            ]} 
+          />
+        </View>
+        <Text style={styles.percentageText}>{percentUsed.toFixed(1)}% used</Text>
       </TouchableOpacity>
-    </View>
-  );
+    );
+  };
 
   return (
     <KeyboardAvoidingView 
@@ -102,35 +133,13 @@ function BudgetGoalsScreen() {
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
     >
       <ScrollView>
-        <BudgetGoalsDashboard />
-        {editingGoal ? (
-          <View style={styles.formContainer}>
-            <RNPickerSelect
-              onValueChange={(value) => setEditingGoal(prev => ({...prev, category: value}))}
-              items={[...EXPENSE_CATEGORIES, { label: 'Income Goal', value: 'Income Goal' }].map(cat => ({ label: cat, value: cat }))}
-              style={pickerSelectStyles}
-              value={editingGoal.category}
-              placeholder={{ label: "Select a category", value: null }}
-            />
-            <TextInput
-              style={styles.input}
-              value={editingGoal.amount.toString()}
-              onChangeText={(text) => setEditingGoal(prev => ({...prev, amount: text}))}
-              keyboardType="numeric"
-              placeholder="Amount"
-            />
-            <TouchableOpacity style={styles.updateButton} onPress={handleUpdateGoal}>
-              <Text style={styles.buttonText}>Update Goal</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.cancelButton} onPress={() => setEditingGoal(null)}>
-              <Text style={styles.buttonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        ) : isAddingGoal ? (
+        <Text style={styles.title}>{currentMonth} Budget Goals</Text>
+
+        {isAddingGoal ? (
           <View style={styles.formContainer}>
             <RNPickerSelect
               onValueChange={(value) => setNewGoal(prev => ({...prev, category: value}))}
-              items={[...EXPENSE_CATEGORIES, { label: 'Income Goal', value: 'Income Goal' }].map(cat => ({ label: cat, value: cat }))}
+              items={EXPENSE_CATEGORIES.map(cat => ({ label: cat, value: cat }))}
               style={pickerSelectStyles}
               value={newGoal.category}
               placeholder={{ label: "Select a category", value: null }}
@@ -149,19 +158,39 @@ function BudgetGoalsScreen() {
               <Text style={styles.buttonText}>Cancel</Text>
             </TouchableOpacity>
           </View>
+        ) : selectedGoal ? (
+          <View style={styles.formContainer}>
+            <RNPickerSelect
+              onValueChange={(value) => setSelectedGoal(prev => ({...prev, category: value}))}
+              items={EXPENSE_CATEGORIES.map(cat => ({ label: cat, value: cat }))}
+              style={pickerSelectStyles}
+              value={selectedGoal.category}
+              placeholder={{ label: "Select a category", value: null }}
+            />
+            <TextInput
+              style={styles.input}
+              value={selectedGoal.amount.toString()}
+              onChangeText={(text) => setSelectedGoal(prev => ({...prev, amount: text}))}
+              keyboardType="numeric"
+              placeholder="Amount"
+            />
+            <TouchableOpacity style={styles.updateButton} onPress={handleUpdateGoal}>
+              <Text style={styles.buttonText}>Update Goal</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteGoal(selectedGoal.id)}>
+              <Text style={styles.buttonText}>Delete Goal</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancelButton} onPress={() => setSelectedGoal(null)}>
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
-          <SwipeListView
-            data={goals}
-            renderItem={renderItem}
-            renderHiddenItem={renderHiddenItem}
-            leftOpenValue={0}
-            rightOpenValue={-75}
-            disableRightSwipe
-            keyExtractor={(item) => item.id}
-          />
+          <View style={styles.goalsList}>
+            {budgetGoals.map(renderGoalItem)}
+          </View>
         )}
       </ScrollView>
-      {!editingGoal && !isAddingGoal && (
+      {!isAddingGoal && !selectedGoal && (
         <TouchableOpacity 
           style={styles.floatingAddButton} 
           onPress={() => setIsAddingGoal(true)}
@@ -178,52 +207,56 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  formContainer: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  goalsList: {
+    marginTop: 10,
   },
   goalItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     backgroundColor: '#fff',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
+    borderRadius: 5,
+    padding: 10,
+    marginBottom: 10,
+    marginHorizontal: 10,
   },
   goalCategory: {
     fontSize: 16,
-    color: '#333',
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  goalDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 5,
   },
   goalAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#4CAF50',
+    fontSize: 14,
   },
-  rowBack: {
-    alignItems: 'center',
-    backgroundColor: '#DDD',
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingRight: 15,
+  progressBar: {
+    height: 10,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 5,
+    overflow: 'hidden',
+    marginBottom: 5,
   },
-  backRightBtn: {
-    alignItems: 'center',
-    bottom: 0,
-    justifyContent: 'center',
-    position: 'absolute',
-    top: 0,
-    width: 75,
+  progressFill: {
+    height: '100%',
   },
-  backRightBtnRight: {
-    backgroundColor: 'red',
-    right: 0,
+  percentageText: {
+    fontSize: 12,
+    textAlign: 'right',
   },
-  backTextWhite: {
-    color: '#FFF',
+  formContainer: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 5,
+    marginBottom: 15,
+    marginHorizontal: 10,
   },
   input: {
     backgroundColor: '#f9f9f9',
@@ -238,7 +271,7 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 5,
     alignItems: 'center',
-    marginVertical: 10,
+    marginBottom: 10,
   },
   updateButton: {
     backgroundColor: '#2196F3',
@@ -247,8 +280,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
-  cancelButton: {
+  deleteButton: {
     backgroundColor: '#F44336',
+    padding: 15,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  cancelButton: {
+    backgroundColor: '#9E9E9E',
     padding: 15,
     borderRadius: 5,
     alignItems: 'center',
