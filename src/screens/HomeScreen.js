@@ -102,9 +102,13 @@ function HomeScreen({ navigation }) {
   };
 
   const onChangeDate = (event, selectedDate) => {
-    const currentDate = selectedDate || newTransaction.date;
+    const currentDate = selectedDate || (editingTransaction ? editingTransaction.date : newTransaction.date);
     setShowDatePicker(Platform.OS === 'ios');
-    setNewTransaction({ ...newTransaction, date: currentDate });
+    if (editingTransaction) {
+      setEditingTransaction({ ...editingTransaction, date: currentDate });
+    } else {
+      setNewTransaction({ ...newTransaction, date: currentDate });
+    }
   };
 
   const navigateMonth = (direction) => {
@@ -146,7 +150,7 @@ function HomeScreen({ navigation }) {
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
     >
       <ScrollView>
-        <HomeDashboard />
+        <HomeDashboard currentMonth={currentMonth} transactions={transactions} />
         <View style={styles.monthNavigation}>
           <TouchableOpacity onPress={() => navigateMonth(-1)}>
             <Ionicons name="chevron-back" size={24} color="black" />
@@ -166,12 +170,13 @@ function HomeScreen({ navigation }) {
           onChangeText={handleSearch}
           placeholder="Search transactions..."
         />
+        <Text style={styles.transactionsTitle}>{currentMonth.toLocaleString('default', { month: 'long' })} Transactions</Text>
         {editingTransaction ? (
           <View style={styles.editContainer}>
             <TextInput
               style={styles.input}
               value={editingTransaction.amount.toString()}
-              onChangeText={(text) => setEditingTransaction(prev => ({...prev, amount: text}))}
+              onChangeText={(text) => setEditingTransaction(prev => ({...prev, amount: parseFloat(text) || 0}))}
               keyboardType="numeric"
               placeholder="Amount"
             />
@@ -188,6 +193,19 @@ function HomeScreen({ navigation }) {
               value={editingTransaction.category}
               placeholder={{ label: "Select a category", value: null }}
             />
+            <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
+              <Text style={styles.dateButtonText}>
+                {new Date(editingTransaction.date).toLocaleDateString()}
+              </Text>
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={new Date(editingTransaction.date)}
+                mode="date"
+                display="default"
+                onChange={onChangeDate}
+              />
+            )}
             <TouchableOpacity style={styles.updateButton} onPress={handleUpdateTransaction}>
               <Text style={styles.buttonText}>Update Transaction</Text>
             </TouchableOpacity>
@@ -296,6 +314,11 @@ const styles = StyleSheet.create({
     margin: 10,
     borderRadius: 5,
     alignItems: 'center',
+  },
+  transactionsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    margin: 10,
   },
   rowFront: {
     backgroundColor: '#FFF',
@@ -428,10 +451,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-  });
-    
-  const pickerSelectStyles = StyleSheet.create({
-    inputIOS: {
+});
+
+const pickerSelectStyles = StyleSheet.create({
+  inputIOS: {
     fontSize: 16,
     paddingVertical: 12,
     paddingHorizontal: 10,
@@ -442,8 +465,8 @@ const styles = StyleSheet.create({
     paddingRight: 30,
     backgroundColor: '#fff',
     marginBottom: 20,
-    },
-    inputAndroid: {
+  },
+  inputAndroid: {
     fontSize: 16,
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -454,7 +477,7 @@ const styles = StyleSheet.create({
     paddingRight: 30,
     backgroundColor: '#fff',
     marginBottom: 20,
-    },
-    });
+  },
+});
 
-    export default HomeScreen;
+export default HomeScreen;

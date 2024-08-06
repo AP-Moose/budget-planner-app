@@ -6,6 +6,7 @@ import RNPickerSelect from 'react-native-picker-select';
 import { getBudgetGoals, addBudgetGoal, updateBudgetGoal, deleteBudgetGoal } from '../services/FirebaseService';
 import { EXPENSE_CATEGORIES } from '../utils/categories';
 import BudgetGoalsDashboard from '../components/Dashboards/BudgetGoalsDashboard';
+import { Ionicons } from '@expo/vector-icons';
 
 function BudgetGoalsScreen() {
   const [goals, setGoals] = useState([]);
@@ -106,7 +107,7 @@ function BudgetGoalsScreen() {
           <View style={styles.formContainer}>
             <RNPickerSelect
               onValueChange={(value) => setEditingGoal(prev => ({...prev, category: value}))}
-              items={EXPENSE_CATEGORIES.map(cat => ({ label: cat, value: cat }))}
+              items={[...EXPENSE_CATEGORIES, { label: 'Income Goal', value: 'Income Goal' }].map(cat => ({ label: cat, value: cat }))}
               style={pickerSelectStyles}
               value={editingGoal.category}
               placeholder={{ label: "Select a category", value: null }}
@@ -129,7 +130,7 @@ function BudgetGoalsScreen() {
           <View style={styles.formContainer}>
             <RNPickerSelect
               onValueChange={(value) => setNewGoal(prev => ({...prev, category: value}))}
-              items={EXPENSE_CATEGORIES.map(cat => ({ label: cat, value: cat }))}
+              items={[...EXPENSE_CATEGORIES, { label: 'Income Goal', value: 'Income Goal' }].map(cat => ({ label: cat, value: cat }))}
               style={pickerSelectStyles}
               value={newGoal.category}
               placeholder={{ label: "Select a category", value: null }}
@@ -149,22 +150,25 @@ function BudgetGoalsScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          <>
-            <TouchableOpacity style={styles.addButton} onPress={() => setIsAddingGoal(true)}>
-              <Text style={styles.buttonText}>Add New Goal</Text>
-            </TouchableOpacity>
-            <SwipeListView
-              data={goals}
-              renderItem={renderItem}
-              renderHiddenItem={renderHiddenItem}
-              leftOpenValue={0}
-              rightOpenValue={-75}
-              disableRightSwipe
-              keyExtractor={(item) => item.id}
-            />
-          </>
+          <SwipeListView
+            data={goals}
+            renderItem={renderItem}
+            renderHiddenItem={renderHiddenItem}
+            leftOpenValue={0}
+            rightOpenValue={-75}
+            disableRightSwipe
+            keyExtractor={(item) => item.id}
+          />
         )}
       </ScrollView>
+      {!editingGoal && !isAddingGoal && (
+        <TouchableOpacity 
+          style={styles.floatingAddButton} 
+          onPress={() => setIsAddingGoal(true)}
+        >
+          <Ionicons name="add" size={24} color="white" />
+        </TouchableOpacity>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -252,6 +256,22 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  floatingAddButton: {
+    position: 'absolute',
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    right: 20,
+    bottom: 20,
+    backgroundColor: '#03A9F4',
+    borderRadius: 28,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
 });
 

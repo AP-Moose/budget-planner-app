@@ -1,7 +1,8 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, Platform } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import { useFocusEffect } from '@react-navigation/native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { getTransactions, deleteTransaction, updateTransaction } from '../services/FirebaseService';
 import { getCategoryName, INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../utils/categories';
 import RNPickerSelect from 'react-native-picker-select';
@@ -11,6 +12,7 @@ function CategoryDetailScreen({ route, navigation }) {
   const [transactions, setTransactions] = useState([]);
   const [totalAmount, setTotalAmount] = useState(0);
   const [editingTransaction, setEditingTransaction] = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const loadCategoryTransactions = useCallback(async () => {
     try {
@@ -55,6 +57,12 @@ function CategoryDetailScreen({ route, navigation }) {
       console.error('Error updating transaction:', error);
       Alert.alert('Error', 'Failed to update transaction. Please try again.');
     }
+  };
+
+  const onChangeDate = (event, selectedDate) => {
+    const currentDate = selectedDate || editingTransaction.date;
+    setShowDatePicker(Platform.OS === 'ios');
+    setEditingTransaction({ ...editingTransaction, date: currentDate });
   };
 
   const renderItem = (data) => (
@@ -123,6 +131,19 @@ function CategoryDetailScreen({ route, navigation }) {
             value={editingTransaction.category}
             placeholder={{ label: "Select a category", value: null }}
           />
+          <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
+            <Text style={styles.dateButtonText}>
+              {new Date(editingTransaction.date).toLocaleDateString()}
+            </Text>
+          </TouchableOpacity>
+          {showDatePicker && (
+            <DateTimePicker
+              value={new Date(editingTransaction.date)}
+              mode="date"
+              display="default"
+              onChange={onChangeDate}
+            />
+          )}
           <TouchableOpacity style={styles.updateButton} onPress={handleUpdateTransaction}>
             <Text style={styles.buttonText}>Update Transaction</Text>
           </TouchableOpacity>
@@ -241,6 +262,16 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  dateButton: {
+    backgroundColor: '#f0f0f0',
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 10,
+  },
+  dateButtonText: {
+    fontSize: 16,
+    color: '#333',
   },
 });
 

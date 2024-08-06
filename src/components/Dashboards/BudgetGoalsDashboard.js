@@ -5,7 +5,8 @@ import { getBudgetGoals, getTransactions } from '../../services/FirebaseService'
 const BudgetGoalsDashboard = () => {
   const [estimatedExpenses, setEstimatedExpenses] = useState(0);
   const [actualExpenses, setActualExpenses] = useState(0);
-  const [targetIncome, setTargetIncome] = useState(0);
+  const [actualIncome, setActualIncome] = useState(0);
+  const [currentMonth, setCurrentMonth] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -14,34 +15,46 @@ const BudgetGoalsDashboard = () => {
 
       const totalEstimated = goals.reduce((sum, goal) => sum + parseFloat(goal.amount), 0);
       setEstimatedExpenses(totalEstimated);
-      setTargetIncome(totalEstimated);
 
-      const currentMonth = new Date().getMonth();
-      const currentYear = new Date().getFullYear();
-      const totalActual = transactions
-        .filter(t => {
-          const transactionDate = new Date(t.date);
-          return transactionDate.getMonth() === currentMonth && 
-                 transactionDate.getFullYear() === currentYear &&
-                 t.type === 'expense';
-        })
+      const now = new Date();
+      const currentMonthName = now.toLocaleString('default', { month: 'long' });
+      setCurrentMonth(currentMonthName);
+
+      const monthlyTransactions = transactions.filter(t => {
+        const transactionDate = new Date(t.date);
+        return transactionDate.getMonth() === now.getMonth() && 
+               transactionDate.getFullYear() === now.getFullYear();
+      });
+
+      const totalActualExpenses = monthlyTransactions
+        .filter(t => t.type === 'expense')
         .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-      setActualExpenses(totalActual);
+      setActualExpenses(totalActualExpenses);
+
+      const totalActualIncome = monthlyTransactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      setActualIncome(totalActualIncome);
     };
 
     fetchData();
   }, []);
 
-  const difference = estimatedExpenses - actualExpenses;
+  const formatCurrency = (amount) => `$${amount.toFixed(2)}`;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Monthly Budget Overview</Text>
-      <Text style={styles.item}>Estimated Monthly Expenses: ${estimatedExpenses.toFixed(2)}</Text>
-      <Text style={styles.item}>Actual Monthly Expenses: ${actualExpenses.toFixed(2)}</Text>
-      <Text style={styles.item}>Target Income: ${targetIncome.toFixed(2)}</Text>
-      <Text style={[styles.item, difference > 0 ? styles.underBudget : styles.overBudget]}>
-        You are ${Math.abs(difference).toFixed(2)} {difference > 0 ? 'under' : 'over'} budget
+      <Text style={styles.title}>{currentMonth} Budget Overview</Text>
+      <Text style={styles.item}>Estimated {currentMonth} Expenses: {formatCurrency(estimatedExpenses)}</Text>
+      <Text style={styles.item}>Actual {currentMonth} Expenses: {formatCurrency(actualExpenses)}</Text>
+      <Text style={styles.item}>Actual {currentMonth} Income: {formatCurrency(actualIncome)}</Text>
+      <Text style={styles.item}>Income Goal: {formatCurrency(estimatedExpenses)}</Text>
+      <Text style={[styles.item, actualIncome >= estimatedExpenses ? styles.positive : styles.negative]}>
+        Income vs Estimated Expenses: {formatCurrency(actualIncome - estimatedExpenses)}
+      </Text>
+      <Text style={[styles.item, actualIncome >= estimatedExpenses ? styles.positive : styles.negative]}>
+        Income Goal Progress: {formatCurrency(actualIncome - estimatedExpenses)}
+        {actualIncome >= estimatedExpenses ? ' (Goal reached!)' : ' (Not reached yet)'}
       </Text>
     </View>
   );
@@ -63,10 +76,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 5,
   },
-  underBudget: {
+  positive: {
     color: 'green',
   },
-  overBudget: {
+  negative: {
     color: 'red',
   },
 });
