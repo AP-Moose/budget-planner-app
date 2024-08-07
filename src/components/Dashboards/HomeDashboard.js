@@ -3,82 +3,62 @@ import { View, Text, StyleSheet } from 'react-native';
 import { getBudgetGoals } from '../../services/FirebaseService';
 
 const HomeDashboard = ({ currentMonth, transactions }) => {
-  const [budgetLeft, setBudgetLeft] = useState(0);
-  const [totalBudget, setTotalBudget] = useState(0);
   const [actualIncome, setActualIncome] = useState(0);
   const [actualExpenses, setActualExpenses] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
-      const goals = await getBudgetGoals();
-      const totalBudget = goals.reduce((sum, goal) => sum + parseFloat(goal.amount), 0);
-      setTotalBudget(totalBudget);
-
       const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0);
       const expenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0);
       
       setActualIncome(income);
       setActualExpenses(expenses);
-      setBudgetLeft(totalBudget - expenses);
     };
 
     fetchData();
   }, [transactions]);
 
-  const formatCurrency = (amount) => `$${Math.abs(amount).toFixed(2)}`;
+  const formatCurrency = (amount) => `$${Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const incomeDifference = actualIncome - actualExpenses;
-  const budgetUsedPercentage = (actualExpenses / totalBudget) * 100;
+  const cashFlow = actualIncome - actualExpenses;
 
-  const getIncomeComparisonMessage = () => {
-    if (incomeDifference > 0) {
-      return `You've earned ${formatCurrency(incomeDifference)} more than you've spent.`;
-    } else if (incomeDifference < 0) {
-      return `You've spent ${formatCurrency(incomeDifference)} more than you've earned.`;
+  const getCashFlowMessage = () => {
+    if (cashFlow > 0) {
+      return `Positive cash flow: ${formatCurrency(cashFlow)}`;
+    } else if (cashFlow < 0) {
+      return `Negative cash flow: ${formatCurrency(cashFlow)}`;
     }
-    return '';
-  };
-
-  const getBudgetMessage = () => {
-    if (budgetLeft > 0) {
-      return `You have ${formatCurrency(budgetLeft)} left in your budget.`;
-    } else if (budgetLeft < 0) {
-      return `You are ${formatCurrency(budgetLeft)} over budget.`;
-    }
-    return 'You have used exactly your budget.';
+    return 'Cash flow is balanced';
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.box}>
-        <Text style={styles.boxTitle}>{currentMonth.toLocaleString('default', { month: 'long' })} Totals</Text>
+        <Text style={styles.boxTitle}>Cash Flow</Text>
         <View style={styles.row}>
-          <Text style={styles.label}>Actual Expenses:</Text>
-          <Text style={styles.value}>{formatCurrency(actualExpenses)}</Text>
-        </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Actual Income:</Text>
+          <Text style={styles.label}>Income:</Text>
           <Text style={styles.value}>{formatCurrency(actualIncome)}</Text>
         </View>
+        <View style={styles.row}>
+          <Text style={styles.label}>Expenses:</Text>
+          <Text style={styles.value}>{formatCurrency(actualExpenses)}</Text>
+        </View>
         <View style={styles.barContainer}>
-          <View style={[
-            styles.bar,
-            incomeDifference > 0 ? { backgroundColor: 'green', width: `${Math.min((incomeDifference / actualIncome) * 100, 100)}%` } :
-            { backgroundColor: 'red', width: `${Math.min((Math.abs(incomeDifference) / actualExpenses) * 100, 100)}%` }
-          ]} />
+          <Text style={styles.barLabel}>-</Text>
+          <View style={styles.barWrapper}>
+            <View style={[
+              styles.bar,
+              { 
+                backgroundColor: cashFlow > 0 ? 'green' : (cashFlow < 0 ? 'red' : 'gray'),
+                width: `${Math.abs(cashFlow) / Math.max(actualIncome, actualExpenses) * 50}%`,
+                marginLeft: cashFlow >= 0 ? '50%' : `${50 - Math.abs(cashFlow) / Math.max(actualIncome, actualExpenses) * 50}%`
+              }
+            ]} />
+            <View style={styles.barCenter} />
+          </View>
+          <Text style={styles.barLabel}>+</Text>
         </View>
-        <Text style={styles.comparisonMessage}>{getIncomeComparisonMessage()}</Text>
-      </View>
-
-      <View style={styles.box}>
-        <Text style={styles.boxTitle}>Budget Usage</Text>
-        <View style={styles.progressBarContainer}>
-          <View style={[styles.progressBar, { width: `${budgetUsedPercentage}%`, backgroundColor: budgetLeft >= 0 ? 'green' : 'red' }]} />
-        </View>
-        <Text style={styles.progressText}>
-          {formatCurrency(actualExpenses)}/{formatCurrency(totalBudget)}
-        </Text>
-        <Text style={styles.budgetMessage}>{getBudgetMessage()}</Text>
+        <Text style={styles.cashFlowMessage}>{getCashFlowMessage()}</Text>
       </View>
     </View>
   );
@@ -89,7 +69,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     padding: 15,
     borderRadius: 10,
-    marginBottom: 20,
   },
   box: {
     backgroundColor: 'white',
@@ -116,16 +95,37 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   barContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: 10,
+  },
+  barWrapper: {
+    flex: 1,
     height: 10,
     backgroundColor: '#e0e0e0',
     borderRadius: 5,
-    marginVertical: 10,
+    overflow: 'hidden',
+    position: 'relative',
   },
   bar: {
     height: '100%',
-    borderRadius: 5,
+    position: 'absolute',
   },
-  comparisonMessage: {
+  barCenter: {
+    position: 'absolute',
+    left: '50%',
+    top: 0,
+    bottom: 0,
+    width: 2,
+    backgroundColor: 'black',
+  },
+  barLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginHorizontal: 5,
+  },
+  cashFlowMessage: {
     textAlign: 'center',
     fontStyle: 'italic',
   },

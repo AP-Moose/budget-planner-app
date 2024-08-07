@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, KeyboardAvoidingView, Platform, ScrollView, Keyboard } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -116,6 +116,14 @@ function HomeScreen({ navigation }) {
     setCurrentMonth(newDate);
   };
 
+  const handleDoneEditing = () => {
+    Keyboard.dismiss();
+  };
+
+  const formatCurrency = (amount) => {
+    return `$${Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   const renderItem = useCallback(({ item }) => (
     <TouchableOpacity
       style={styles.rowFront}
@@ -127,7 +135,7 @@ function HomeScreen({ navigation }) {
         <Text style={styles.transactionDate}>{new Date(item.date).toLocaleDateString()}</Text>
       </View>
       <Text style={[styles.transactionAmount, item.type === 'income' ? styles.incomeAmount : styles.expenseAmount]}>
-        {item.type === 'income' ? '+' : '-'}${item.amount.toFixed(2)}
+        {item.type === 'income' ? '+' : '-'}{formatCurrency(item.amount)}
       </Text>
     </TouchableOpacity>
   ), []);
@@ -143,14 +151,15 @@ function HomeScreen({ navigation }) {
     </View>
   ), [handleDeleteTransaction]);
 
+  const isCurrentMonth = currentMonth.getMonth() === new Date().getMonth() && currentMonth.getFullYear() === new Date().getFullYear();
+
   return (
     <KeyboardAvoidingView 
       style={styles.container} 
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
     >
-      <ScrollView>
-        <HomeDashboard currentMonth={currentMonth} transactions={transactions} />
+      <ScrollView style={styles.scrollView}>
         <View style={styles.monthNavigation}>
           <TouchableOpacity onPress={() => navigateMonth(-1)}>
             <Ionicons name="chevron-back" size={24} color="black" />
@@ -161,16 +170,19 @@ function HomeScreen({ navigation }) {
           <TouchableOpacity onPress={() => navigateMonth(1)}>
             <Ionicons name="chevron-forward" size={24} color="black" />
           </TouchableOpacity>
+          {!isCurrentMonth && (
+            <TouchableOpacity style={styles.currentMonthButton} onPress={() => setCurrentMonth(new Date())}>
+              <Text style={styles.buttonText}>Return to {new Date().toLocaleString('default', { month: 'long' })}</Text>
+            </TouchableOpacity>
+          )}
         </View>
-        <TouchableOpacity style={styles.currentMonthButton} onPress={() => setCurrentMonth(new Date())}>
-          <Text style={styles.buttonText}>Back to Current Month</Text>
-        </TouchableOpacity>
+        <HomeDashboard currentMonth={currentMonth} transactions={transactions} />
+        <Text style={styles.transactionsTitle}>{currentMonth.toLocaleString('default', { month: 'long' })} Transactions</Text>
         <SearchBar
           value={searchQuery}
           onChangeText={handleSearch}
           placeholder="Search transactions..."
         />
-        <Text style={styles.transactionsTitle}>{currentMonth.toLocaleString('default', { month: 'long' })} Transactions</Text>
         {editingTransaction ? (
           <View style={styles.editContainer}>
             <TextInput
@@ -179,12 +191,16 @@ function HomeScreen({ navigation }) {
               onChangeText={(text) => setEditingTransaction(prev => ({...prev, amount: parseFloat(text) || 0}))}
               keyboardType="numeric"
               placeholder="Amount"
+              returnKeyType="done"
+              onSubmitEditing={handleDoneEditing}
             />
             <TextInput
               style={styles.input}
               value={editingTransaction.description}
               onChangeText={(text) => setEditingTransaction(prev => ({...prev, description: text}))}
               placeholder="Description"
+              returnKeyType="done"
+              onSubmitEditing={handleDoneEditing}
             />
             <RNPickerSelect
               onValueChange={(value) => setEditingTransaction(prev => ({...prev, category: value}))}
@@ -230,12 +246,16 @@ function HomeScreen({ navigation }) {
               onChangeText={(text) => setNewTransaction(prev => ({...prev, amount: text}))}
               keyboardType="numeric"
               placeholder="Amount"
+              returnKeyType="done"
+              onSubmitEditing={handleDoneEditing}
             />
             <TextInput
               style={styles.input}
               value={newTransaction.description}
               onChangeText={(text) => setNewTransaction(prev => ({...prev, description: text}))}
               placeholder="Description"
+              returnKeyType="done"
+              onSubmitEditing={handleDoneEditing}
             />
             <RNPickerSelect
               onValueChange={(value) => setNewTransaction(prev => ({...prev, category: value}))}
@@ -297,6 +317,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
+  scrollView: {
+    flex: 1,
+  },
   monthNavigation: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -310,10 +333,9 @@ const styles = StyleSheet.create({
   },
   currentMonthButton: {
     backgroundColor: '#4CAF50',
-    padding: 10,
-    margin: 10,
+    padding: 5,
     borderRadius: 5,
-    alignItems: 'center',
+    marginLeft: 10,
   },
   transactionsTitle: {
     fontSize: 18,
@@ -427,13 +449,13 @@ const styles = StyleSheet.create({
   },
   floatingAddButton: {
     position: 'absolute',
-    width: 56,
-    height: 56,
+    width: 70,
+    height: 70,
     alignItems: 'center',
     justifyContent: 'center',
     right: 20,
     bottom: 20,
-    backgroundColor: '#03A9F4',
+    backgroundColor: 'green',
     borderRadius: 28,
     elevation: 8,
     shadowColor: '#000',

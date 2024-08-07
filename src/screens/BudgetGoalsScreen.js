@@ -14,6 +14,7 @@ function BudgetGoalsScreen() {
   const [isAddingGoal, setIsAddingGoal] = useState(false);
   const [newGoal, setNewGoal] = useState({ category: '', amount: '' });
   const [totalBudget, setTotalBudget] = useState(0);
+  const [totalSpent, setTotalSpent] = useState(0);
 
   const loadGoals = useCallback(async () => {
     try {
@@ -40,6 +41,9 @@ function BudgetGoalsScreen() {
 
       const total = fetchedGoals.reduce((sum, goal) => sum + parseFloat(goal.amount), 0);
       setTotalBudget(total);
+
+      const spent = Object.values(expenses).reduce((sum, amount) => sum + amount, 0);
+      setTotalSpent(spent);
     } catch (error) {
       console.error('Error loading budget goals:', error);
       Alert.alert('Error', 'Failed to load budget goals. Please try again.');
@@ -106,7 +110,33 @@ function BudgetGoalsScreen() {
     }
   };
 
-  const renderGoalItem = ({ item: goal }) => {
+  const renderBudgetUsage = () => {
+    const percentUsed = (totalSpent / totalBudget) * 100;
+    return (
+      <View style={styles.budgetUsageContainer}>
+        <Text style={styles.budgetUsageTitle}>Budget Usage</Text>
+        <View style={styles.progressBar}>
+          <View 
+            style={[
+              styles.progressFill, 
+              { 
+                width: `${Math.min(percentUsed, 100)}%`,
+                backgroundColor: getProgressColor(percentUsed)
+              }
+            ]} 
+          />
+        </View>
+        <Text style={styles.budgetUsageText}>
+          {formatCurrency(totalSpent)}/{formatCurrency(totalBudget)}
+        </Text>
+        <Text style={styles.budgetRemainingText}>
+          You have {formatCurrency(totalBudget - totalSpent)} left in your budget.
+        </Text>
+      </View>
+    );
+  };
+
+  const renderGoalItem = useCallback(({ item: goal }) => {
     const spent = actualExpenses[goal.category] || 0;
     const budgeted = parseFloat(goal.amount);
     const percentUsed = (spent / budgeted) * 100;
@@ -135,7 +165,7 @@ function BudgetGoalsScreen() {
         <Text style={styles.percentageText}>{percentUsed.toFixed(1)}% used</Text>
       </TouchableOpacity>
     );
-  };
+  }, [actualExpenses, formatCurrency, getProgressColor, setSelectedGoal]);
 
   return (
     <KeyboardAvoidingView 
@@ -145,6 +175,8 @@ function BudgetGoalsScreen() {
     >
       <Text style={styles.title}>{currentMonth} Budget Goals</Text>
       <Text style={styles.totalBudget}>Total Budget: {formatCurrency(totalBudget)}</Text>
+      
+      {renderBudgetUsage()}
 
       {isAddingGoal ? (
         <View style={styles.formContainer}>
@@ -231,6 +263,28 @@ const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: 'center',
     marginVertical: 10,
+  },
+  budgetUsageContainer: {
+    backgroundColor: '#fff',
+    padding: 15,
+    margin: 10,
+    borderRadius: 5,
+  },
+  budgetUsageTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  budgetUsageText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 5,
+  },
+  budgetRemainingText: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 5,
+    fontStyle: 'italic',
   },
   goalsList: {
     flex: 1,
