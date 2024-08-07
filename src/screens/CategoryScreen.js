@@ -4,7 +4,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { getTransactions } from '../services/FirebaseService';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCategoryName } from '../utils/categories';
 import { PieChart } from 'react-native-svg-charts';
-import SearchBar from '../components/SearchBar';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -14,7 +13,6 @@ function CategoryScreen({ navigation }) {
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [totalIncome, setTotalIncome] = useState(0);
   const [activeTab, setActiveTab] = useState('expense');
-  const [searchQuery, setSearchQuery] = useState('');
 
   const loadTransactions = useCallback(async () => {
     try {
@@ -74,11 +72,7 @@ function CategoryScreen({ navigation }) {
     const categories = activeTab === 'expense' ? expenseCategories : incomeCategories;
     const total = activeTab === 'expense' ? totalExpenses : totalIncome;
 
-    const filteredCategories = Object.entries(categories).filter(([categoryId]) => 
-      getCategoryName(categoryId).toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    return filteredCategories.map((category) => 
+    return Object.entries(categories).map((category) => 
       renderCategoryItem(category, total, activeTab)
     );
   };
@@ -96,10 +90,6 @@ function CategoryScreen({ navigation }) {
       name: getCategoryName(categoryId),
       percentage: ((amount / total) * 100).toFixed(1)
     }));
-  };
-
-  const handleSearch = (query) => {
-    setSearchQuery(query);
   };
 
   return (
@@ -120,11 +110,11 @@ function CategoryScreen({ navigation }) {
           <Text style={styles.tabAmount}>Total: ${totalIncome.toFixed(2)}</Text>
         </TouchableOpacity>
       </View>
-      <SearchBar
-        value={searchQuery}
-        onChangeText={handleSearch}
-        placeholder="Search categories..."
-      />
+      
+      <Text style={styles.title}>
+        {activeTab === 'expense' ? 'Monthly Expense Breakdown' : 'Monthly Income Breakdown'}
+      </Text>
+
       <View style={styles.chartContainer}>
         <PieChart
           style={{ height: 200, width: 200 }}
@@ -179,6 +169,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginTop: 5,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginVertical: 10,
   },
   categoryItem: {
     flexDirection: 'row',
