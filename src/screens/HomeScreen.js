@@ -33,7 +33,7 @@ function HomeScreen({ navigation }) {
       setTransactions(filteredByMonth);
       setFilteredTransactions(filteredByMonth);
       const newBalance = filteredByMonth.reduce((sum, transaction) => {
-        return transaction.type === 'income' ? sum + transaction.amount : sum - transaction.amount;
+        return transaction.type === 'income' ? sum + parseFloat(transaction.amount) : sum - parseFloat(transaction.amount);
       }, 0);
       setBalance(newBalance);
     } catch (error) {
@@ -91,7 +91,7 @@ function HomeScreen({ navigation }) {
 
     try {
       await addTransaction(newTransaction);
-      setNewTransaction({ type: 'expense', amount: '', description: '', category: '', date: new Date() });
+      setNewTransaction({ type: 'expense', amount: '', description: '', category: '', date: new Date(currentMonth) });
       setIsAddingTransaction(false);
       Alert.alert('Success', 'Transaction added successfully');
       loadTransactions();
@@ -103,7 +103,6 @@ function HomeScreen({ navigation }) {
 
   const onChangeDate = (event, selectedDate) => {
     const currentDate = selectedDate || (editingTransaction ? editingTransaction.date : newTransaction.date);
-    setShowDatePicker(Platform.OS === 'ios');
     if (editingTransaction) {
       setEditingTransaction({ ...editingTransaction, date: currentDate });
     } else {
@@ -111,9 +110,14 @@ function HomeScreen({ navigation }) {
     }
   };
 
+  const handleDoneSelectingDate = () => {
+    setShowDatePicker(false);
+  };
+
   const navigateMonth = (direction) => {
     const newDate = new Date(currentMonth.setMonth(currentMonth.getMonth() + direction));
     setCurrentMonth(newDate);
+    setNewTransaction(prev => ({ ...prev, date: newDate }));
   };
 
   const handleDoneEditing = () => {
@@ -121,7 +125,7 @@ function HomeScreen({ navigation }) {
   };
 
   const formatCurrency = (amount) => {
-    return `$${Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `$${Math.abs(parseFloat(amount)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const renderItem = useCallback(({ item }) => (
@@ -188,8 +192,8 @@ function HomeScreen({ navigation }) {
             <TextInput
               style={styles.input}
               value={editingTransaction.amount.toString()}
-              onChangeText={(text) => setEditingTransaction(prev => ({...prev, amount: parseFloat(text) || 0}))}
-              keyboardType="numeric"
+              onChangeText={(text) => setEditingTransaction(prev => ({...prev, amount: text}))}
+              keyboardType="decimal-pad"
               placeholder="Amount"
               returnKeyType="done"
               onSubmitEditing={handleDoneEditing}
@@ -209,18 +213,28 @@ function HomeScreen({ navigation }) {
               value={editingTransaction.category}
               placeholder={{ label: "Select a category", value: null }}
             />
-            <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-              <Text style={styles.dateButtonText}>
-                {new Date(editingTransaction.date).toLocaleDateString()}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.dateContainer}>
+              <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
+                <Text style={styles.dateButtonText}>
+                  {new Date(editingTransaction.date).toLocaleDateString()}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.editDateButton} onPress={() => setShowDatePicker(true)}>
+                <Text style={styles.editDateButtonText}>Edit Date</Text>
+              </TouchableOpacity>
+            </View>
             {showDatePicker && (
-              <DateTimePicker
-                value={new Date(editingTransaction.date)}
-                mode="date"
-                display="default"
-                onChange={onChangeDate}
-              />
+              <View>
+                <DateTimePicker
+                  value={new Date(editingTransaction.date)}
+                  mode="date"
+                  display="default"
+                  onChange={onChangeDate}
+                />
+                <TouchableOpacity style={styles.doneDateButton} onPress={handleDoneSelectingDate}>
+                  <Text style={styles.doneDateButtonText}>Done</Text>
+                </TouchableOpacity>
+              </View>
             )}
             <TouchableOpacity style={styles.updateButton} onPress={handleUpdateTransaction}>
               <Text style={styles.buttonText}>Update Transaction</Text>
@@ -244,7 +258,7 @@ function HomeScreen({ navigation }) {
               style={styles.input}
               value={newTransaction.amount}
               onChangeText={(text) => setNewTransaction(prev => ({...prev, amount: text}))}
-              keyboardType="numeric"
+              keyboardType="decimal-pad"
               placeholder="Amount"
               returnKeyType="done"
               onSubmitEditing={handleDoneEditing}
@@ -264,18 +278,28 @@ function HomeScreen({ navigation }) {
               value={newTransaction.category}
               placeholder={{ label: "Select a category", value: null }}
             />
-            <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-              <Text style={styles.dateButtonText}>
-                {newTransaction.date.toLocaleDateString()}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.dateContainer}>
+              <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
+                <Text style={styles.dateButtonText}>
+                  {newTransaction.date.toLocaleDateString()}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.editDateButton} onPress={() => setShowDatePicker(true)}>
+                <Text style={styles.editDateButtonText}>Edit Date</Text>
+              </TouchableOpacity>
+            </View>
             {showDatePicker && (
-              <DateTimePicker
-                value={newTransaction.date}
-                mode="date"
-                display="default"
-                onChange={onChangeDate}
-              />
+              <View>
+                <DateTimePicker
+                  value={newTransaction.date}
+                  mode="date"
+                  display="default"
+                  onChange={onChangeDate}
+                />
+                <TouchableOpacity style={styles.doneDateButton} onPress={handleDoneSelectingDate}>
+                  <Text style={styles.doneDateButtonText}>Done</Text>
+                </TouchableOpacity>
+              </View>
             )}
             <TouchableOpacity style={styles.addButton} onPress={handleAddTransaction}>
               <Text style={styles.buttonText}>Add Transaction</Text>
@@ -463,15 +487,41 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
+  dateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   dateButton: {
+    flex: 1,
     backgroundColor: '#f0f0f0',
     padding: 10,
     borderRadius: 5,
-    marginBottom: 10,
+    marginRight: 10,
   },
   dateButtonText: {
     fontSize: 16,
     color: '#333',
+  },
+  editDateButton: {
+    backgroundColor: '#2196F3',
+    padding: 10,
+    borderRadius: 5,
+  },
+  editDateButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  doneDateButton: {
+    backgroundColor: '#4CAF50',
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  doneDateButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });
 
