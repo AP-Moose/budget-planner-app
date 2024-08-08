@@ -367,6 +367,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     margin: 10,
+    marginBottom: 5,
   },
   rowFront: {
     backgroundColor: '#FFF',

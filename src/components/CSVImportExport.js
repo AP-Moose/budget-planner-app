@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Modal, ScrollView } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing/src/Sharing';
@@ -8,6 +8,8 @@ import { INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../utils/categories';
 import { Ionicons } from '@expo/vector-icons';
 
 const CSVImportExport = ({ onTransactionsUpdate }) => {
+  const [modalVisible, setModalVisible] = useState(false);
+
   const handleExportCSV = async () => {
     try {
       const transactions = await getTransactions();
@@ -44,7 +46,7 @@ const CSVImportExport = ({ onTransactionsUpdate }) => {
           await addTransaction(transaction);
         }
         Alert.alert('Success', `CSV imported successfully. ${transactions.length} transactions added.`);
-        onTransactionsUpdate(); // Trigger a refresh of transactions in the parent component
+        onTransactionsUpdate();
       }
     } catch (error) {
       console.error('Error importing CSV:', error);
@@ -128,52 +130,112 @@ expense,100,Utility bill payment,Utilities,2024-01-05
   };
 
   return (
-    <ScrollView>
-      <View style={styles.container}>
-        <TouchableOpacity style={styles.button} onPress={handleExportCSV}>
-          <Ionicons name="cloud-download-outline" size={24} color="white" />
-          <Text style={styles.buttonText}>Export CSV</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={handleImportCSV}>
-          <Ionicons name="cloud-upload-outline" size={24} color="white" />
-          <Text style={styles.buttonText}>Import CSV</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={shareTemplate}>
-          <Ionicons name="document-outline" size={24} color="white" />
-          <Text style={styles.buttonText}>Get Template</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={showInstructions}>
-          <Ionicons name="information-circle-outline" size={24} color="white" />
-          <Text style={styles.buttonText}>Instructions</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={showCategories}>
-          <Ionicons name="list-outline" size={24} color="white" />
-          <Text style={styles.buttonText}>Category Key</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+    <View style={styles.container}>
+      <TouchableOpacity style={styles.button} onPress={() => setModalVisible(true)}>
+        <Text style={styles.buttonText}>Import/Export</Text>
+        <Ionicons name="document-text-outline" size={24} color="#4CAF50" />
+      </TouchableOpacity>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            <ScrollView>
+              <TouchableOpacity style={styles.modalButton} onPress={handleExportCSV}>
+                <Ionicons name="cloud-download-outline" size={24} color="white" />
+                <Text style={styles.buttonText}>Export CSV</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalButton} onPress={handleImportCSV}>
+                <Ionicons name="cloud-upload-outline" size={24} color="white" />
+                <Text style={styles.buttonText}>Import CSV</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalButton} onPress={shareTemplate}>
+                <Ionicons name="document-outline" size={24} color="white" />
+                <Text style={styles.buttonText}>Get Template</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalButton} onPress={showInstructions}>
+                <Ionicons name="information-circle-outline" size={24} color="white" />
+                <Text style={styles.buttonText}>Instructions</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalButton} onPress={showCategories}>
+                <Ionicons name="list-outline" size={24} color="white" />
+                <Text style={styles.buttonText}>Category Key</Text>
+              </TouchableOpacity>
+            </ScrollView>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.closeButton]}
+              onPress={() => setModalVisible(false)}
+            >
+              <Text style={styles.buttonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 10,
-    flexWrap: 'wrap',
-  },
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#4CAF50',
-    padding: 10,
-    borderRadius: 5,
-    margin: 5,
-  },
-  buttonText: {
-    color: 'white',
-    marginLeft: 5,
-  },
-});
-
-export default CSVImportExport;
+    container: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      paddingRight: 10,
+    },
+    button: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 5,
+    },
+    buttonText: {
+      color: '#4CAF50',
+      marginRight: 5,
+      fontSize: 16,
+    },
+    centeredView: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: 'rgba(0,0,0,0.5)',
+    },
+    modalView: {
+      margin: 20,
+      backgroundColor: "white",
+      borderRadius: 20,
+      padding: 35,
+      alignItems: "center",
+      shadowColor: "#000",
+      shadowOffset: {
+        width: 0,
+        height: 2
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 5,
+      width: '80%',
+      maxHeight: '80%',
+    },
+    modalButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#4CAF50',
+      padding: 10,
+      borderRadius: 5,
+      margin: 5,
+      width: '100%',
+    },
+    modalButtonText: {
+      color: 'white',
+      marginLeft: 5,
+    },
+    closeButton: {
+      backgroundColor: '#f44336',
+      marginTop: 10,
+    },
+  });
+  
+  export default CSVImportExport;
