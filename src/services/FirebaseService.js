@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, updateDoc, deleteDoc, doc, where } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, updateDoc, deleteDoc, doc, where, setDoc } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
 import { firebaseConfig } from '../config';
 import { getCategoryType } from '../utils/categories';
@@ -126,21 +126,20 @@ export const deleteTransaction = async (id) => {
   }
 };
 
-export const addBudgetGoal = async (goal) => {
+export const updateBudgetGoal = async (category, updatedData) => {
   try {
     const user = auth.currentUser;
     if (!user) throw new Error('No user logged in');
 
-    const goalToSave = {
-      ...goal,
-      amount: Number(goal.amount),
-      userId: user.uid
-    };
-
-    const docRef = await addDoc(collection(db, 'budgetGoals'), goalToSave);
-    return docRef.id;
+    const goalRef = doc(db, 'budgetGoals', `${user.uid}_${category}`);
+    await setDoc(goalRef, {
+      ...updatedData,
+      userId: user.uid,
+      category: category,
+      amount: Number(updatedData.amount)
+    }, { merge: true });
   } catch (error) {
-    console.error('Error adding budget goal: ', error);
+    console.error('Error updating budget goal: ', error);
     throw error;
   }
 };
@@ -157,38 +156,12 @@ export const getBudgetGoals = async () => {
     
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({
-      id: doc.id,
+      id: doc.id.split('_')[1], // Extract the category from the document ID
       ...doc.data(),
       amount: Number(doc.data().amount)
     }));
   } catch (error) {
     console.error('Error getting budget goals:', error);
-    throw error;
-  }
-};
-
-export const updateBudgetGoal = async (id, updatedData) => {
-  try {
-    const user = auth.currentUser;
-    if (!user) throw new Error('No user logged in');
-
-    const goalRef = doc(db, 'budgetGoals', id);
-    await updateDoc(goalRef, updatedData);
-  } catch (error) {
-    console.error('Error updating budget goal: ', error);
-    throw error;
-  }
-};
-
-export const deleteBudgetGoal = async (id) => {
-  try {
-    const user = auth.currentUser;
-    if (!user) throw new Error('No user logged in');
-
-    const goalRef = doc(db, 'budgetGoals', id);
-    await deleteDoc(goalRef);
-  } catch (error) {
-    console.error('Error deleting budget goal: ', error);
     throw error;
   }
 };
