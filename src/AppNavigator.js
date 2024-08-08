@@ -9,6 +9,7 @@ import LoginScreen from './screens/LoginScreen';
 import Header from './components/Header';
 import { Ionicons } from '@expo/vector-icons';
 import { getCurrentUser } from './services/FirebaseService';
+import ReportsScreen from './screens/ReportsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -77,6 +78,24 @@ function BudgetGoalsStack() {
   );
 }
 
+function ReportsStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={({ route }) => ({
+        header: ({ navigation, options }) => {
+          return <Header title={options.title || route.name} />;
+        },
+      })}
+    >
+      <Stack.Screen 
+        name="Reports" 
+        component={ReportsScreen} 
+        options={{ title: 'Financial Reports' }} 
+      />
+    </Stack.Navigator>
+  );
+}
+
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -90,6 +109,8 @@ function MainTabs() {
             iconName = focused ? 'list' : 'list-outline';
           } else if (route.name === 'BudgetGoalsTab') {
             iconName = focused ? 'flag' : 'flag-outline';
+          } else if (route.name === 'ReportsTab') {
+            iconName = focused ? 'bar-chart' : 'bar-chart-outline';
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -110,6 +131,11 @@ function MainTabs() {
         name="BudgetGoalsTab" 
         component={BudgetGoalsStack}
         options={{ headerShown: false, title: 'Goals' }}
+      />
+      <Tab.Screen
+        name="ReportsTab"
+        component={ReportsStack}
+        options={{ headerShown: false, title: 'Reports' }}
       />
     </Tab.Navigator>
   );
