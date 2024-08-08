@@ -10,8 +10,10 @@ import RNPickerSelect from 'react-native-picker-select';
 import HomeDashboard from '../components/Dashboards/HomeDashboard';
 import CSVImportExport from '../components/CSVImportExport';
 import { Ionicons } from '@expo/vector-icons';
+import { useMonth } from '../context/MonthContext';
 
 function HomeScreen({ navigation }) {
+  const { currentMonth, setCurrentMonth } = useMonth();
   const [transactions, setTransactions] = useState([]);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [balance, setBalance] = useState(0);
@@ -20,7 +22,6 @@ function HomeScreen({ navigation }) {
   const [newTransaction, setNewTransaction] = useState({ type: 'expense', amount: '', description: '', category: '', date: new Date() });
   const [isAddingTransaction, setIsAddingTransaction] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
   const listRef = useRef(null);
 
   const loadTransactions = useCallback(async () => {
@@ -116,7 +117,8 @@ function HomeScreen({ navigation }) {
   };
 
   const navigateMonth = (direction) => {
-    const newDate = new Date(currentMonth.setMonth(currentMonth.getMonth() + direction));
+    const newDate = new Date(currentMonth);
+    newDate.setMonth(newDate.getMonth() + direction);
     setCurrentMonth(newDate);
     setNewTransaction(prev => ({ ...prev, date: newDate }));
   };

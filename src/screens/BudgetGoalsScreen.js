@@ -3,11 +3,13 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, K
 import { useFocusEffect } from '@react-navigation/native';
 import { getBudgetGoals, updateBudgetGoal, getTransactions } from '../services/FirebaseService';
 import { EXPENSE_CATEGORIES } from '../utils/categories';
+import { useMonth } from '../context/MonthContext';
+import { Ionicons } from '@expo/vector-icons';
 
 function BudgetGoalsScreen() {
+  const { currentMonth, setCurrentMonth } = useMonth();
   const [budgetGoals, setBudgetGoals] = useState([]);
   const [actualExpenses, setActualExpenses] = useState({});
-  const [currentMonth, setCurrentMonth] = useState('');
   const [selectedGoal, setSelectedGoal] = useState(null);
   const [totalBudget, setTotalBudget] = useState(0);
   const [totalSpent, setTotalSpent] = useState(0);
@@ -30,14 +32,12 @@ function BudgetGoalsScreen() {
 
       setBudgetGoals(fetchedGoals);
 
-      const now = new Date();
-      const currentMonthName = now.toLocaleString('default', { month: 'long' });
-      setCurrentMonth(currentMonthName);
-
       const transactions = await getTransactions();
-      const currentMonthTransactions = transactions.filter(t => 
-        t.date.getMonth() === now.getMonth() && t.date.getFullYear() === now.getFullYear()
-      );
+      const currentMonthTransactions = transactions.filter(t => {
+        const transactionDate = new Date(t.date);
+        return transactionDate.getMonth() === currentMonth.getMonth() && 
+               transactionDate.getFullYear() === currentMonth.getFullYear();
+      });
 
       const expenses = currentMonthTransactions.reduce((acc, t) => {
         if (t.type === 'expense') {
@@ -57,7 +57,7 @@ function BudgetGoalsScreen() {
       console.error('Error loading budget goals:', error);
       Alert.alert('Error', 'Failed to load budget goals. Please try again.');
     }
-  }, []);
+  }, [currentMonth]);
 
   useFocusEffect(
     useCallback(() => {
@@ -189,13 +189,43 @@ function BudgetGoalsScreen() {
     );
   }, [actualExpenses, formatCurrency, getProgressColor, setSelectedGoal]);
 
+  const navigateMonth = (direction) => {
+    const newDate = new Date(currentMonth);
+    newDate.setMonth(newDate.getMonth() + direction);
+    setCurrentMonth(newDate);
+  };
+
+  const isCurrentMonth = currentMonth.getMonth() === new Date().getMonth() && 
+                       currentMonth.getFullYear() === new Date().getFullYear();
+
   return (
     <KeyboardAvoidingView 
       style={styles.container} 
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
     >
-      <Text style={styles.title}>{currentMonth} Budget Goals</Text>
+      <View style={styles.monthNavigation}>
+  <TouchableOpacity onPress={() => navigateMonth(-1)}>
+    <Ionicons name="chevron-back" size={24} color="black" />
+  </TouchableOpacity>
+  <Text style={styles.currentMonth}>
+    {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+  </Text>
+  <TouchableOpacity onPress={() => navigateMonth(1)}>
+    <Ionicons name="chevron-forward" size={24} color="black" />
+  </TouchableOpacity>
+  {!isCurrentMonth && (
+    <TouchableOpacity 
+      style={styles.currentMonthButton} 
+      onPress={() => setCurrentMonth(new Date())}
+    >
+      <Text style={styles.buttonText}>
+        Return to {new Date().toLocaleString('default', { month: 'long' })}
+      </Text>
+    </TouchableOpacity>
+  )}
+</View>
+      <Text style={styles.title}>Budget Goals</Text>
       <Text style={styles.totalBudget}>Total Budget: {formatCurrency(totalBudget)}</Text>
       
       {renderBudgetUsage()}
@@ -236,6 +266,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  monthNavigation: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#e0e0e0',
+  },
+  currentMonth: {
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   title: {
     fontSize: 20,
@@ -354,6 +395,16 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 5,
     alignItems: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  currentMonthButton: {
+    backgroundColor: '#4CAF50',
+    padding: 5,
+    borderRadius: 5,
+    marginLeft: 10,
   },
   buttonText: {
     color: '#fff',

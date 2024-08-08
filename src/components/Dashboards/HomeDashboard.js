@@ -1,22 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { getBudgetGoals } from '../../services/FirebaseService';
+import { useMonth } from '../../context/MonthContext';
 
-const HomeDashboard = ({ currentMonth, transactions }) => {
+const HomeDashboard = ({ transactions }) => {
+  const { currentMonth } = useMonth();
   const [actualIncome, setActualIncome] = useState(0);
   const [actualExpenses, setActualExpenses] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
-      const income = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0);
-      const expenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      const filteredTransactions = transactions.filter(t => {
+        const transactionDate = new Date(t.date);
+        return transactionDate.getMonth() === currentMonth.getMonth() &&
+               transactionDate.getFullYear() === currentMonth.getFullYear();
+      });
+      
+      const income = filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      const expenses = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0);
       
       setActualIncome(income);
       setActualExpenses(expenses);
     };
 
     fetchData();
-  }, [transactions]);
+  }, [transactions, currentMonth]);
 
   const formatCurrency = (amount) => `$${Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
