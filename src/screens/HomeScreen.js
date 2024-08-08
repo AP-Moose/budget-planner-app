@@ -8,6 +8,7 @@ import { getCategoryName, INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../utils
 import SearchBar from '../components/SearchBar';
 import RNPickerSelect from 'react-native-picker-select';
 import HomeDashboard from '../components/Dashboards/HomeDashboard';
+import CSVImportExport from '../components/CSVImportExport';
 import { Ionicons } from '@expo/vector-icons';
 
 function HomeScreen({ navigation }) {
@@ -181,6 +182,7 @@ function HomeScreen({ navigation }) {
           )}
         </View>
         <HomeDashboard currentMonth={currentMonth} transactions={transactions} />
+        <CSVImportExport onTransactionsUpdate={loadTransactions} />
         <Text style={styles.transactionsTitle}>{currentMonth.toLocaleString('default', { month: 'long' })} Transactions</Text>
         <SearchBar
           value={searchQuery}

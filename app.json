@@ -19,18 +19,36 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "io.davesousa.budgetplanner"
+      "bundleIdentifier": "io.davesousa.budgetplanner",
+      "infoPlist": {
+        "UIFileSharingEnabled": true,
+        "LSSupportsOpeningDocumentsInPlace": true,
+        "NSDocumentsFolderUsageDescription": "This app needs access to the Documents folder to import and export CSV files.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to the photo library to save exported CSV files."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
-      "package": "io.davesousa.budgetplanner"
+      "package": "io.davesousa.budgetplanner",
+      "permissions": [
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "plugins": [
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
+        }
+      ]
+    ],
     "description": "A simple and intuitive budget planner app to help you manage your finances.",
     "primaryColor": "#4CAF50",
     "extra": {
