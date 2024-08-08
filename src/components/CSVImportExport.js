@@ -147,30 +147,30 @@ expense,100,Utility bill payment,Utilities,2024-01-05
             <ScrollView>
               <TouchableOpacity style={styles.modalButton} onPress={handleExportCSV}>
                 <Ionicons name="cloud-download-outline" size={24} color="white" />
-                <Text style={styles.buttonText}>Export CSV</Text>
+                <Text style={styles.modalButtonText}>Export CSV</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.modalButton} onPress={handleImportCSV}>
                 <Ionicons name="cloud-upload-outline" size={24} color="white" />
-                <Text style={styles.buttonText}>Import CSV</Text>
+                <Text style={styles.modalButtonText}>Import CSV</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.modalButton} onPress={shareTemplate}>
                 <Ionicons name="document-outline" size={24} color="white" />
-                <Text style={styles.buttonText}>Get Template</Text>
+                <Text style={styles.modalButtonText}>Get Template</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.modalButton} onPress={showInstructions}>
                 <Ionicons name="information-circle-outline" size={24} color="white" />
-                <Text style={styles.buttonText}>Instructions</Text>
+                <Text style={styles.modalButtonText}>Instructions</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.modalButton} onPress={showCategories}>
                 <Ionicons name="list-outline" size={24} color="white" />
-                <Text style={styles.buttonText}>Category Key</Text>
+                <Text style={styles.modalButtonText}>Category Key</Text>
               </TouchableOpacity>
             </ScrollView>
             <TouchableOpacity
               style={[styles.modalButton, styles.closeButton]}
               onPress={() => setModalVisible(false)}
             >
-              <Text style={styles.buttonText}>Close</Text>
+              <Text style={styles.modalButtonText}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
