@@ -26,6 +26,7 @@ const ReportsScreen = () => {
     { label: 'Expense Trend Analysis', value: 'expense-trend' },
     { label: 'Cash Flow Statement', value: 'cash-flow' },
     { label: 'Custom Date Range Report', value: 'custom-range' },
+    { label: 'Category Transaction Detail', value: 'category-transaction-detail' },
   ];
 
   useEffect(() => {
@@ -75,6 +76,11 @@ const ReportsScreen = () => {
     }
   };
 
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+  };
+
   const renderReportData = () => {
     if (!reportData) return null;
 
@@ -84,86 +90,182 @@ const ReportsScreen = () => {
       switch (reportType) {
         case 'monthly-summary':
           return (
-            <View>
-              <Text style={styles.reportItem}>Total Income: ${reportData.totalIncome?.toFixed(2) || '0.00'}</Text>
-              <Text style={styles.reportItem}>Total Expenses: ${reportData.totalExpenses?.toFixed(2) || '0.00'}</Text>
-              <Text style={styles.reportItem}>Net Savings: ${reportData.netSavings?.toFixed(2) || '0.00'}</Text>
-              <Text style={styles.reportItem}>Savings Rate: {reportData.savingsRate?.toFixed(2) || '0.00'}%</Text>
+            <View style={styles.reportContainer}>
+              <Text style={styles.reportTitle}>Monthly Summary</Text>
+              <View style={styles.reportRow}>
+                <Text style={styles.reportLabel}>Total Income:</Text>
+                <Text style={styles.reportValue}>${reportData.totalIncome?.toFixed(2) || '0.00'}</Text>
+              </View>
+              <View style={styles.reportRow}>
+                <Text style={styles.reportLabel}>Total Expenses:</Text>
+                <Text style={styles.reportValue}>${reportData.totalExpenses?.toFixed(2) || '0.00'}</Text>
+              </View>
+              <View style={styles.reportRow}>
+                <Text style={styles.reportLabel}>Net Savings:</Text>
+                <Text style={styles.reportValue}>${reportData.netSavings?.toFixed(2) || '0.00'}</Text>
+              </View>
+              <View style={styles.reportRow}>
+                <Text style={styles.reportLabel}>Savings Rate:</Text>
+                <Text style={styles.reportValue}>{reportData.savingsRate?.toFixed(2) || '0.00'}%</Text>
+              </View>
             </View>
           );
         case 'category-breakdown':
           return (
-            <View>
+            <View style={styles.reportContainer}>
+              <Text style={styles.reportTitle}>Category Breakdown</Text>
               {EXPENSE_CATEGORIES.map((category) => (
-                <Text key={category} style={styles.reportItem}>
-                  {category}: ${(reportData[category] || 0).toFixed(2)}
-                </Text>
+                <View key={category} style={styles.reportRow}>
+                  <Text style={styles.reportLabel}>{category}:</Text>
+                  <Text style={styles.reportValue}>${(reportData[category] || 0).toFixed(2)}</Text>
+                </View>
               ))}
             </View>
           );
         case 'budget-vs-actual':
           return (
-            <View>
+            <View style={styles.reportContainer}>
+              <Text style={styles.reportTitle}>Budget vs Actual</Text>
               {reportData.length > 0 ? reportData.map((item) => (
-                <Text key={item.category} style={styles.reportItem}>
-                  {item.category}: Budgeted ${parseFloat(item.budgeted).toFixed(2)}, 
-                  Actual ${parseFloat(item.actual).toFixed(2)}, 
-                  Difference ${parseFloat(item.difference).toFixed(2)}
-                </Text>
+                <View key={item.category} style={styles.reportSection}>
+                  <Text style={styles.reportSubtitle}>{item.category}</Text>
+                  <View style={styles.reportRow}>
+                    <Text style={styles.reportLabel}>Budgeted:</Text>
+                    <Text style={styles.reportValue}>${parseFloat(item.budgeted).toFixed(2)}</Text>
+                  </View>
+                  <View style={styles.reportRow}>
+                    <Text style={styles.reportLabel}>Actual:</Text>
+                    <Text style={styles.reportValue}>${parseFloat(item.actual).toFixed(2)}</Text>
+                  </View>
+                  <View style={styles.reportRow}>
+                    <Text style={styles.reportLabel}>Difference:</Text>
+                    <Text style={[styles.reportValue, item.difference < 0 ? styles.negativeValue : styles.positiveValue]}>
+                      ${parseFloat(item.difference).toFixed(2)}
+                    </Text>
+                  </View>
+                </View>
               )) : <Text style={styles.reportItem}>No budget data available</Text>}
             </View>
           );
         case 'income-sources':
           return (
-            <View>
+            <View style={styles.reportContainer}>
+              <Text style={styles.reportTitle}>Income Sources</Text>
               {INCOME_CATEGORIES.map((category) => (
-                <Text key={category} style={styles.reportItem}>
-                  {category}: ${(reportData[category] || 0).toFixed(2)}
-                </Text>
+                <View key={category} style={styles.reportRow}>
+                  <Text style={styles.reportLabel}>{category}:</Text>
+                  <Text style={styles.reportValue}>${(reportData[category] || 0).toFixed(2)}</Text>
+                </View>
               ))}
             </View>
           );
         case 'savings-rate':
           return (
-            <View>
-              <Text style={styles.reportItem}>Total Income: ${reportData.totalIncome?.toFixed(2) || '0.00'}</Text>
-              <Text style={styles.reportItem}>Total Expenses: ${reportData.totalExpenses?.toFixed(2) || '0.00'}</Text>
-              <Text style={styles.reportItem}>Net Savings: ${reportData.netSavings?.toFixed(2) || '0.00'}</Text>
-              <Text style={styles.reportItem}>Savings Rate: {reportData.savingsRate?.toFixed(2) || '0.00'}%</Text>
+            <View style={styles.reportContainer}>
+              <Text style={styles.reportTitle}>Savings Rate Report</Text>
+              <View style={styles.reportRow}>
+                <Text style={styles.reportLabel}>Total Income:</Text>
+                <Text style={styles.reportValue}>${reportData.totalIncome?.toFixed(2) || '0.00'}</Text>
+              </View>
+              <View style={styles.reportRow}>
+                <Text style={styles.reportLabel}>Total Expenses:</Text>
+                <Text style={styles.reportValue}>${reportData.totalExpenses?.toFixed(2) || '0.00'}</Text>
+              </View>
+              <View style={styles.reportRow}>
+                <Text style={styles.reportLabel}>Net Savings:</Text>
+                <Text style={styles.reportValue}>${reportData.netSavings?.toFixed(2) || '0.00'}</Text>
+              </View>
+              <View style={styles.reportRow}>
+                <Text style={styles.reportLabel}>Savings Rate:</Text>
+                <Text style={styles.reportValue}>{reportData.savingsRate?.toFixed(2) || '0.00'}%</Text>
+              </View>
             </View>
           );
         case 'ytd-summary':
         case 'custom-range':
           return (
-            <View>
-              <Text style={styles.reportItem}>Total Income: ${reportData.totalIncome?.toFixed(2) || '0.00'}</Text>
-              <Text style={styles.reportItem}>Total Expenses: ${reportData.totalExpenses?.toFixed(2) || '0.00'}</Text>
-              <Text style={styles.reportItem}>Net Savings: ${reportData.netSavings?.toFixed(2) || '0.00'}</Text>
-              <Text style={styles.reportItem}>Savings Rate: {reportData.savingsRate?.toFixed(2) || '0.00'}%</Text>
-              <Text style={styles.reportItem}>Top Expense Categories:</Text>
+            <View style={styles.reportContainer}>
+              <Text style={styles.reportTitle}>{reportType === 'ytd-summary' ? 'Year-to-Date Summary' : 'Custom Range Summary'}</Text>
+              <View style={styles.reportRow}>
+                <Text style={styles.reportLabel}>Total Income:</Text>
+                <Text style={styles.reportValue}>${reportData.totalIncome?.toFixed(2) || '0.00'}</Text>
+              </View>
+              <View style={styles.reportRow}>
+                <Text style={styles.reportLabel}>Total Expenses:</Text>
+                <Text style={styles.reportValue}>${reportData.totalExpenses?.toFixed(2) || '0.00'}</Text>
+              </View>
+              <View style={styles.reportRow}>
+                <Text style={styles.reportLabel}>Net Savings:</Text>
+                <Text style={styles.reportValue}>${reportData.netSavings?.toFixed(2) || '0.00'}</Text>
+              </View>
+              <View style={styles.reportRow}>
+                <Text style={styles.reportLabel}>Savings Rate:</Text>
+                <Text style={styles.reportValue}>{reportData.savingsRate?.toFixed(2) || '0.00'}%</Text>
+              </View>
+              <Text style={styles.reportSubtitle}>Top Expense Categories:</Text>
               {reportData.topExpenses.map((expense, index) => (
-                <Text key={index} style={styles.reportItem}>
-                  {expense.category}: ${expense.amount.toFixed(2)}
-                </Text>
+                <View key={index} style={styles.reportRow}>
+                  <Text style={styles.reportLabel}>{expense.category}:</Text>
+                  <Text style={styles.reportValue}>${expense.amount.toFixed(2)}</Text>
+                </View>
               ))}
             </View>
           );
         case 'expense-trend':
           return (
-            <View>
+            <View style={styles.reportContainer}>
+              <Text style={styles.reportTitle}>Expense Trend Analysis</Text>
               {reportData.map((month) => (
-                <Text key={month.month} style={styles.reportItem}>
-                  {month.month}: ${month.totalExpense.toFixed(2)}
-                </Text>
+                <View key={month.month} style={styles.reportRow}>
+                  <Text style={styles.reportLabel}>{month.month}:</Text>
+                  <Text style={styles.reportValue}>${month.totalExpense.toFixed(2)}</Text>
+                </View>
               ))}
             </View>
           );
         case 'cash-flow':
           return (
-            <View>
-              <Text style={styles.reportItem}>Cash Inflow: ${reportData.cashInflow?.toFixed(2) || '0.00'}</Text>
-              <Text style={styles.reportItem}>Cash Outflow: ${reportData.cashOutflow?.toFixed(2) || '0.00'}</Text>
-              <Text style={styles.reportItem}>Net Cash Flow: ${reportData.netCashFlow?.toFixed(2) || '0.00'}</Text>
+            <View style={styles.reportContainer}>
+              <Text style={styles.reportTitle}>Cash Flow Statement</Text>
+              <View style={styles.reportRow}>
+                <Text style={styles.reportLabel}>Cash Inflow:</Text>
+                <Text style={styles.reportValue}>${reportData.cashInflow?.toFixed(2) || '0.00'}</Text>
+              </View>
+              <View style={styles.reportRow}>
+                <Text style={styles.reportLabel}>Cash Outflow:</Text>
+                <Text style={styles.reportValue}>${reportData.cashOutflow?.toFixed(2) || '0.00'}</Text>
+              </View>
+              <View style={styles.reportRow}>
+                <Text style={styles.reportLabel}>Net Cash Flow:</Text>
+                <Text style={[styles.reportValue, reportData.netCashFlow < 0 ? styles.negativeValue : styles.positiveValue]}>
+                  ${reportData.netCashFlow?.toFixed(2) || '0.00'}
+                </Text>
+              </View>
+            </View>
+          );
+        case 'category-transaction-detail':
+          return (
+            <View style={styles.reportContainer}>
+              <Text style={styles.reportTitle}>Category Transaction Detail</Text>
+              {ALL_CATEGORIES.map((category) => (
+                <View key={category} style={styles.categorySection}>
+                  <Text style={styles.reportSubtitle}>{category}</Text>
+                  <View style={styles.tableHeader}>
+                    <Text style={styles.dateHeader}>Date</Text>
+                    <Text style={styles.amountHeader}>Amount</Text>
+                    <Text style={styles.descriptionHeader}>Description</Text>
+                  </View>
+                  {reportData[category].map((transaction, index) => (
+                    <View key={index} style={styles.tableRow}>
+                      <Text style={styles.dateCell}>{formatDate(transaction.date)}</Text>
+                      <Text style={styles.amountCell}>${transaction.amount.toFixed(2)}</Text>
+                      <Text style={styles.descriptionCell} numberOfLines={2} ellipsizeMode="tail">
+                        {transaction.description}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ))}
             </View>
           );
         default:
@@ -317,10 +419,43 @@ const styles = StyleSheet.create({
   },
   reportContainer: {
     marginTop: 20,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 15,
   },
-  reportItem: {
+  reportTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 15,
+  },
+  reportSubtitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 10,
+    marginBottom: 5,
+  },
+  reportSection: {
+    marginBottom: 15,
+  },
+  reportRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  reportLabel: {
+    flex: 1,
     fontSize: 16,
-    marginBottom: 10,
+  },
+  reportValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  positiveValue: {
+    color: 'green',
+  },
+  negativeValue: {
+    color: 'red',
   },
   modalContainer: {
     flex: 1,
@@ -338,6 +473,48 @@ const styles = StyleSheet.create({
     padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#ccc',
+  },
+  categorySection: {
+    marginBottom: 20,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    paddingBottom: 5,
+    marginBottom: 5,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    paddingVertical: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  dateHeader: {
+    flex: 3,
+    fontWeight: 'bold',
+  },
+  amountHeader: {
+    flex: 3,
+    fontWeight: 'bold',
+    textAlign: 'right',
+    paddingRight: 20,
+  },
+  descriptionHeader: {
+    flex: 4,
+    fontWeight: 'bold',
+  },
+  dateCell: {
+    flex: 3,
+    paddingRight: 0,
+  },
+  amountCell: {
+    flex: 3,
+    textAlign: 'right',
+    paddingRight: 20,
+  },
+  descriptionCell: {
+    flex: 4,
   },
 });
 

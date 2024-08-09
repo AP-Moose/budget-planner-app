@@ -43,6 +43,9 @@ export const generateReport = async (reportType, startDate, endDate) => {
       case 'cash-flow':
         report = generateCashFlowStatement(filteredTransactions);
         break;
+      case 'category-transaction-detail':
+        report = generateCategoryTransactionDetail(filteredTransactions);
+        break;
       default:
         throw new Error('Invalid report type');
     }
@@ -204,6 +207,34 @@ const generateCashFlowStatement = (transactions) => {
   }
 };
 
+const generateCategoryTransactionDetail = (transactions) => {
+  console.log('Generating category transaction detail');
+  try {
+    const categoryTransactions = {};
+    ALL_CATEGORIES.forEach(category => {
+      categoryTransactions[category] = [];
+    });
+
+    transactions.forEach(t => {
+      categoryTransactions[t.category].push({
+        date: t.date,
+        amount: parseFloat(t.amount) || 0,
+        description: t.description
+      });
+    });
+
+    // Sort transactions within each category by date
+    Object.keys(categoryTransactions).forEach(category => {
+      categoryTransactions[category].sort((a, b) => new Date(a.date) - new Date(b.date));
+    });
+
+    return categoryTransactions;
+  } catch (error) {
+    console.error('Error in generateCategoryTransactionDetail:', error);
+    throw error;
+  }
+};
+
 export const exportReportToCSV = async (reportData, reportType) => {
   console.log('Exporting report to CSV', reportType);
   let csvContent = '';
@@ -245,6 +276,14 @@ export const exportReportToCSV = async (reportData, reportType) => {
       case 'cash-flow':
         csvContent = 'Cash Inflow,Cash Outflow,Net Cash Flow\n';
         csvContent += `${reportData.cashInflow},${reportData.cashOutflow},${reportData.netCashFlow}`;
+        break;
+      case 'category-transaction-detail':
+        csvContent = 'Category,Date,Amount,Description\n';
+        Object.entries(reportData).forEach(([category, transactions]) => {
+          transactions.forEach(t => {
+            csvContent += `${category},${t.date},${t.amount},${t.description}\n`;
+          });
+        });
         break;
       default:
         throw new Error('Invalid report type for CSV export');
