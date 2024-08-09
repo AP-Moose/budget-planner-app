@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Modal } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useMonth } from '../context/MonthContext';
 import { generateReport, exportReportToCSV } from '../services/ReportService';
-import { ALL_CATEGORIES, EXPENSE_CATEGORIES } from '../utils/categories';
+import { ALL_CATEGORIES, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../utils/categories';
 
 const ReportsScreen = () => {
   const { currentMonth } = useMonth();
@@ -17,10 +17,28 @@ const ReportsScreen = () => {
   const [showReportTypeModal, setShowReportTypeModal] = useState(false);
 
   const reportTypes = [
-    { label: 'Monthly Summary', value: 'monthly-summary' },
-    { label: 'Category Breakdown', value: 'category-breakdown' },
-    { label: 'Budget vs Actual', value: 'budget-vs-actual' },
+    { label: 'Monthly Income vs Expense Summary', value: 'monthly-summary' },
+    { label: 'Category-wise Expense Breakdown', value: 'category-breakdown' },
+    { label: 'Budget vs Actual Spending Comparison', value: 'budget-vs-actual' },
+    { label: 'Income Sources Analysis', value: 'income-sources' },
+    { label: 'Savings Rate Report', value: 'savings-rate' },
+    { label: 'Year-to-Date Financial Summary', value: 'ytd-summary' },
+    { label: 'Expense Trend Analysis', value: 'expense-trend' },
+    { label: 'Cash Flow Statement', value: 'cash-flow' },
+    { label: 'Custom Date Range Report', value: 'custom-range' },
   ];
+
+  useEffect(() => {
+    if (reportType === 'ytd-summary') {
+      setStartDate(new Date(currentMonth.getFullYear(), 0, 1));
+      setEndDate(new Date(currentMonth.getFullYear(), 11, 31));
+    } else if (reportType === 'expense-trend') {
+      const sixMonthsAgo = new Date(currentMonth);
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+      setStartDate(new Date(sixMonthsAgo.getFullYear(), sixMonthsAgo.getMonth(), 1));
+      setEndDate(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0));
+    }
+  }, [reportType, currentMonth]);
 
   const handleGenerateReport = async () => {
     if (startDate > endDate) {
@@ -76,7 +94,7 @@ const ReportsScreen = () => {
         case 'category-breakdown':
           return (
             <View>
-              {ALL_CATEGORIES.map((category) => (
+              {EXPENSE_CATEGORIES.map((category) => (
                 <Text key={category} style={styles.reportItem}>
                   {category}: ${(reportData[category] || 0).toFixed(2)}
                 </Text>
@@ -93,6 +111,59 @@ const ReportsScreen = () => {
                   Difference ${parseFloat(item.difference).toFixed(2)}
                 </Text>
               )) : <Text style={styles.reportItem}>No budget data available</Text>}
+            </View>
+          );
+        case 'income-sources':
+          return (
+            <View>
+              {INCOME_CATEGORIES.map((category) => (
+                <Text key={category} style={styles.reportItem}>
+                  {category}: ${(reportData[category] || 0).toFixed(2)}
+                </Text>
+              ))}
+            </View>
+          );
+        case 'savings-rate':
+          return (
+            <View>
+              <Text style={styles.reportItem}>Total Income: ${reportData.totalIncome?.toFixed(2) || '0.00'}</Text>
+              <Text style={styles.reportItem}>Total Expenses: ${reportData.totalExpenses?.toFixed(2) || '0.00'}</Text>
+              <Text style={styles.reportItem}>Net Savings: ${reportData.netSavings?.toFixed(2) || '0.00'}</Text>
+              <Text style={styles.reportItem}>Savings Rate: {reportData.savingsRate?.toFixed(2) || '0.00'}%</Text>
+            </View>
+          );
+        case 'ytd-summary':
+        case 'custom-range':
+          return (
+            <View>
+              <Text style={styles.reportItem}>Total Income: ${reportData.totalIncome?.toFixed(2) || '0.00'}</Text>
+              <Text style={styles.reportItem}>Total Expenses: ${reportData.totalExpenses?.toFixed(2) || '0.00'}</Text>
+              <Text style={styles.reportItem}>Net Savings: ${reportData.netSavings?.toFixed(2) || '0.00'}</Text>
+              <Text style={styles.reportItem}>Savings Rate: {reportData.savingsRate?.toFixed(2) || '0.00'}%</Text>
+              <Text style={styles.reportItem}>Top Expense Categories:</Text>
+              {reportData.topExpenses.map((expense, index) => (
+                <Text key={index} style={styles.reportItem}>
+                  {expense.category}: ${expense.amount.toFixed(2)}
+                </Text>
+              ))}
+            </View>
+          );
+        case 'expense-trend':
+          return (
+            <View>
+              {reportData.map((month) => (
+                <Text key={month.month} style={styles.reportItem}>
+                  {month.month}: ${month.totalExpense.toFixed(2)}
+                </Text>
+              ))}
+            </View>
+          );
+        case 'cash-flow':
+          return (
+            <View>
+              <Text style={styles.reportItem}>Cash Inflow: ${reportData.cashInflow?.toFixed(2) || '0.00'}</Text>
+              <Text style={styles.reportItem}>Cash Outflow: ${reportData.cashOutflow?.toFixed(2) || '0.00'}</Text>
+              <Text style={styles.reportItem}>Net Cash Flow: ${reportData.netCashFlow?.toFixed(2) || '0.00'}</Text>
             </View>
           );
         default:

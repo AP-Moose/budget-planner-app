@@ -1,7 +1,7 @@
 import { getTransactions, getBudgetGoals } from './FirebaseService';
-import { ALL_CATEGORIES, INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../utils/categories';
+import { ALL_CATEGORIES, INCOME_CATEGORIES, EXPENSE_CATEGORIES, getCategoryType } from '../utils/categories';
 import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing/src/Sharing';
+import * as Sharing from 'expo-sharing';
 
 export const generateReport = async (reportType, startDate, endDate) => {
   try {
@@ -25,7 +25,23 @@ export const generateReport = async (reportType, startDate, endDate) => {
         report = generateCategoryBreakdown(filteredTransactions);
         break;
       case 'budget-vs-actual':
-        report = generateExpenseCategoryBreakdown(filteredTransactions, budgetGoals);
+        report = generateBudgetVsActual(filteredTransactions, budgetGoals);
+        break;
+      case 'income-sources':
+        report = generateIncomeSourcesAnalysis(filteredTransactions);
+        break;
+      case 'savings-rate':
+        report = generateSavingsRateReport(filteredTransactions);
+        break;
+      case 'ytd-summary':
+      case 'custom-range':
+        report = generateCustomRangeReport(filteredTransactions);
+        break;
+      case 'expense-trend':
+        report = generateExpenseTrendAnalysis(filteredTransactions);
+        break;
+      case 'cash-flow':
+        report = generateCashFlowStatement(filteredTransactions);
         break;
       default:
         throw new Error('Invalid report type');
@@ -43,10 +59,10 @@ const generateMonthlySummary = (transactions) => {
   console.log('Generating monthly summary');
   try {
     const income = transactions
-      .filter(t => INCOME_CATEGORIES.includes(t.category))
+      .filter(t => getCategoryType(t.category) === 'income')
       .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
     const expenses = transactions
-      .filter(t => EXPENSE_CATEGORIES.includes(t.category))
+      .filter(t => getCategoryType(t.category) === 'expense')
       .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
     return {
       totalIncome: income,
@@ -64,12 +80,12 @@ const generateCategoryBreakdown = (transactions) => {
   console.log('Generating category breakdown');
   try {
     const categories = {};
-    ALL_CATEGORIES.forEach(category => {
+    EXPENSE_CATEGORIES.forEach(category => {
       categories[category] = 0;
     });
     transactions.forEach(t => {
-      if (ALL_CATEGORIES.includes(t.category)) {
-        categories[t.category] += parseFloat(t.amount) || 0;
+      if (getCategoryType(t.category) === 'expense') {
+        categories[t.category] = (categories[t.category] || 0) + (parseFloat(t.amount) || 0);
       }
     });
     return categories;
@@ -79,8 +95,8 @@ const generateCategoryBreakdown = (transactions) => {
   }
 };
 
-const generateExpenseCategoryBreakdown = (transactions, budgetGoals) => {
-  console.log('Generating expense category breakdown');
+const generateBudgetVsActual = (transactions, budgetGoals) => {
+  console.log('Generating budget vs actual');
   try {
     const actual = generateCategoryBreakdown(transactions);
     return EXPENSE_CATEGORIES.map(category => {
@@ -93,7 +109,97 @@ const generateExpenseCategoryBreakdown = (transactions, budgetGoals) => {
       };
     });
   } catch (error) {
-    console.error('Error in generateExpenseCategoryBreakdown:', error);
+    console.error('Error in generateBudgetVsActual:', error);
+    throw error;
+  }
+};
+
+const generateIncomeSourcesAnalysis = (transactions) => {
+  console.log('Generating income sources analysis');
+  try {
+    const incomeSources = {};
+    INCOME_CATEGORIES.forEach(category => {
+      incomeSources[category] = 0;
+    });
+    transactions.forEach(t => {
+      if (getCategoryType(t.category) === 'income') {
+        incomeSources[t.category] = (incomeSources[t.category] || 0) + (parseFloat(t.amount) || 0);
+      }
+    });
+    return incomeSources;
+  } catch (error) {
+    console.error('Error in generateIncomeSourcesAnalysis:', error);
+    throw error;
+  }
+};
+
+const generateSavingsRateReport = (transactions) => {
+  console.log('Generating savings rate report');
+  try {
+    const summary = generateMonthlySummary(transactions);
+    return {
+      ...summary,
+      savingsRate: summary.totalIncome > 0 ? (summary.netSavings / summary.totalIncome) * 100 : 0
+    };
+  } catch (error) {
+    console.error('Error in generateSavingsRateReport:', error);
+    throw error;
+  }
+};
+
+const generateCustomRangeReport = (transactions) => {
+  console.log('Generating custom range report');
+  try {
+    const summary = generateMonthlySummary(transactions);
+    const expenseBreakdown = generateCategoryBreakdown(transactions);
+    const topExpenses = Object.entries(expenseBreakdown)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([category, amount]) => ({ category, amount }));
+    
+    return {
+      ...summary,
+      topExpenses
+    };
+  } catch (error) {
+    console.error('Error in generateCustomRangeReport:', error);
+    throw error;
+  }
+};
+
+const generateExpenseTrendAnalysis = (transactions) => {
+  console.log('Generating expense trend analysis');
+  try {
+    const monthlyExpenses = {};
+    transactions.forEach(t => {
+      if (getCategoryType(t.category) === 'expense') {
+        const month = new Date(t.date).toLocaleString('default', { month: 'long', year: 'numeric' });
+        monthlyExpenses[month] = (monthlyExpenses[month] || 0) + (parseFloat(t.amount) || 0);
+      }
+    });
+    return Object.entries(monthlyExpenses).map(([month, totalExpense]) => ({ month, totalExpense }));
+  } catch (error) {
+    console.error('Error in generateExpenseTrendAnalysis:', error);
+    throw error;
+  }
+};
+
+const generateCashFlowStatement = (transactions) => {
+  console.log('Generating cash flow statement');
+  try {
+    const cashInflow = transactions
+      .filter(t => getCategoryType(t.category) === 'income')
+      .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+    const cashOutflow = transactions
+      .filter(t => getCategoryType(t.category) === 'expense')
+      .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+    return {
+      cashInflow,
+      cashOutflow,
+      netCashFlow: cashInflow - cashOutflow
+    };
+  } catch (error) {
+    console.error('Error in generateCashFlowStatement:', error);
     throw error;
   }
 };
@@ -105,12 +211,14 @@ export const exportReportToCSV = async (reportData, reportType) => {
   try {
     switch (reportType) {
       case 'monthly-summary':
+      case 'savings-rate':
         csvContent = `Total Income,Total Expenses,Net Savings,Savings Rate\n${reportData.totalIncome},${reportData.totalExpenses},${reportData.netSavings},${reportData.savingsRate}%`;
         break;
       case 'category-breakdown':
+      case 'income-sources':
         csvContent = 'Category,Amount\n';
-        ALL_CATEGORIES.forEach(category => {
-          csvContent += `${category},${reportData[category] || 0}\n`;
+        Object.entries(reportData).forEach(([category, amount]) => {
+          csvContent += `${category},${amount}\n`;
         });
         break;
       case 'budget-vs-actual':
@@ -118,6 +226,25 @@ export const exportReportToCSV = async (reportData, reportType) => {
         reportData.forEach(item => {
           csvContent += `${item.category},${item.budgeted},${item.actual},${item.difference}\n`;
         });
+        break;
+      case 'ytd-summary':
+      case 'custom-range':
+        csvContent = 'Total Income,Total Expenses,Net Savings,Savings Rate\n';
+        csvContent += `${reportData.totalIncome},${reportData.totalExpenses},${reportData.netSavings},${reportData.savingsRate}%\n\n`;
+        csvContent += 'Top Expenses\nCategory,Amount\n';
+        reportData.topExpenses.forEach(expense => {
+          csvContent += `${expense.category},${expense.amount}\n`;
+        });
+        break;
+      case 'expense-trend':
+        csvContent = 'Month,Total Expense\n';
+        reportData.forEach(item => {
+          csvContent += `${item.month},${item.totalExpense}\n`;
+        });
+        break;
+      case 'cash-flow':
+        csvContent = 'Cash Inflow,Cash Outflow,Net Cash Flow\n';
+        csvContent += `${reportData.cashInflow},${reportData.cashOutflow},${reportData.netCashFlow}`;
         break;
       default:
         throw new Error('Invalid report type for CSV export');
