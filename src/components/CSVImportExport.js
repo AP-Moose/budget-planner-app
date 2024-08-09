@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, Modal, ScrollView } from 'react-native';
-import * as DocumentPicker from 'expo-document-picker';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Modal } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing/src/Sharing';
-import { getTransactions, addTransaction } from '../services/FirebaseService';
-import { INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../utils/categories';
+import { getTransactions } from '../services/FirebaseService';
 import { Ionicons } from '@expo/vector-icons';
+import { useMonth } from '../context/MonthContext';
 
 const CSVImportExport = ({ onTransactionsUpdate }) => {
   const [modalVisible, setModalVisible] = useState(false);
+  const [dateRangeModalVisible, setDateRangeModalVisible] = useState(false);
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const { currentMonth } = useMonth();
 
-  const handleExportCSV = async () => {
+  const handleExportCSV = async (transactions) => {
     try {
-      const transactions = await getTransactions();
       const csvContent = convertToCSV(transactions);
       const fileName = `transactions_${new Date().toISOString().split('T')[0]}.csv`;
       const fileUri = FileSystem.documentDirectory + fileName;
@@ -36,103 +41,56 @@ const CSVImportExport = ({ onTransactionsUpdate }) => {
     return header + rows;
   };
 
-  const handleImportCSV = async () => {
+  const handleExportCurrentMonth = async () => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({ type: 'text/csv' });
-      if (result.type === 'success') {
-        const fileContent = await FileSystem.readAsStringAsync(result.uri, { encoding: FileSystem.EncodingType.UTF8 });
-        const transactions = parseCSV(fileContent);
-        for (const transaction of transactions) {
-          await addTransaction(transaction);
-        }
-        Alert.alert('Success', `CSV imported successfully. ${transactions.length} transactions added.`);
-        onTransactionsUpdate();
-      }
+      const allTransactions = await getTransactions();
+      const currentMonthTransactions = allTransactions.filter(transaction => {
+        const transactionDate = new Date(transaction.date);
+        return transactionDate.getMonth() === currentMonth.getMonth() &&
+               transactionDate.getFullYear() === currentMonth.getFullYear();
+      });
+      await handleExportCSV(currentMonthTransactions);
     } catch (error) {
-      console.error('Error importing CSV:', error);
-      Alert.alert('Error', `Failed to import CSV: ${error.message}`);
+      console.error('Error exporting current month transactions:', error);
+      Alert.alert('Error', 'Failed to export current month transactions. Please try again.');
     }
   };
 
-  const parseCSV = (csvContent) => {
-    const rows = csvContent.split('\n').slice(1); // Skip header
-    return rows.filter(row => row.trim() !== '').map(row => {
-      const [type, amount, description, category, date] = row.split(',');
-      if (!type || !amount || !description || !category || !date) {
-        throw new Error(`Invalid row format: ${row}`);
-      }
-      if (!INCOME_CATEGORIES.includes(category.trim()) && !EXPENSE_CATEGORIES.includes(category.trim())) {
-        throw new Error(`Invalid category: ${category}. Please use one of the predefined categories.`);
-      }
-      return { 
-        type: type.trim(), 
-        amount: parseFloat(amount.trim()), 
-        description: description.trim(), 
-        category: category.trim(), 
-        date: new Date(date.trim())
-      };
-    });
-  };
-
-  const shareTemplate = async () => {
-    const templateContent = `type,amount,description,category,date
-income,1000,Monthly compensation,Salary,2024-01-01
-expense,50,Weekly grocery run,Food,2024-01-02
-income,200,Freelance project payment,Other Income,2024-01-03
-expense,30,Monthly subscription fee,Entertainment,2024-01-04
-expense,100,Utility bill payment,Utilities,2024-01-05
-`;
-    const fileName = 'budget_planner_template.csv';
-    const fileUri = FileSystem.documentDirectory + fileName;
-    await FileSystem.writeAsStringAsync(fileUri, templateContent, { encoding: FileSystem.EncodingType.UTF8 });
-    
-    await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Budget Planner CSV Template' });
-  };
-
-  const showInstructions = () => {
-    Alert.alert(
-      'CSV Import Instructions',
-      '1. Download the template by tapping "Get Template".\n' +
-      '2. Fill in your transactions in the template.\n' +
-      '3. Use exact category names as listed in the Category Key.\n' +
-      '4. If using Google Sheets, go to File > Download > Comma-separated values (.csv).\n' +
-      '5. If using Excel, go to File > Save As > CSV (Comma delimited).\n' +
-      '6. Tap "Import CSV" and select your filled CSV file.\n' +
-      '\nFormat: type, amount, description, category, date (YYYY-MM-DD)\n' +
-      '\nTo view the full category list, tap "Category Key".'
-    );
-  };
-
-  const showCategories = () => {
-    const categoryText = 'Income Categories:\n' + INCOME_CATEGORIES.join(', ') + '\n\n' +
-                         'Expense Categories:\n' + EXPENSE_CATEGORIES.join(', ');
-    Alert.alert(
-      'Category Key',
-      categoryText,
-      [
-        { text: 'OK', onPress: () => console.log('OK Pressed') },
-        { text: 'Share', onPress: () => shareCategoryList(categoryText) }
-      ]
-    );
-  };
-
-  const shareCategoryList = async (categoryText) => {
+  const handleExportAll = async () => {
     try {
-      const fileName = 'budget_planner_categories.txt';
-      const fileUri = FileSystem.documentDirectory + fileName;
-      await FileSystem.writeAsStringAsync(fileUri, categoryText, { encoding: FileSystem.EncodingType.UTF8 });
-      
-      await Sharing.shareAsync(fileUri, { mimeType: 'text/plain', dialogTitle: 'Share Category List' });
+      const allTransactions = await getTransactions();
+      await handleExportCSV(allTransactions);
     } catch (error) {
-      console.error('Error sharing category list:', error);
-      Alert.alert('Error', 'Failed to share category list. Please try again.');
+      console.error('Error exporting all transactions:', error);
+      Alert.alert('Error', 'Failed to export all transactions. Please try again.');
+    }
+  };
+
+  const handleExportDateRange = async () => {
+    if (startDate > endDate) {
+      Alert.alert('Invalid Date Range', 'Start date must be before or equal to end date.');
+      return;
+    }
+
+    try {
+      const allTransactions = await getTransactions();
+      const filteredTransactions = allTransactions.filter(transaction => {
+        const transactionDate = new Date(transaction.date);
+        return transactionDate >= startDate && transactionDate <= endDate;
+      });
+
+      await handleExportCSV(filteredTransactions);
+      setDateRangeModalVisible(false);
+    } catch (error) {
+      console.error('Error exporting date range transactions:', error);
+      Alert.alert('Error', 'Failed to export date range transactions. Please try again.');
     }
   };
 
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.button} onPress={() => setModalVisible(true)}>
-        <Text style={styles.buttonText}>Import/Export</Text>
+        <Text style={styles.buttonText}>Export</Text>
         <Ionicons name="document-text-outline" size={24} color="#4CAF50" />
       </TouchableOpacity>
 
@@ -144,28 +102,21 @@ expense,100,Utility bill payment,Utilities,2024-01-05
       >
         <View style={styles.centeredView}>
           <View style={styles.modalView}>
-            <ScrollView>
-              <TouchableOpacity style={styles.modalButton} onPress={handleExportCSV}>
-                <Ionicons name="cloud-download-outline" size={24} color="white" />
-                <Text style={styles.modalButtonText}>Export CSV</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalButton} onPress={handleImportCSV}>
-                <Ionicons name="cloud-upload-outline" size={24} color="white" />
-                <Text style={styles.modalButtonText}>Import CSV</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalButton} onPress={shareTemplate}>
-                <Ionicons name="document-outline" size={24} color="white" />
-                <Text style={styles.modalButtonText}>Get Template</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalButton} onPress={showInstructions}>
-                <Ionicons name="information-circle-outline" size={24} color="white" />
-                <Text style={styles.modalButtonText}>Instructions</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalButton} onPress={showCategories}>
-                <Ionicons name="list-outline" size={24} color="white" />
-                <Text style={styles.modalButtonText}>Category Key</Text>
-              </TouchableOpacity>
-            </ScrollView>
+            <TouchableOpacity style={styles.modalButton} onPress={handleExportCurrentMonth}>
+              <Ionicons name="calendar-outline" size={24} color="white" />
+              <Text style={styles.modalButtonText}>Export Current Month</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalButton} onPress={handleExportAll}>
+              <Ionicons name="albums-outline" size={24} color="white" />
+              <Text style={styles.modalButtonText}>Export All Transactions</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalButton} onPress={() => {
+              setModalVisible(false);
+              setDateRangeModalVisible(true);
+            }}>
+              <Ionicons name="calendar-outline" size={24} color="white" />
+              <Text style={styles.modalButtonText}>Export Date Range</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.modalButton, styles.closeButton]}
               onPress={() => setModalVisible(false)}
@@ -175,67 +126,136 @@ expense,100,Utility bill payment,Utilities,2024-01-05
           </View>
         </View>
       </Modal>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={dateRangeModalVisible}
+        onRequestClose={() => setDateRangeModalVisible(false)}
+      >
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            <Text style={styles.dateRangeTitle}>Select Date Range</Text>
+            <View style={styles.dateContainer}>
+              <TouchableOpacity onPress={() => setShowStartDatePicker(true)} style={styles.dateButton}>
+                <Text>Start: {startDate.toLocaleDateString()}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowEndDatePicker(true)} style={styles.dateButton}>
+                <Text>End: {endDate.toLocaleDateString()}</Text>
+              </TouchableOpacity>
+            </View>
+            {showStartDatePicker && (
+              <DateTimePicker
+                value={startDate}
+                mode="date"
+                display="default"
+                onChange={(event, selectedDate) => {
+                  setShowStartDatePicker(false);
+                  if (selectedDate) setStartDate(selectedDate);
+                }}
+              />
+            )}
+            {showEndDatePicker && (
+              <DateTimePicker
+                value={endDate}
+                mode="date"
+                display="default"
+                onChange={(event, selectedDate) => {
+                  setShowEndDatePicker(false);
+                  if (selectedDate) setEndDate(selectedDate);
+                }}
+              />
+            )}
+            <TouchableOpacity style={styles.modalButton} onPress={handleExportDateRange}>
+              <Text style={styles.modalButtonText}>Export Selected Range</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.closeButton]}
+              onPress={() => setDateRangeModalVisible(false)}
+            >
+              <Text style={styles.modalButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-    container: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'flex-end',
-      paddingRight: 10,
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingRight: 10,
+  },
+  button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 5,
+  },
+  buttonText: {
+    color: '#4CAF50',
+    marginRight: 5,
+    fontSize: 16,
+  },
+  centeredView: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 35,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2
     },
-    button: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 5,
-    },
-    buttonText: {
-      color: '#4CAF50',
-      marginRight: 5,
-      fontSize: 16,
-    },
-    centeredView: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      backgroundColor: 'rgba(0,0,0,0.5)',
-    },
-    modalView: {
-      margin: 20,
-      backgroundColor: "white",
-      borderRadius: 20,
-      padding: 35,
-      alignItems: "center",
-      shadowColor: "#000",
-      shadowOffset: {
-        width: 0,
-        height: 2
-      },
-      shadowOpacity: 0.25,
-      shadowRadius: 4,
-      elevation: 5,
-      width: '80%',
-      maxHeight: '80%',
-    },
-    modalButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: '#4CAF50',
-      padding: 10,
-      borderRadius: 5,
-      margin: 5,
-      width: '100%',
-    },
-    modalButtonText: {
-      color: 'white',
-      marginLeft: 5,
-    },
-    closeButton: {
-      backgroundColor: '#f44336',
-      marginTop: 10,
-    },
-  });
-  
-  export default CSVImportExport;
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    width: '80%',
+  },
+  modalButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4CAF50',
+    padding: 10,
+    borderRadius: 5,
+    margin: 5,
+    width: '100%',
+  },
+  modalButtonText: {
+    color: 'white',
+    marginLeft: 5,
+  },
+  closeButton: {
+    backgroundColor: '#f44336',
+    marginTop: 10,
+  },
+  dateRangeTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginVertical: 10,
+  },
+  dateContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  dateButton: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    flex: 1,
+    marginHorizontal: 5,
+  },
+});
+
+export default CSVImportExport;
