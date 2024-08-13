@@ -31,7 +31,9 @@ export const generateCategoryTransactionDetail = (transactions) => {
       categoryTransactions[t.category].push({
         date: t.date,
         amount: parseFloat(t.amount) || 0,
-        description: t.description
+        description: t.description,
+        creditCard: t.creditCard,
+        creditCardName: t.creditCardName // Assuming this information is available in the transaction
       });
     });
 

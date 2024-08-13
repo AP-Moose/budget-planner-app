@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, updateDoc, deleteDoc, doc, where, setDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, updateDoc, deleteDoc, doc, where, setDoc, getDoc } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
 import { firebaseConfig } from '../config';
 import { getCategoryType } from '../utils/categories';
@@ -61,7 +61,6 @@ export const addTransaction = async (transaction) => {
   try {
     const user = auth.currentUser;
     if (!user) {
-      console.error('No user logged in');
       throw new Error('No user logged in');
     }
 
@@ -71,12 +70,19 @@ export const addTransaction = async (transaction) => {
       type: getCategoryType(transaction.category),
       date: transaction.date instanceof Date ? transaction.date : new Date(transaction.date),
       userId: user.uid,
-      creditCard: Boolean(transaction.creditCard)  // Ensure it's stored as a boolean
+      creditCard: Boolean(transaction.creditCard),
+      creditCardId: transaction.creditCardId || null
     };
 
     console.log('Attempting to save transaction:', transactionToSave);
     const docRef = await addDoc(collection(db, 'transactions'), transactionToSave);
     console.log('Transaction saved successfully with ID:', docRef.id);
+
+    // Update credit card balance if it's a credit card transaction
+    if (transactionToSave.creditCard && transactionToSave.creditCardId) {
+      await updateCreditCardBalance(transactionToSave.creditCardId, transactionToSave.amount, transactionToSave.type);
+    }
+
     return docRef.id;
   } catch (error) {
     console.error('Error adding transaction:', error);
@@ -213,6 +219,117 @@ export const getBudgetGoals = async () => {
   }
 };
 
+export const addCreditCard = async (cardData) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('No user logged in');
+    }
+
+    const cardToSave = {
+      ...cardData,
+      userId: user.uid,
+      balance: Number(cardData.balance) || 0,
+      limit: Number(cardData.limit),
+      lastUpdated: new Date()
+    };
+
+    const docRef = await addDoc(collection(db, 'creditCards'), cardToSave);
+    console.log('Credit card added successfully with ID:', docRef.id);
+    return docRef.id;
+  } catch (error) {
+    console.error('Error adding credit card:', error);
+    throw error;
+  }
+};
+
+export const getCreditCards = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('No user logged in');
+    }
+
+    const q = query(
+      collection(db, 'creditCards'),
+      where('userId', '==', user.uid)
+    );
+    
+    const snapshot = await getDocs(q);
+    const creditCards = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      balance: Number(doc.data().balance),
+      limit: Number(doc.data().limit)
+    }));
+    return creditCards;
+  } catch (error) {
+    console.error('Error getting credit cards:', error);
+    throw error;
+  }
+};
+
+export const updateCreditCard = async (id, updatedData) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('No user logged in');
+    }
+
+    const cardRef = doc(db, 'creditCards', id);
+    await updateDoc(cardRef, {
+      ...updatedData,
+      balance: Number(updatedData.balance),
+      limit: Number(updatedData.limit),
+      lastUpdated: new Date()
+    });
+    console.log('Credit card updated successfully:', id);
+  } catch (error) {
+    console.error('Error updating credit card:', error);
+    throw error;
+  }
+};
+
+export const deleteCreditCard = async (id) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('No user logged in');
+    }
+
+    const cardRef = doc(db, 'creditCards', id);
+    await deleteDoc(cardRef);
+    console.log('Credit card deleted successfully:', id);
+  } catch (error) {
+    console.error('Error deleting credit card:', error);
+    throw error;
+  }
+};
+
+const updateCreditCardBalance = async (cardId, amount, transactionType) => {
+  try {
+    const cardRef = doc(db, 'creditCards', cardId);
+    const cardDoc = await getDoc(cardRef);
+    
+    if (cardDoc.exists()) {
+      const currentBalance = cardDoc.data().balance;
+      const newBalance = transactionType === 'expense' 
+        ? currentBalance + Number(amount) 
+        : currentBalance - Number(amount);
+
+      await updateDoc(cardRef, { 
+        balance: newBalance,
+        lastUpdated: new Date()
+      });
+    } else {
+      console.error('Credit card not found:', cardId);
+    }
+  } catch (error) {
+    console.error('Error updating credit card balance:', error);
+    throw error;
+  }
+};
+
 export default {
   signUp,
   signIn,
@@ -226,4 +343,8 @@ export default {
   deleteTransaction,
   updateBudgetGoal,
   getBudgetGoals,
+  addCreditCard,
+  getCreditCards,
+  updateCreditCard,
+  deleteCreditCard,
 };

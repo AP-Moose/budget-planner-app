@@ -39,15 +39,28 @@ export const exportReportToCSV = async (reportData, reportType) => {
           csvContent += `${item.month},${item.totalExpense}\n`;
         });
         break;
-        case 'cash-flow':
-        csvContent = 'Cash Inflow,Cash Outflow,Net Cash Flow\n';
-        csvContent += `${reportData.cashInflow},${reportData.cashOutflow},${reportData.netCashFlow}`;
+      case 'cash-flow':
+        csvContent = 'Cash Inflow,Cash Outflow,Credit Card Purchases,Credit Card Payments,Net Cash Flow\n';
+        csvContent += `${reportData.cashInflow},${reportData.cashOutflow},${reportData.creditCardPurchases},${reportData.creditCardPayments},${reportData.netCashFlow}`;
         break;
       case 'category-transaction-detail':
-        csvContent = 'Category,Date,Amount,Description\n';
+        csvContent = 'Category,Date,Amount,Description,Credit Card,Credit Card Name\n';
         Object.entries(reportData).forEach(([category, transactions]) => {
           transactions.forEach(t => {
-            csvContent += `${category},${t.date},${t.amount},${t.description}\n`;
+            csvContent += `${category},${t.date},${t.amount},${t.description},${t.creditCard},${t.creditCardName || ''}\n`;
+          });
+        });
+        break;
+      case 'credit-card-statement':
+        csvContent = 'Credit Card,Opening Balance,Purchases,Payments,Closing Balance\n';
+        Object.entries(reportData).forEach(([cardName, cardData]) => {
+          csvContent += `${cardName},${cardData.openingBalance},${cardData.purchases},${cardData.payments},${cardData.closingBalance}\n`;
+        });
+        csvContent += '\nTransactions\n';
+        csvContent += 'Credit Card,Date,Description,Amount,Type\n';
+        Object.entries(reportData).forEach(([cardName, cardData]) => {
+          cardData.transactions.forEach(t => {
+            csvContent += `${cardName},${t.date},${t.description},${t.amount},${t.type}\n`;
           });
         });
         break;

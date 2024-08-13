@@ -10,6 +10,7 @@ import Header from './components/Header';
 import { Ionicons } from '@expo/vector-icons';
 import { getCurrentUser } from './services/FirebaseService';
 import ReportsScreen from './screens/ReportsScreen';
+import CreditCardScreen from './screens/CreditCardScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -96,6 +97,24 @@ function ReportsStack() {
   );
 }
 
+function CreditCardStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={({ route }) => ({
+        header: ({ navigation, options }) => {
+          return <Header title={options.title || route.name} />;
+        },
+      })}
+    >
+      <Stack.Screen 
+        name="CreditCards" 
+        component={CreditCardScreen} 
+        options={{ title: 'Credit Cards' }} 
+      />
+    </Stack.Navigator>
+  );
+}
+
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -111,6 +130,8 @@ function MainTabs() {
             iconName = focused ? 'flag' : 'flag-outline';
           } else if (route.name === 'ReportsTab') {
             iconName = focused ? 'bar-chart' : 'bar-chart-outline';
+          } else if (route.name === 'CreditCardsTab') {
+            iconName = focused ? 'card' : 'card-outline';
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -136,6 +157,11 @@ function MainTabs() {
         name="ReportsTab"
         component={ReportsStack}
         options={{ headerShown: false, title: 'Reports' }}
+      />
+      <Tab.Screen
+        name="CreditCardsTab"
+        component={CreditCardStack}
+        options={{ headerShown: false, title: 'Credit Cards' }}
       />
     </Tab.Navigator>
   );

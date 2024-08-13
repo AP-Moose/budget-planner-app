@@ -28,6 +28,7 @@ const ReportsScreen = () => {
     { label: 'Cash Flow Statement', value: 'cash-flow' },
     { label: 'Custom Date Range Report', value: 'custom-range' },
     { label: 'Category Transaction Detail', value: 'category-transaction-detail' },
+    { label: 'Credit Card Statement', value: 'credit-card-statement' },
   ];
 
   useEffect(() => {
@@ -279,6 +280,14 @@ const ReportsScreen = () => {
                   ${reportData.netCashFlow?.toFixed(2) || '0.00'}
                 </Text>
               </View>
+              <View style={styles.reportRow}>
+                <Text style={styles.reportLabel}>Credit Card Purchases:</Text>
+                <Text style={styles.reportValue}>${reportData.creditCardPurchases?.toFixed(2) || '0.00'}</Text>
+              </View>
+              <View style={styles.reportRow}>
+                <Text style={styles.reportLabel}>Credit Card Payments:</Text>
+                <Text style={styles.reportValue}>${reportData.creditCardPayments?.toFixed(2) || '0.00'}</Text>
+              </View>
             </View>
           );
         case 'category-transaction-detail':
@@ -287,20 +296,56 @@ const ReportsScreen = () => {
               <Text style={styles.reportTitle}>Category Transaction Detail</Text>
               {ALL_CATEGORIES.map((category) => (
                 <View key={category} style={styles.categorySection}>
-                  <Text style={styles.reportSubtitle}>{category}</Text>
-                  <View style={styles.tableHeader}>
-                    <Text style={styles.dateHeader}>Date</Text>
-                    <Text style={styles.amountHeader}>Amount</Text>
-                    <Text style={styles.descriptionHeader}>Description</Text>
-                  </View>
-                  {reportData[category].map((transaction, index) => (
-                    <View key={index} style={styles.tableRow}>
-                      <Text style={styles.dateCell}>{formatDate(transaction.date)}</Text>
-                      <Text style={styles.amountCell}>${transaction.amount.toFixed(2)}</Text>
-                      <Text style={styles.descriptionCell} numberOfLines={2}
-                      ellipsizeMode="tail">
+                <Text style={styles.reportSubtitle}>{category}</Text>
+                <View style={styles.tableHeader}>
+                  <Text style={styles.dateHeader}>Date</Text>
+                  <Text style={styles.amountHeader}>Amount</Text>
+                  <Text style={styles.descriptionHeader}>Description</Text>
+                  <Text style={styles.creditCardHeader}>Credit Card</Text>
+                </View>
+                {reportData[category].map((transaction, index) => (
+                  <View key={index} style={styles.tableRow}>
+                    <Text style={styles.dateCell}>{formatDate(transaction.date)}</Text>
+                    <Text style={styles.amountCell}>${transaction.amount.toFixed(2)}</Text>
+                    <Text style={styles.descriptionCell} numberOfLines={2} ellipsizeMode="tail">
                       {transaction.description}
                     </Text>
+                    <Text style={styles.creditCardCell}>{transaction.creditCard ? 'Yes' : 'No'}</Text>
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+        );
+      case 'credit-card-statement':
+        return (
+          <View style={styles.reportContainer}>
+            <Text style={styles.reportTitle}>Credit Card Statement</Text>
+            {Object.entries(reportData).map(([cardName, cardData]) => (
+              <View key={cardName} style={styles.creditCardSection}>
+                <Text style={styles.reportSubtitle}>{cardName}</Text>
+                <View style={styles.reportRow}>
+                  <Text style={styles.reportLabel}>Opening Balance:</Text>
+                  <Text style={styles.reportValue}>${cardData.openingBalance.toFixed(2)}</Text>
+                </View>
+                <View style={styles.reportRow}>
+                  <Text style={styles.reportLabel}>Purchases:</Text>
+                  <Text style={styles.reportValue}>${cardData.purchases.toFixed(2)}</Text>
+                </View>
+                <View style={styles.reportRow}>
+                  <Text style={styles.reportLabel}>Payments:</Text>
+                  <Text style={styles.reportValue}>${cardData.payments.toFixed(2)}</Text>
+                </View>
+                <View style={styles.reportRow}>
+                  <Text style={styles.reportLabel}>Closing Balance:</Text>
+                  <Text style={styles.reportValue}>${cardData.closingBalance.toFixed(2)}</Text>
+                </View>
+                <Text style={styles.transactionTitle}>Transactions:</Text>
+                {cardData.transactions.map((transaction, index) => (
+                  <View key={index} style={styles.transactionRow}>
+                    <Text style={styles.transactionDate}>{formatDate(transaction.date)}</Text>
+                    <Text style={styles.transactionDescription}>{transaction.description}</Text>
+                    <Text style={styles.transactionAmount}>${transaction.amount.toFixed(2)}</Text>
                   </View>
                 ))}
               </View>
@@ -544,26 +589,32 @@ dateHeader: {
   fontWeight: 'bold',
 },
 amountHeader: {
-  flex: 3,
+  flex: 2,
   fontWeight: 'bold',
   textAlign: 'right',
-  paddingRight: 20,
 },
 descriptionHeader: {
   flex: 4,
   fontWeight: 'bold',
 },
+creditCardHeader: {
+  flex: 2,
+  fontWeight: 'bold',
+  textAlign: 'center',
+},
 dateCell: {
   flex: 3,
-  paddingRight: 0,
 },
 amountCell: {
-  flex: 3,
+  flex: 2,
   textAlign: 'right',
-  paddingRight: 20,
 },
 descriptionCell: {
   flex: 4,
+},
+creditCardCell: {
+  flex: 2,
+  textAlign: 'center',
 },
 ytdButton: {
   backgroundColor: '#4CAF50',
@@ -571,6 +622,34 @@ ytdButton: {
   borderRadius: 5,
   alignItems: 'center',
   marginBottom: 10,
+},
+creditCardSection: {
+  marginBottom: 20,
+  borderWidth: 1,
+  borderColor: '#ccc',
+  borderRadius: 5,
+  padding: 10,
+},
+transactionTitle: {
+  fontSize: 16,
+  fontWeight: 'bold',
+  marginTop: 10,
+  marginBottom: 5,
+},
+transactionRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  marginBottom: 5,
+},
+transactionDate: {
+  flex: 2,
+},
+transactionDescription: {
+  flex: 4,
+},
+transactionAmount: {
+  flex: 2,
+  textAlign: 'right',
 },
 });
 
