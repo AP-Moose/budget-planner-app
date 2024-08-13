@@ -15,6 +15,7 @@ const ReportsScreen = () => {
   const [reportData, setReportData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showReportTypeModal, setShowReportTypeModal] = useState(false);
+  const [isYTD, setIsYTD] = useState(false);
 
   const reportTypes = [
     { label: 'Monthly Income vs Expense Summary', value: 'monthly-summary' },
@@ -30,16 +31,24 @@ const ReportsScreen = () => {
   ];
 
   useEffect(() => {
-    if (reportType === 'ytd-summary') {
-      setStartDate(new Date(currentMonth.getFullYear(), 0, 1));
-      setEndDate(new Date(currentMonth.getFullYear(), 11, 31));
+    updateDateRange();
+  }, [reportType, currentMonth, isYTD]);
+
+  const updateDateRange = () => {
+    const now = new Date();
+    if (isYTD || reportType === 'ytd-summary') {
+      setStartDate(new Date(now.getFullYear(), 0, 1));
+      setEndDate(now);
+    } else if (reportType === 'monthly-summary') {
+      setStartDate(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1));
+      setEndDate(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0));
     } else if (reportType === 'expense-trend') {
-      const sixMonthsAgo = new Date(currentMonth);
+      const sixMonthsAgo = new Date(now);
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
       setStartDate(new Date(sixMonthsAgo.getFullYear(), sixMonthsAgo.getMonth(), 1));
-      setEndDate(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0));
+      setEndDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
     }
-  }, [reportType, currentMonth]);
+  };
 
   const handleGenerateReport = async () => {
     if (startDate > endDate) {
@@ -79,6 +88,35 @@ const ReportsScreen = () => {
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+  };
+
+  const renderDateSelection = () => {
+    if (isYTD || reportType === 'ytd-summary') {
+      return (
+        <View style={styles.dateContainer}>
+          <Text>Year-to-Date: {startDate.getFullYear()}</Text>
+        </View>
+      );
+    } else if (reportType === 'monthly-summary') {
+      return (
+        <View style={styles.dateContainer}>
+          <TouchableOpacity onPress={() => setShowStartDatePicker(true)} style={styles.dateButton}>
+            <Text>Month: {startDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    } else {
+      return (
+        <View style={styles.dateContainer}>
+          <TouchableOpacity onPress={() => setShowStartDatePicker(true)} style={styles.dateButton}>
+            <Text>Start: {startDate.toLocaleDateString()}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowEndDatePicker(true)} style={styles.dateButton}>
+            <Text>End: {endDate.toLocaleDateString()}</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
   };
 
   const renderReportData = () => {
@@ -259,263 +297,281 @@ const ReportsScreen = () => {
                     <View key={index} style={styles.tableRow}>
                       <Text style={styles.dateCell}>{formatDate(transaction.date)}</Text>
                       <Text style={styles.amountCell}>${transaction.amount.toFixed(2)}</Text>
-                      <Text style={styles.descriptionCell} numberOfLines={2} ellipsizeMode="tail">
-                        {transaction.description}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              ))}
-            </View>
-          );
-        default:
-          return <Text style={styles.reportItem}>Unknown report type</Text>;
-      }
-    } catch (error) {
-      console.error('Error rendering report data:', error);
-      return <Text style={styles.reportItem}>Error rendering report data: {error.message}</Text>;
+                      <Text style={styles.descriptionCell} numberOfLines={2}
+                      ellipsizeMode="tail">
+                      {transaction.description}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+        );
+      default:
+        return <Text style={styles.reportItem}>Unknown report type</Text>;
     }
-  };
+  } catch (error) {
+    console.error('Error rendering report data:', error);
+    return <Text style={styles.reportItem}>Error rendering report data: {error.message}</Text>;
+  }
+};
 
-  const renderReportTypeModal = () => (
-    <Modal
-      visible={showReportTypeModal}
-      transparent={true}
-      animationType="slide"
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          {reportTypes.map((type) => (
-            <TouchableOpacity
-              key={type.value}
-              style={styles.modalItem}
-              onPress={() => {
-                setReportType(type.value);
-                setShowReportTypeModal(false);
-              }}
-            >
-              <Text>{type.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+const renderReportTypeModal = () => (
+  <Modal
+    visible={showReportTypeModal}
+    transparent={true}
+    animationType="slide"
+  >
+    <View style={styles.modalContainer}>
+      <View style={styles.modalContent}>
+        {reportTypes.map((type) => (
+          <TouchableOpacity
+            key={type.value}
+            style={styles.modalItem}
+            onPress={() => {
+              setReportType(type.value);
+              setShowReportTypeModal(false);
+              setIsYTD(type.value === 'ytd-summary');
+            }}
+          >
+            <Text>{type.label}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
-    </Modal>
-  );
+    </View>
+  </Modal>
+);
 
-  return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Financial Reports</Text>
-      
-      <View style={styles.reportTypeContainer}>
-        <TouchableOpacity 
-          style={styles.reportTypeButton} 
-          onPress={() => setShowReportTypeModal(true)}
-        >
-          <Text>{reportTypes.find(type => type.value === reportType)?.label}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.dateContainer}>
-        <TouchableOpacity onPress={() => setShowStartDatePicker(true)} style={styles.dateButton}>
-          <Text>Start: {startDate.toLocaleDateString()}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setShowEndDatePicker(true)} style={styles.dateButton}>
-          <Text>End: {endDate.toLocaleDateString()}</Text>
-        </TouchableOpacity>
-      </View>
-
-      {showStartDatePicker && (
-        <DateTimePicker
-          value={startDate}
-          mode="date"
-          display="default"
-          onChange={(event, selectedDate) => {
-            setShowStartDatePicker(false);
-            if (selectedDate) setStartDate(selectedDate);
-          }}
-        />
-      )}
-
-      {showEndDatePicker && (
-        <DateTimePicker
-          value={endDate}
-          mode="date"
-          display="default"
-          onChange={(event, selectedDate) => {
-            setShowEndDatePicker(false);
-            if (selectedDate) setEndDate(selectedDate);
-          }}
-        />
-      )}
-
-      <TouchableOpacity style={styles.generateButton} onPress={handleGenerateReport} disabled={isLoading}>
-        <Text style={styles.buttonText}>{isLoading ? 'Generating...' : 'Generate Report'}</Text>
+return (
+  <ScrollView style={styles.container}>
+    <Text style={styles.title}>Financial Reports</Text>
+    
+    <View style={styles.reportTypeContainer}>
+      <TouchableOpacity 
+        style={styles.reportTypeButton} 
+        onPress={() => setShowReportTypeModal(true)}
+      >
+        <Text>{reportTypes.find(type => type.value === reportType)?.label}</Text>
       </TouchableOpacity>
+    </View>
 
-      <TouchableOpacity style={styles.exportButton} onPress={handleExportReport} disabled={!reportData || isLoading}>
-        <Text style={styles.buttonText}>Export to CSV</Text>
+    {reportType !== 'ytd-summary' && (
+      <TouchableOpacity 
+        style={styles.ytdButton} 
+        onPress={() => setIsYTD(!isYTD)}
+      >
+        <Text style={styles.buttonText}>{isYTD ? 'Custom Date Range' : 'Year-to-Date'}</Text>
       </TouchableOpacity>
+    )}
 
-      {isLoading && <ActivityIndicator size="large" color="#0000ff" />}
+    {renderDateSelection()}
 
-      <View style={styles.reportContainer}>
-        {reportData && renderReportData()}
-      </View>
+    {showStartDatePicker && (
+      <DateTimePicker
+        value={startDate}
+        mode={reportType === 'monthly-summary' ? 'date' : 'date'}
+        display="default"
+        onChange={(event, selectedDate) => {
+          setShowStartDatePicker(false);
+          if (selectedDate) {
+            if (reportType === 'monthly-summary') {
+              setStartDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
+              setEndDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0));
+            } else {
+              setStartDate(selectedDate);
+            }
+          }
+        }}
+      />
+    )}
 
-      {renderReportTypeModal()}
-    </ScrollView>
-  );
+    {showEndDatePicker && (
+      <DateTimePicker
+        value={endDate}
+        mode="date"
+        display="default"
+        onChange={(event, selectedDate) => {
+          setShowEndDatePicker(false);
+          if (selectedDate) setEndDate(selectedDate);
+        }}
+      />
+    )}
+
+    <TouchableOpacity style={styles.generateButton} onPress={handleGenerateReport} disabled={isLoading}>
+      <Text style={styles.buttonText}>{isLoading ? 'Generating...' : 'Generate Report'}</Text>
+    </TouchableOpacity>
+
+    <TouchableOpacity style={styles.exportButton} onPress={handleExportReport} disabled={!reportData || isLoading}>
+      <Text style={styles.buttonText}>Export to CSV</Text>
+    </TouchableOpacity>
+
+    {isLoading && <ActivityIndicator size="large" color="#0000ff" />}
+
+    <View style={styles.reportContainer}>
+      {reportData && renderReportData()}
+    </View>
+
+    {renderReportTypeModal()}
+  </ScrollView>
+);
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  reportTypeContainer: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    marginBottom: 20,
-  },
-  reportTypeButton: {
-    padding: 15,
-  },
-  dateContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  dateButton: {
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    flex: 1,
-    marginHorizontal: 5,
-  },
-  generateButton: {
-    backgroundColor: '#4CAF50',
-    padding: 15,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  exportButton: {
-    backgroundColor: '#2196F3',
-    padding: 15,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  buttonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  reportContainer: {
-    marginTop: 20,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    padding: 15,
-  },
-  reportTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
-  },
-  reportSubtitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 10,
-    marginBottom: 5,
-  },
-  reportSection: {
-    marginBottom: 15,
-  },
-  reportRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 5,
-  },
-  reportLabel: {
-    flex: 1,
-    fontSize: 16,
-  },
-  reportValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  positiveValue: {
-    color: 'green',
-  },
-  negativeValue: {
-    color: 'red',
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 10,
-    width: '80%',
-  },
-  modalItem: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-  },
-  categorySection: {
-    marginBottom: 20,
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-    paddingBottom: 5,
-    marginBottom: 5,
-  },
-  tableRow: {
-    flexDirection: 'row',
-    paddingVertical: 5,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  dateHeader: {
-    flex: 3,
-    fontWeight: 'bold',
-  },
-  amountHeader: {
-    flex: 3,
-    fontWeight: 'bold',
-    textAlign: 'right',
-    paddingRight: 20,
-  },
-  descriptionHeader: {
-    flex: 4,
-    fontWeight: 'bold',
-  },
-  dateCell: {
-    flex: 3,
-    paddingRight: 0,
-  },
-  amountCell: {
-    flex: 3,
-    textAlign: 'right',
-    paddingRight: 20,
-  },
-  descriptionCell: {
-    flex: 4,
-  },
+container: {
+  flex: 1,
+  padding: 20,
+},
+title: {
+  fontSize: 24,
+  fontWeight: 'bold',
+  marginBottom: 20,
+},
+reportTypeContainer: {
+  borderWidth: 1,
+  borderColor: '#ccc',
+  borderRadius: 5,
+  marginBottom: 20,
+},
+reportTypeButton: {
+  padding: 15,
+},
+dateContainer: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  marginBottom: 20,
+},
+dateButton: {
+  padding: 10,
+  borderWidth: 1,
+  borderColor: '#ccc',
+  borderRadius: 5,
+  flex: 1,
+  marginHorizontal: 5,
+},
+generateButton: {
+  backgroundColor: '#4CAF50',
+  padding: 15,
+  borderRadius: 5,
+  alignItems: 'center',
+  marginBottom: 10,
+},
+exportButton: {
+  backgroundColor: '#2196F3',
+  padding: 15,
+  borderRadius: 5,
+  alignItems: 'center',
+  marginBottom: 20,
+},
+buttonText: {
+  color: 'white',
+  fontWeight: 'bold',
+},
+reportContainer: {
+  marginTop: 20,
+  borderWidth: 1,
+  borderColor: '#ccc',
+  borderRadius: 5,
+  padding: 15,
+},
+reportTitle: {
+  fontSize: 20,
+  fontWeight: 'bold',
+  marginBottom: 15,
+},
+reportSubtitle: {
+  fontSize: 18,
+  fontWeight: 'bold',
+  marginTop: 10,
+  marginBottom: 5,
+},
+reportSection: {
+  marginBottom: 15,
+},
+reportRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  marginBottom: 5,
+},
+reportLabel: {
+  flex: 1,
+  fontSize: 16,
+},
+reportValue: {
+  fontSize: 16,
+  fontWeight: 'bold',
+},
+positiveValue: {
+  color: 'green',
+},
+negativeValue: {
+  color: 'red',
+},
+modalContainer: {
+  flex: 1,
+  justifyContent: 'center',
+  alignItems: 'center',
+  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+},
+modalContent: {
+  backgroundColor: 'white',
+  padding: 20,
+  borderRadius: 10,
+  width: '80%',
+},
+modalItem: {
+  padding: 15,
+  borderBottomWidth: 1,
+  borderBottomColor: '#ccc',
+},
+categorySection: {
+  marginBottom: 20,
+},
+tableHeader: {
+  flexDirection: 'row',
+  borderBottomWidth: 1,
+  borderBottomColor: '#ccc',
+  paddingBottom: 5,
+  marginBottom: 5,
+},
+tableRow: {
+  flexDirection: 'row',
+  paddingVertical: 5,
+  borderBottomWidth: 1,
+  borderBottomColor: '#eee',
+},
+dateHeader: {
+  flex: 3,
+  fontWeight: 'bold',
+},
+amountHeader: {
+  flex: 3,
+  fontWeight: 'bold',
+  textAlign: 'right',
+  paddingRight: 20,
+},
+descriptionHeader: {
+  flex: 4,
+  fontWeight: 'bold',
+},
+dateCell: {
+  flex: 3,
+  paddingRight: 0,
+},
+amountCell: {
+  flex: 3,
+  textAlign: 'right',
+  paddingRight: 20,
+},
+descriptionCell: {
+  flex: 4,
+},
+ytdButton: {
+  backgroundColor: '#4CAF50',
+  padding: 10,
+  borderRadius: 5,
+  alignItems: 'center',
+  marginBottom: 10,
+},
 });
 
 export default ReportsScreen;
