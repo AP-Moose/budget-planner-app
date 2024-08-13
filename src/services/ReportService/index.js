@@ -9,10 +9,6 @@ import * as cashFlowReports from './cashFlowReports';
 import * as creditCardReports from './creditCardReports';
 import { exportReportToCSV } from './csvExport';
 
-const normalizeDate = (date) => {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-};
-
 export const generateReport = async (reportType, startDate, endDate) => {
   try {
     console.log('Fetching transactions, budget goals, and credit cards');
@@ -20,22 +16,10 @@ export const generateReport = async (reportType, startDate, endDate) => {
     const budgetGoals = await getBudgetGoals();
     const creditCards = await getCreditCards();
     
-    let filteredTransactions;
-    if (reportType === 'ytd-summary') {
-      const currentYear = new Date().getFullYear();
-      filteredTransactions = transactions.filter(t => {
-        const transactionDate = new Date(t.date);
-        return transactionDate.getFullYear() === currentYear;
-      });
-    } else {
-      console.log('Filtering transactions', startDate, endDate);
-      const normalizedStartDate = normalizeDate(new Date(startDate));
-      const normalizedEndDate = normalizeDate(new Date(endDate));
-      filteredTransactions = transactions.filter(t => {
-        const normalizedTransactionDate = normalizeDate(new Date(t.date));
-        return normalizedTransactionDate >= normalizedStartDate && normalizedTransactionDate <= normalizedEndDate;
-      });
-    }
+    const filteredTransactions = transactions.filter(t => {
+      const transactionDate = new Date(t.date);
+      return transactionDate >= startDate && transactionDate <= endDate;
+    });
 
     console.log('Filtered transactions:', filteredTransactions.length);
 

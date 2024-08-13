@@ -71,7 +71,8 @@ export const addTransaction = async (transaction) => {
       date: transaction.date instanceof Date ? transaction.date : new Date(transaction.date),
       userId: user.uid,
       creditCard: Boolean(transaction.creditCard),
-      creditCardId: transaction.creditCardId || null
+      creditCardId: transaction.creditCardId || null,
+      isCardPayment: Boolean(transaction.isCardPayment)
     };
 
     console.log('Attempting to save transaction:', transactionToSave);
@@ -80,7 +81,7 @@ export const addTransaction = async (transaction) => {
 
     // Update credit card balance if it's a credit card transaction
     if (transactionToSave.creditCard && transactionToSave.creditCardId) {
-      await updateCreditCardBalance(transactionToSave.creditCardId, transactionToSave.amount, transactionToSave.type);
+      await updateCreditCardBalance(transactionToSave.creditCardId, transactionToSave.amount, transactionToSave.type, transactionToSave.isCardPayment);
     }
 
     return docRef.id;
@@ -123,7 +124,9 @@ export const getTransactions = async () => {
       id: doc.id,
       ...doc.data(),
       amount: Number(doc.data().amount),
-      date: doc.data().date.toDate()
+      date: doc.data().date.toDate(),
+      creditCard: Boolean(doc.data().creditCard),
+      isCardPayment: Boolean(doc.data().isCardPayment)
     }));
     console.log(`Retrieved ${transactions.length} transactions for user:`, user.uid);
     return transactions;
@@ -144,6 +147,12 @@ export const updateTransaction = async (id, updatedData) => {
     const transactionRef = doc(db, 'transactions', id);
     if (updatedData.category) {
       updatedData.type = getCategoryType(updatedData.category);
+    }
+    if (updatedData.creditCard !== undefined) {
+      updatedData.creditCard = Boolean(updatedData.creditCard);
+    }
+    if (updatedData.isCardPayment !== undefined) {
+      updatedData.isCardPayment = Boolean(updatedData.isCardPayment);
     }
     await updateDoc(transactionRef, updatedData);
     console.log('Transaction updated successfully:', id);
@@ -306,16 +315,23 @@ export const deleteCreditCard = async (id) => {
   }
 };
 
-const updateCreditCardBalance = async (cardId, amount, transactionType) => {
+const updateCreditCardBalance = async (cardId, amount, transactionType, isCardPayment) => {
   try {
     const cardRef = doc(db, 'creditCards', cardId);
     const cardDoc = await getDoc(cardRef);
     
     if (cardDoc.exists()) {
       const currentBalance = cardDoc.data().balance;
-      const newBalance = transactionType === 'expense' 
-        ? currentBalance + Number(amount) 
-        : currentBalance - Number(amount);
+      let newBalance;
+      
+      if (isCardPayment) {
+        newBalance = currentBalance - Number(amount);
+      } else if (transactionType === 'expense') {
+        newBalance = currentBalance + Number(amount);
+      } else {
+        // For income transactions on credit card (e.g., cashback rewards)
+        newBalance = currentBalance - Number(amount);
+      }
 
       await updateDoc(cardRef, { 
         balance: newBalance,

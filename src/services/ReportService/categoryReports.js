@@ -1,17 +1,22 @@
 import { ALL_CATEGORIES, EXPENSE_CATEGORIES, getCategoryType } from '../../utils/categories';
+import { categorizeTransactions } from '../../utils/reportUtils';
 
 export const generateCategoryBreakdown = (transactions) => {
   console.log('Generating category breakdown');
   try {
+    const categorizedTransactions = categorizeTransactions(transactions);
     const categories = {};
+
     EXPENSE_CATEGORIES.forEach(category => {
-      categories[category] = 0;
+      const regularExpenses = categorizedTransactions.regularExpenses
+        .filter(t => t.category === category)
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+      const creditCardExpenses = categorizedTransactions.creditCardPurchases
+        .filter(t => t.category === category)
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+      categories[category] = regularExpenses + creditCardExpenses;
     });
-    transactions.forEach(t => {
-      if (getCategoryType(t.category) === 'expense') {
-        categories[t.category] = (categories[t.category] || 0) + (parseFloat(t.amount) || 0);
-      }
-    });
+
     return categories;
   } catch (error) {
     console.error('Error in generateCategoryBreakdown:', error);
@@ -30,10 +35,10 @@ export const generateCategoryTransactionDetail = (transactions) => {
     transactions.forEach(t => {
       categoryTransactions[t.category].push({
         date: t.date,
-        amount: parseFloat(t.amount) || 0,
+        amount: Number(t.amount),
         description: t.description,
         creditCard: t.creditCard,
-        creditCardName: t.creditCardName // Assuming this information is available in the transaction
+        isCardPayment: t.isCardPayment
       });
     });
 

@@ -1,12 +1,20 @@
-import { generateMonthlySummary } from './summaryReports';
+import { categorizeTransactions, calculateTotals, calculateNetSavings, calculateSavingsRate } from '../../utils/reportUtils';
 
 export const generateSavingsRateReport = (transactions) => {
   console.log('Generating savings rate report');
   try {
-    const summary = generateMonthlySummary(transactions);
+    const categorizedTransactions = categorizeTransactions(transactions);
+    const totals = calculateTotals(categorizedTransactions);
+    const netSavings = calculateNetSavings(totals);
+    const savingsRate = calculateSavingsRate(totals);
+
     return {
-      ...summary,
-      savingsRate: summary.totalIncome > 0 ? (summary.netSavings / summary.totalIncome) * 100 : 0
+      totalIncome: totals.totalRegularIncome + totals.totalCreditCardIncome,
+      totalExpenses: totals.totalRegularExpenses + totals.totalCreditCardPurchases,
+      netSavings: netSavings,
+      savingsRate: savingsRate,
+      creditCardPurchases: totals.totalCreditCardPurchases,
+      creditCardPayments: totals.totalCreditCardPayments
     };
   } catch (error) {
     console.error('Error in generateSavingsRateReport:', error);

@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, KeyboardAvoidingView, Platform, ScrollView, Keyboard, Switch, Modal } from 'react-native';
+import React, { useState, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, KeyboardAvoidingView, Platform, ScrollView, Keyboard, Switch } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { getTransactions, deleteTransaction, addTransaction, updateTransaction, getCreditCards, addCreditCard } from '../services/FirebaseService';
+import { getTransactions, deleteTransaction, addTransaction, updateTransaction, getCreditCards } from '../services/FirebaseService';
 import { getCategoryName, INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../utils/categories';
 import SearchBar from '../components/SearchBar';
 import RNPickerSelect from 'react-native-picker-select';
@@ -26,13 +26,12 @@ function HomeScreen({ navigation }) {
     category: '', 
     date: new Date(), 
     creditCard: false,
-    creditCardId: null
+    creditCardId: null,
+    isCardPayment: false
   });
   const [isAddingTransaction, setIsAddingTransaction] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [creditCards, setCreditCards] = useState([]);
-  const [showAddCreditCardModal, setShowAddCreditCardModal] = useState(false);
-  const [newCreditCard, setNewCreditCard] = useState({ name: '', limit: '' });
   const listRef = useRef(null);
 
   const loadTransactions = useCallback(async () => {
@@ -122,7 +121,8 @@ function HomeScreen({ navigation }) {
         category: '', 
         date: new Date(currentMonth), 
         creditCard: false,
-        creditCardId: null
+        creditCardId: null,
+        isCardPayment: false
       });
       setIsAddingTransaction(false);
       Alert.alert('Success', 'Transaction added successfully');
@@ -130,24 +130,6 @@ function HomeScreen({ navigation }) {
     } catch (error) {
       console.error('Error adding transaction:', error);
       Alert.alert('Error', 'Failed to add transaction. Please try again.');
-    }
-  };
-
-  const handleAddCreditCard = async () => {
-    if (!newCreditCard.name || !newCreditCard.limit) {
-      Alert.alert('Error', 'Please enter both name and limit for the credit card');
-      return;
-    }
-
-    try {
-      await addCreditCard(newCreditCard);
-      setNewCreditCard({ name: '', limit: '' });
-      setShowAddCreditCardModal(false);
-      Alert.alert('Success', 'Credit card added successfully');
-      loadCreditCards();
-    } catch (error) {
-      console.error('Error adding credit card:', error);
-      Alert.alert('Error', 'Failed to add credit card. Please try again.');
     }
   };
 
@@ -179,26 +161,34 @@ function HomeScreen({ navigation }) {
     return `$${Math.abs(parseFloat(amount)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const renderItem = useCallback(({ item }) => (
-    <TouchableOpacity
-      style={styles.rowFront}
-      onPress={() => setEditingTransaction(item)}
-    >
-      <View style={styles.transactionInfo}>
-        <Text style={styles.transactionCategory}>{getCategoryName(item.category)}</Text>
-        <Text style={styles.transactionDescription}>{item.description}</Text>
-        <Text style={styles.transactionDate}>{new Date(item.date).toLocaleDateString()}</Text>
-        {item.creditCard && (
-          <Text style={styles.creditCardIndicator}>
-            Credit Card: {creditCards.find(card => card.id === item.creditCardId)?.name || 'Unknown'}
-          </Text>
-        )}
-      </View>
-      <Text style={[styles.transactionAmount, item.type === 'income' ? styles.incomeAmount : styles.expenseAmount]}>
-        {item.type === 'income' ? '+' : '-'}{formatCurrency(item.amount)}
-      </Text>
-    </TouchableOpacity>
-  ), [creditCards]);
+  const renderItem = useCallback(({ item }) => {
+    const creditCardName = creditCards.find(card => card.id === item.creditCardId)?.name || 'Unknown';
+    let creditCardInfo = '';
+    if (item.creditCard) {
+      creditCardInfo = item.isCardPayment
+        ? `Card Payment: ${creditCardName}`
+        : `Credit Card: ${creditCardName}`;
+    }
+
+    return (
+      <TouchableOpacity
+        style={styles.rowFront}
+        onPress={() => setEditingTransaction(item)}
+      >
+        <View style={styles.transactionInfo}>
+          <Text style={styles.transactionCategory}>{getCategoryName(item.category)}</Text>
+          <Text style={styles.transactionDescription}>{item.description}</Text>
+          <Text style={styles.transactionDate}>{new Date(item.date).toLocaleDateString()}</Text>
+          {item.creditCard && (
+            <Text style={styles.creditCardIndicator}>{creditCardInfo}</Text>
+          )}
+        </View>
+        <Text style={[styles.transactionAmount, item.type === 'income' ? styles.incomeAmount : styles.expenseAmount]}>
+          {item.type === 'income' ? '+' : '-'}{formatCurrency(item.amount)}
+        </Text>
+      </TouchableOpacity>
+    );
+  }, [creditCards]);
 
   const renderHiddenItem = useCallback(({ item }) => (
     <View style={styles.rowBack}>
@@ -241,13 +231,15 @@ function HomeScreen({ navigation }) {
         returnKeyType="done"
         onSubmitEditing={handleDoneEditing}
       />
-      <RNPickerSelect
-        onValueChange={(value) => setNewTransaction(prev => ({...prev, category: value}))}
-        items={newTransaction.type === 'income' ? INCOME_CATEGORIES.map(cat => ({ label: cat, value: cat })) : EXPENSE_CATEGORIES.map(cat => ({ label: cat, value: cat }))}
-        style={pickerSelectStyles}
-        value={newTransaction.category}
-        placeholder={{ label: "Select a category", value: null }}
-      />
+      {!newTransaction.creditCard && (
+        <RNPickerSelect
+          onValueChange={(value) => setNewTransaction(prev => ({...prev, category: value}))}
+          items={newTransaction.type === 'income' ? INCOME_CATEGORIES.map(cat => ({ label: cat, value: cat })) : EXPENSE_CATEGORIES.map(cat => ({ label: cat, value: cat }))}
+          style={pickerSelectStyles}
+          value={newTransaction.category}
+          placeholder={{ label: "Select a category", value: null }}
+        />
+      )}
       <View style={styles.dateContainer}>
         <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
           <Text style={styles.dateButtonText}>
@@ -259,10 +251,16 @@ function HomeScreen({ navigation }) {
         </TouchableOpacity>
       </View>
       <View style={styles.switchContainer}>
-        <Text>Credit Card</Text>
+        <Text>Credit Card Transaction</Text>
         <Switch
           value={newTransaction.creditCard}
-          onValueChange={(value) => setNewTransaction(prev => ({...prev, creditCard: value, creditCardId: null}))}
+          onValueChange={(value) => setNewTransaction(prev => ({
+            ...prev,
+            creditCard: value,
+            creditCardId: null,
+            isCardPayment: false,
+            category: value ? '' : prev.category
+          }))}
         />
       </View>
       {newTransaction.creditCard && (
@@ -274,9 +272,26 @@ function HomeScreen({ navigation }) {
             value={newTransaction.creditCardId}
             placeholder={{ label: "Select a credit card", value: null }}
           />
-          <TouchableOpacity style={styles.addButton} onPress={() => setShowAddCreditCardModal(true)}>
-            <Text style={styles.buttonText}>Add New Credit Card</Text>
-          </TouchableOpacity>
+          <View style={styles.switchContainer}>
+            <Text>Is Credit Card Payment</Text>
+            <Switch
+              value={newTransaction.isCardPayment}
+              onValueChange={(value) => setNewTransaction(prev => ({
+                ...prev,
+                isCardPayment: value,
+                category: value ? 'Debt Payment' : ''
+              }))}
+            />
+          </View>
+          {!newTransaction.isCardPayment && (
+            <RNPickerSelect
+              onValueChange={(value) => setNewTransaction(prev => ({...prev, category: value}))}
+              items={EXPENSE_CATEGORIES.filter(cat => cat !== 'Debt Payment').map(cat => ({ label: cat, value: cat }))}
+              style={pickerSelectStyles}
+              value={newTransaction.category}
+              placeholder={{ label: "Select a category", value: null }}
+            />
+          )}
         </View>
       )}
       {showDatePicker && (
@@ -299,40 +314,6 @@ function HomeScreen({ navigation }) {
         <Text style={styles.buttonText}>Cancel</Text>
       </TouchableOpacity>
     </View>
-  );
-
-  const renderAddCreditCardModal = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={showAddCreditCardModal}
-      onRequestClose={() => setShowAddCreditCardModal(false)}
-    >
-      <View style={styles.modalView}>
-        <Text style={styles.modalTitle}>Add New Credit Card</Text>
-        <TextInput
-          style={styles.input}
-          value={newCreditCard.name}
-          onChangeText={(text) => setNewCreditCard(prev => ({...prev, name: text}))}
-          placeholder="Credit Card Name"
-          placeholderTextColor="#999"
-        />
-        <TextInput
-          style={styles.input}
-          value={newCreditCard.limit}
-          onChangeText={(text) => setNewCreditCard(prev => ({...prev, limit: text}))}
-          placeholder="Credit Limit"
-          placeholderTextColor="#999"
-          keyboardType="numeric"
-        />
-        <TouchableOpacity style={styles.addButton} onPress={handleAddCreditCard}>
-          <Text style={styles.buttonText}>Add Credit Card</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.cancelButton} onPress={() => setShowAddCreditCardModal(false)}>
-          <Text style={styles.buttonText}>Cancel</Text>
-        </TouchableOpacity>
-      </View>
-    </Modal>
   );
 
   const isCurrentMonth = currentMonth.getMonth() === new Date().getMonth() && currentMonth.getFullYear() === new Date().getFullYear();
@@ -390,13 +371,15 @@ function HomeScreen({ navigation }) {
               returnKeyType="done"
               onSubmitEditing={handleDoneEditing}
             />
-            <RNPickerSelect
-              onValueChange={(value) => setEditingTransaction(prev => ({...prev, category: value}))}
-              items={editingTransaction.type === 'income' ? INCOME_CATEGORIES.map(cat => ({ label: cat, value: cat })) : EXPENSE_CATEGORIES.map(cat => ({ label: cat, value: cat }))}
-              style={pickerSelectStyles}
-              value={editingTransaction.category}
-              placeholder={{ label: "Select a category", value: null }}
-            />
+            {!editingTransaction.creditCard && (
+              <RNPickerSelect
+                onValueChange={(value) => setEditingTransaction(prev => ({...prev, category: value}))}
+                items={editingTransaction.type === 'income' ? INCOME_CATEGORIES.map(cat => ({ label: cat, value: cat })) : EXPENSE_CATEGORIES.map(cat => ({ label: cat, value: cat }))}
+                style={pickerSelectStyles}
+                value={editingTransaction.category}
+                placeholder={{ label: "Select a category", value: null }}
+              />
+            )}
             <View style={styles.dateContainer}>
               <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
                 <Text style={styles.dateButtonText}>
@@ -408,20 +391,48 @@ function HomeScreen({ navigation }) {
               </TouchableOpacity>
             </View>
             <View style={styles.switchContainer}>
-              <Text>Credit Card</Text>
+              <Text>Credit Card Transaction</Text>
               <Switch
                 value={editingTransaction.creditCard}
-                onValueChange={(value) => setEditingTransaction(prev => ({...prev, creditCard: value, creditCardId: value ? prev.creditCardId : null}))}
+                onValueChange={(value) => setEditingTransaction(prev => ({
+                  ...prev,
+                  creditCard: value,
+                  creditCardId: value ? prev.creditCardId : null,
+                  isCardPayment: false,
+                  category: value ? '' : prev.category
+                }))}
               />
             </View>
             {editingTransaction.creditCard && (
-              <RNPickerSelect
-                onValueChange={(value) => setEditingTransaction(prev => ({...prev, creditCardId: value}))}
-                items={creditCards.map(card => ({ label: card.name, value: card.id }))}
-                style={pickerSelectStyles}
-                value={editingTransaction.creditCardId}
-                placeholder={{ label: "Select a credit card", value: null }}
-              />
+              <View>
+                <RNPickerSelect
+                  onValueChange={(value) => setEditingTransaction(prev => ({...prev, creditCardId: value}))}
+                  items={creditCards.map(card => ({ label: card.name, value: card.id }))}
+                  style={pickerSelectStyles}
+                  value={editingTransaction.creditCardId}
+                  placeholder={{ label: "Select a credit card", value: null }}
+                />
+                <View style={styles.switchContainer}>
+                  <Text>Is Credit Card Payment</Text>
+                  <Switch
+                    value={editingTransaction.isCardPayment}
+                    onValueChange={(value) => setEditingTransaction(prev => ({
+                      ...prev,
+                      isCardPayment: value,
+                      category: value ? 'Debt Payment' : ''
+                    }))}
+                  />
+                </View>
+                {!editingTransaction.isCardPayment && (
+                  <RNPickerSelect
+                    onValueChange={(value) => setEditingTransaction(prev => ({...prev, category: value}))}
+                    items={EXPENSE_CATEGORIES.filter(cat => cat !== 'Debt Payment').map(cat => ({ label: cat, value: cat }))}
+                    style={pickerSelectStyles}
+                    value={editingTransaction.category}
+                    placeholder={{ label: "Select a category", value: null }}
+                  />
+                )}
+              </View>
             )}
             {showDatePicker && (
               <View>
@@ -469,7 +480,6 @@ function HomeScreen({ navigation }) {
           <Ionicons name="add" size={24} color="white" />
         </TouchableOpacity>
       )}
-      {renderAddCreditCardModal()}
     </KeyboardAvoidingView>
   );
 }
@@ -672,26 +682,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#2196F3',
     marginTop: 2,
-  },
-  modalView: {
-    margin: 20,
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 35,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
   },
 });
 

@@ -1,31 +1,32 @@
-import { getCategoryType } from '../../utils/categories';
+import { categorizeTransactions } from '../../utils/reportUtils';
 
 export const generateCreditCardStatement = (transactions, creditCards, startDate, endDate) => {
   console.log('Generating credit card statement');
   try {
+    const categorizedTransactions = categorizeTransactions(transactions);
     const creditCardStatement = {};
 
     creditCards.forEach(card => {
       const cardTransactions = transactions.filter(t => t.creditCardId === card.id);
-      const openingBalance = card.balance; // Assuming the current balance is the opening balance
-      const purchases = cardTransactions
-        .filter(t => getCategoryType(t.category) === 'expense')
-        .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-      const payments = cardTransactions
-        .filter(t => t.category === 'Debt Payment')
-        .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-      const closingBalance = openingBalance + purchases - payments;
+      const cardPurchases = categorizedTransactions.creditCardPurchases.filter(t => t.creditCardId === card.id);
+      const cardPayments = categorizedTransactions.creditCardPayments.filter(t => t.creditCardId === card.id);
+      const cardIncome = categorizedTransactions.creditCardIncome.filter(t => t.creditCardId === card.id);
+
+      const purchases = cardPurchases.reduce((sum, t) => sum + Number(t.amount), 0);
+      const payments = cardPayments.reduce((sum, t) => sum + Number(t.amount), 0);
+      const income = cardIncome.reduce((sum, t) => sum + Number(t.amount), 0);
 
       creditCardStatement[card.name] = {
-        openingBalance,
-        purchases,
-        payments,
-        closingBalance,
+        openingBalance: card.balance, // Assuming the current balance is the opening balance
+        purchases: purchases,
+        payments: payments,
+        income: income,
+        closingBalance: card.balance + purchases - payments - income,
         transactions: cardTransactions.map(t => ({
           date: t.date,
           description: t.description,
-          amount: parseFloat(t.amount) || 0,
-          type: getCategoryType(t.category)
+          amount: Number(t.amount),
+          type: t.type
         }))
       };
     });

@@ -1,17 +1,22 @@
-import { INCOME_CATEGORIES, getCategoryType } from '../../utils/categories';
+import { INCOME_CATEGORIES } from '../../utils/categories';
+import { categorizeTransactions } from '../../utils/reportUtils';
 
 export const generateIncomeSourcesAnalysis = (transactions) => {
   console.log('Generating income sources analysis');
   try {
+    const categorizedTransactions = categorizeTransactions(transactions);
     const incomeSources = {};
+
     INCOME_CATEGORIES.forEach(category => {
-      incomeSources[category] = 0;
+      const regularIncome = categorizedTransactions.regularIncome
+        .filter(t => t.category === category)
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+      const creditCardIncome = categorizedTransactions.creditCardIncome
+        .filter(t => t.category === category)
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+      incomeSources[category] = regularIncome + creditCardIncome;
     });
-    transactions.forEach(t => {
-      if (getCategoryType(t.category) === 'income') {
-        incomeSources[t.category] = (incomeSources[t.category] || 0) + (parseFloat(t.amount) || 0);
-      }
-    });
+
     return incomeSources;
   } catch (error) {
     console.error('Error in generateIncomeSourcesAnalysis:', error);
