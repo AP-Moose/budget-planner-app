@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, KeyboardAvoidingView, Platform, ScrollView, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, KeyboardAvoidingView, Platform, ScrollView, Keyboard, Switch } from 'react-native';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -19,7 +19,7 @@ function HomeScreen({ navigation }) {
   const [balance, setBalance] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingTransaction, setEditingTransaction] = useState(null);
-  const [newTransaction, setNewTransaction] = useState({ type: 'expense', amount: '', description: '', category: '', date: new Date() });
+  const [newTransaction, setNewTransaction] = useState({ type: 'expense', amount: '', description: '', category: '', date: new Date(), creditCard: false });
   const [isAddingTransaction, setIsAddingTransaction] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const listRef = useRef(null);
@@ -93,7 +93,7 @@ function HomeScreen({ navigation }) {
 
     try {
       await addTransaction(newTransaction);
-      setNewTransaction({ type: 'expense', amount: '', description: '', category: '', date: new Date(currentMonth) });
+      setNewTransaction({ type: 'expense', amount: '', description: '', category: '', date: new Date(currentMonth), creditCard: false });
       setIsAddingTransaction(false);
       Alert.alert('Success', 'Transaction added successfully');
       loadTransactions();
@@ -140,6 +140,7 @@ function HomeScreen({ navigation }) {
         <Text style={styles.transactionCategory}>{getCategoryName(item.category)}</Text>
         <Text style={styles.transactionDescription}>{item.description}</Text>
         <Text style={styles.transactionDate}>{new Date(item.date).toLocaleDateString()}</Text>
+        {item.creditCard && <Text style={styles.creditCardIndicator}>Credit Card</Text>}
       </View>
       <Text style={[styles.transactionAmount, item.type === 'income' ? styles.incomeAmount : styles.expenseAmount]}>
         {item.type === 'income' ? '+' : '-'}{formatCurrency(item.amount)}
@@ -190,6 +191,7 @@ function HomeScreen({ navigation }) {
           value={searchQuery}
           onChangeText={handleSearch}
           placeholder="Search transactions..."
+          placeholderTextColor="#999"
         />
         {editingTransaction ? (
           <View style={styles.editContainer}>
@@ -199,6 +201,7 @@ function HomeScreen({ navigation }) {
               onChangeText={(text) => setEditingTransaction(prev => ({...prev, amount: text}))}
               keyboardType="decimal-pad"
               placeholder="Amount"
+              placeholderTextColor="#999"
               returnKeyType="done"
               onSubmitEditing={handleDoneEditing}
             />
@@ -207,6 +210,7 @@ function HomeScreen({ navigation }) {
               value={editingTransaction.description}
               onChangeText={(text) => setEditingTransaction(prev => ({...prev, description: text}))}
               placeholder="Description"
+              placeholderTextColor="#999"
               returnKeyType="done"
               onSubmitEditing={handleDoneEditing}
             />
@@ -226,6 +230,13 @@ function HomeScreen({ navigation }) {
               <TouchableOpacity style={styles.editDateButton} onPress={() => setShowDatePicker(true)}>
                 <Text style={styles.editDateButtonText}>Edit Date</Text>
               </TouchableOpacity>
+            </View>
+            <View style={styles.switchContainer}>
+              <Text>Credit Card</Text>
+              <Switch
+                value={editingTransaction.creditCard}
+                onValueChange={(value) => setEditingTransaction(prev => ({...prev, creditCard: value}))}
+              />
             </View>
             {showDatePicker && (
               <View>
@@ -264,6 +275,7 @@ function HomeScreen({ navigation }) {
               onChangeText={(text) => setNewTransaction(prev => ({...prev, amount: text}))}
               keyboardType="decimal-pad"
               placeholder="Amount"
+              placeholderTextColor="#999"
               returnKeyType="done"
               onSubmitEditing={handleDoneEditing}
             />
@@ -272,6 +284,7 @@ function HomeScreen({ navigation }) {
               value={newTransaction.description}
               onChangeText={(text) => setNewTransaction(prev => ({...prev, description: text}))}
               placeholder="Description"
+              placeholderTextColor="#999"
               returnKeyType="done"
               onSubmitEditing={handleDoneEditing}
             />
@@ -291,6 +304,13 @@ function HomeScreen({ navigation }) {
               <TouchableOpacity style={styles.editDateButton} onPress={() => setShowDatePicker(true)}>
                 <Text style={styles.editDateButtonText}>Edit Date</Text>
               </TouchableOpacity>
+            </View>
+            <View style={styles.switchContainer}>
+              <Text>Credit Card</Text>
+              <Switch
+                value={newTransaction.creditCard}
+                onValueChange={(value) => setNewTransaction(prev => ({...prev, creditCard: value}))}
+              />
             </View>
             {showDatePicker && (
               <View>
@@ -527,6 +547,17 @@ const styles = StyleSheet.create({
   doneDateButtonText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  creditCardIndicator: {
+    fontSize: 12,
+    color: '#2196F3',
+    marginTop: 2,
   },
 });
 

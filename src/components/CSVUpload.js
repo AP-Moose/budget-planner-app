@@ -67,7 +67,12 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
       for (const transaction of transactions) {
         try {
           console.log('Attempting to add transaction:', transaction);
-          await addTransaction(transaction);
+          // Convert Credit Card field to boolean
+          const transactionWithCreditCard = {
+            ...transaction,
+            creditCard: transaction.creditCard?.toLowerCase() === 'yes'
+          };
+          await addTransaction(transactionWithCreditCard);
           console.log('Transaction added successfully');
           successCount++;
         } catch (error) {
@@ -101,9 +106,9 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
 
   const exportSampleCSV = async () => {
     const sampleData = [
-      { amount: '1000', category: 'Salary', date: '2023-08-01', description: 'Monthly salary', type: 'income' },
-      { amount: '50', category: 'Groceries', date: '2023-08-02', description: 'Weekly groceries', type: 'expense' },
-      { amount: '30', category: 'Dining Out/Takeaway', date: '2023-08-03', description: 'Lunch with colleagues', type: 'expense' },
+      { amount: '1000', category: 'Salary', date: '2023-08-01', description: 'Monthly salary', type: 'income', creditCard: 'No' },
+      { amount: '50', category: 'Groceries', date: '2023-08-02', description: 'Weekly groceries', type: 'expense', creditCard: 'Yes' },
+      { amount: '30', category: 'Dining Out/Takeaway', date: '2023-08-03', description: 'Lunch with colleagues', type: 'expense', creditCard: 'No' },
     ];
 
     const csv = Papa.unparse(sampleData);
@@ -144,11 +149,11 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
               numberOfLines={6}
               onChangeText={setCsvText}
               value={csvText}
-              placeholder="Paste CSV Here..."
+              placeholder="Paste CSV here..."
               placeholderTextColor="#999"
             />
             <TouchableOpacity style={styles.button} onPress={handleManualImport}>
-              <Text style={styles.buttonText}>Submit</Text>
+              <Text style={styles.buttonText}>Import</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.button} onPress={exportSampleCSV}>
               <Text style={styles.buttonText}>Export Sample CSV</Text>
@@ -156,13 +161,14 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
             <Text style={styles.instructionsTitle}>Instructions:</Text>
             <Text style={styles.instructions}>
               1. Ensure your CSV file has these columns:{'\n'}
-                 amount, category, date, description, type{'\n\n'}
+                 amount, category, date, description, type, creditCard{'\n\n'}
               2. Valid categories are:{'\n'}
                  {ALL_CATEGORIES.join(', ')}{'\n\n'}
               3. Date should be in YYYY-MM-DD format{'\n\n'}
               4. Type should be either 'income' or 'expense'{'\n\n'}
-              5. Avoid using commas in description{'\n\n'}
-              6. Export a sample CSV to see the correct format
+              5. Credit Card should be 'Yes' or 'No' (or left blank for 'No'){'\n\n'}
+              6. Avoid using commas in description{'\n\n'}
+              7. Export a sample CSV to see the correct format
             </Text>
             <TouchableOpacity style={styles.closeButton} onPress={() => setIsModalVisible(false)}>
               <Text style={styles.buttonText}>Close</Text>

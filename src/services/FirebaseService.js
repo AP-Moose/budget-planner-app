@@ -70,7 +70,8 @@ export const addTransaction = async (transaction) => {
       amount: Number(transaction.amount),
       type: getCategoryType(transaction.category),
       date: transaction.date instanceof Date ? transaction.date : new Date(transaction.date),
-      userId: user.uid
+      userId: user.uid,
+      creditCard: Boolean(transaction.creditCard)  // Ensure it's stored as a boolean
     };
 
     console.log('Attempting to save transaction:', transactionToSave);
