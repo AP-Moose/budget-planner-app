@@ -8,6 +8,10 @@ import * as trendReports from './trendReports';
 import * as cashFlowReports from './cashFlowReports';
 import * as creditCardReports from './creditCardReports';
 import { exportReportToCSV } from './csvExport';
+import { generateCreditUtilizationReport } from './creditUtilizationReport';
+import { generatePaymentHistoryReport } from './paymentHistoryReport';
+import { generateDebtReductionProjection } from './debtReductionProjection';
+import { generateCategoryCreditCardUsage } from './categoryCreditCardUsage';
 
 export const generateReport = async (reportType, startDate, endDate) => {
   try {
@@ -41,10 +45,20 @@ export const generateReport = async (reportType, startDate, endDate) => {
         return trendReports.generateExpenseTrendAnalysis(filteredTransactions);
       case 'cash-flow':
         return cashFlowReports.generateCashFlowStatement(filteredTransactions);
+      case 'detailed-cash-flow':
+        return cashFlowReports.generateDetailedCashFlowStatement(filteredTransactions);
       case 'category-transaction-detail':
         return categoryReports.generateCategoryTransactionDetail(filteredTransactions);
       case 'credit-card-statement':
         return creditCardReports.generateCreditCardStatement(filteredTransactions, creditCards, startDate, endDate);
+      case 'credit-utilization':
+        return generateCreditUtilizationReport(filteredTransactions);
+      case 'payment-history':
+        return generatePaymentHistoryReport(filteredTransactions);
+      case 'debt-reduction-projection':
+        return generateDebtReductionProjection(filteredTransactions);
+      case 'category-credit-card-usage':
+        return generateCategoryCreditCardUsage(filteredTransactions);
       default:
         throw new Error('Invalid report type');
     }
