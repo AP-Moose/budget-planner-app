@@ -3,16 +3,32 @@ import { ALL_CATEGORIES, INCOME_CATEGORIES, EXPENSE_CATEGORIES, getCategoryType 
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
+const normalizeDate = (date) => {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
 export const generateReport = async (reportType, startDate, endDate) => {
   try {
     console.log('Fetching transactions and budget goals');
     const transactions = await getTransactions();
     const budgetGoals = await getBudgetGoals();
     
-    console.log('Filtering transactions', startDate, endDate);
-    const filteredTransactions = transactions.filter(
-      t => new Date(t.date) >= startDate && new Date(t.date) <= endDate
-    );
+    let filteredTransactions;
+    if (reportType === 'ytd-summary') {
+      const currentYear = new Date().getFullYear();
+      filteredTransactions = transactions.filter(t => {
+        const transactionDate = new Date(t.date);
+        return transactionDate.getFullYear() === currentYear;
+      });
+    } else {
+      console.log('Filtering transactions', startDate, endDate);
+      const normalizedStartDate = normalizeDate(new Date(startDate));
+      const normalizedEndDate = normalizeDate(new Date(endDate));
+      filteredTransactions = transactions.filter(t => {
+        const normalizedTransactionDate = normalizeDate(new Date(t.date));
+        return normalizedTransactionDate >= normalizedStartDate && normalizedTransactionDate <= normalizedEndDate;
+      });
+    }
 
     console.log('Filtered transactions:', filteredTransactions.length);
 
