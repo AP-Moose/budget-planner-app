@@ -1,4 +1,4 @@
-import { categorizeTransactions, calculateTotals, calculateNetSavings, calculateSavingsRate } from '../../utils/reportUtils';
+import { categorizeTransactions, calculateTotals } from '../../utils/reportUtils';
 import { EXPENSE_CATEGORIES } from '../../utils/categories';
 
 export const generateMonthlySummary = (transactions) => {
@@ -6,14 +6,17 @@ export const generateMonthlySummary = (transactions) => {
   try {
     const categorizedTransactions = categorizeTransactions(transactions);
     const totals = calculateTotals(categorizedTransactions);
-    const netSavings = calculateNetSavings(totals);
-    const savingsRate = calculateSavingsRate(totals);
+
+    const totalIncome = totals.totalRegularIncome + totals.totalCreditCardIncome;
+    const totalExpenses = totals.totalRegularExpenses + totals.totalCreditCardPurchases;
+    const netSavings = totalIncome - totalExpenses;
+    const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
 
     return {
-      totalIncome: totals.totalRegularIncome + totals.totalCreditCardIncome,
-      totalExpenses: totals.totalRegularExpenses + totals.totalCreditCardPurchases,
-      netSavings: netSavings,
-      savingsRate: savingsRate,
+      totalIncome,
+      totalExpenses,
+      netSavings,
+      savingsRate,
       creditCardPurchases: totals.totalCreditCardPurchases,
       creditCardPayments: totals.totalCreditCardPayments
     };

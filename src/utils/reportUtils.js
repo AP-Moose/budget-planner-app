@@ -19,13 +19,3 @@ export const categorizeTransactions = (transactions) => {
       totalCreditCardIncome: sumAmount(categorizedTransactions.creditCardIncome),
     };
   };
-  
-  export const calculateNetSavings = (totals) => {
-    return totals.totalRegularIncome + totals.totalCreditCardIncome - totals.totalRegularExpenses - totals.totalCreditCardPayments;
-  };
-  
-  export const calculateSavingsRate = (totals) => {
-    const totalIncome = totals.totalRegularIncome + totals.totalCreditCardIncome;
-    const netSavings = calculateNetSavings(totals);
-    return totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
-  };
