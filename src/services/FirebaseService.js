@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, updateDoc, deleteDoc, doc, where, setDoc, getDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, updateDoc, deleteDoc, doc, where, setDoc, getDoc, onSnapshot, Timestamp } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
 import { firebaseConfig } from '../config';
 import { getCategoryType } from '../utils/categories';
@@ -79,7 +79,6 @@ export const addTransaction = async (transaction) => {
     const docRef = await addDoc(collection(db, 'transactions'), transactionToSave);
     console.log('Transaction saved successfully with ID:', docRef.id);
 
-    // Update credit card balance if it's a credit card transaction
     if (transactionToSave.creditCard && transactionToSave.creditCardId) {
       await updateCreditCardBalance(transactionToSave.creditCardId, transactionToSave.amount, transactionToSave.type, transactionToSave.isCardPayment);
     }
@@ -216,7 +215,7 @@ export const getBudgetGoals = async () => {
     
     const snapshot = await getDocs(q);
     const budgetGoals = snapshot.docs.map(doc => ({
-      id: doc.id.split('_')[1], // Extract the category from the document ID
+      id: doc.id.split('_')[1],
       ...doc.data(),
       amount: Number(doc.data().amount)
     }));
@@ -238,9 +237,11 @@ export const addCreditCard = async (cardData) => {
     const cardToSave = {
       ...cardData,
       userId: user.uid,
-      balance: Number(cardData.balance) || 0,
-      limit: Number(cardData.limit),
-      lastUpdated: new Date()
+      balance: Number(cardData.startingBalance) || 0,
+      limit: Number(cardData.limit) || 0,
+      startingBalance: Number(cardData.startingBalance) || 0,
+      startDate: Timestamp.fromDate(cardData.startDate || new Date()),
+      lastUpdated: Timestamp.fromDate(new Date())
     };
 
     const docRef = await addDoc(collection(db, 'creditCards'), cardToSave);
@@ -265,12 +266,17 @@ export const getCreditCards = async () => {
     );
     
     const snapshot = await getDocs(q);
-    const creditCards = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      balance: Number(doc.data().balance),
-      limit: Number(doc.data().limit)
-    }));
+    const creditCards = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        balance: Number(data.balance) || 0,
+        limit: Number(data.limit) || 0,
+        startingBalance: Number(data.startingBalance) || 0,
+        startDate: data.startDate ? data.startDate.toDate() : new Date(),
+      };
+    });
     return creditCards;
   } catch (error) {
     console.error('Error getting credit cards:', error);
@@ -286,13 +292,26 @@ export const updateCreditCard = async (id, updatedData) => {
     }
 
     const cardRef = doc(db, 'creditCards', id);
-    await updateDoc(cardRef, {
-      ...updatedData,
-      balance: Number(updatedData.balance),
-      limit: Number(updatedData.limit),
-      lastUpdated: new Date()
-    });
-    console.log('Credit card updated successfully:', id);
+    const cardDoc = await getDoc(cardRef);
+    
+    if (cardDoc.exists()) {
+      const currentData = cardDoc.data();
+      const newBalance = updatedData.startingBalance !== undefined 
+        ? Number(updatedData.startingBalance) 
+        : Number(currentData.balance);
+
+      await updateDoc(cardRef, {
+        ...updatedData,
+        balance: newBalance,
+        limit: Number(updatedData.limit) || currentData.limit,
+        startingBalance: Number(updatedData.startingBalance) || currentData.startingBalance,
+        startDate: updatedData.startDate ? Timestamp.fromDate(new Date(updatedData.startDate)) : currentData.startDate,
+        lastUpdated: Timestamp.fromDate(new Date())
+      });
+      console.log('Credit card updated successfully:', id);
+    } else {
+      console.error('Credit card not found:', id);
+    }
   } catch (error) {
     console.error('Error updating credit card:', error);
     throw error;
@@ -335,8 +354,9 @@ const updateCreditCardBalance = async (cardId, amount, transactionType, isCardPa
 
       await updateDoc(cardRef, { 
         balance: newBalance,
-        lastUpdated: new Date()
+        lastUpdated: Timestamp.fromDate(new Date())
       });
+      console.log('Credit card balance updated:', cardId, 'New balance:', newBalance);
     } else {
       console.error('Credit card not found:', cardId);
     }
@@ -344,6 +364,34 @@ const updateCreditCardBalance = async (cardId, amount, transactionType, isCardPa
     console.error('Error updating credit card balance:', error);
     throw error;
   }
+};
+
+export const onCreditCardsUpdate = (callback) => {
+  const user = auth.currentUser;
+  if (!user) {
+    console.error('No user logged in');
+    return () => {};
+  }
+
+  const q = query(
+    collection(db, 'creditCards'),
+    where('userId', '==', user.uid)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const creditCards = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        balance: Number(data.balance) || 0,
+        limit: Number(data.limit) || 0,
+        startingBalance: Number(data.startingBalance) || 0,
+        startDate: data.startDate ? data.startDate.toDate() : new Date(),
+      };
+    });
+    callback(creditCards);
+  });
 };
 
 export default {
@@ -363,4 +411,5 @@ export default {
   getCreditCards,
   updateCreditCard,
   deleteCreditCard,
+  onCreditCardsUpdate,
 };
