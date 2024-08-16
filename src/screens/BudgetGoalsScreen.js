@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getBudgetGoals, updateBudgetGoal, getTransactions } from '../services/FirebaseService';
 import { EXPENSE_CATEGORIES } from '../utils/categories';
@@ -13,8 +13,12 @@ function BudgetGoalsScreen() {
   const [selectedGoal, setSelectedGoal] = useState(null);
   const [totalBudget, setTotalBudget] = useState(0);
   const [totalSpent, setTotalSpent] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const loadGoals = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
     try {
       let fetchedGoals = await getBudgetGoals();
       
@@ -55,7 +59,9 @@ function BudgetGoalsScreen() {
       setTotalSpent(spent);
     } catch (error) {
       console.error('Error loading budget goals:', error);
-      Alert.alert('Error', 'Failed to load budget goals. Please try again.');
+      setError('Failed to load budget goals. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   }, [currentMonth]);
 
@@ -140,17 +146,15 @@ function BudgetGoalsScreen() {
     const spent = actualExpenses[goal.category] || 0;
     const budgeted = parseFloat(goal.amount);
     
-    // Calculate percentage used
     let percentUsed;
     if (budgeted > 0) {
       percentUsed = (spent / budgeted) * 100;
     } else if (spent > 0) {
-      percentUsed = 100; // If there's spending but no budget, it's 100% used
+      percentUsed = 100;
     } else {
-      percentUsed = 0; // If no budget and no spending, it's 0% used
+      percentUsed = 0;
     }
   
-    // Ensure percentage doesn't exceed 100%
     percentUsed = Math.min(percentUsed, 100);
   
     const difference = budgeted - spent;
@@ -198,6 +202,25 @@ function BudgetGoalsScreen() {
   const isCurrentMonth = currentMonth.getMonth() === new Date().getMonth() && 
                        currentMonth.getFullYear() === new Date().getFullYear();
 
+  if (isLoading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={loadGoals}>
+          <Text style={styles.buttonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView 
       style={styles.container} 
@@ -205,26 +228,26 @@ function BudgetGoalsScreen() {
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
     >
       <View style={styles.monthNavigation}>
-  <TouchableOpacity onPress={() => navigateMonth(-1)}>
-    <Ionicons name="chevron-back" size={24} color="black" />
-  </TouchableOpacity>
-  <Text style={styles.currentMonth}>
-    {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
-  </Text>
-  <TouchableOpacity onPress={() => navigateMonth(1)}>
-    <Ionicons name="chevron-forward" size={24} color="black" />
-  </TouchableOpacity>
-  {!isCurrentMonth && (
-    <TouchableOpacity 
-      style={styles.currentMonthButton} 
-      onPress={() => setCurrentMonth(new Date())}
-    >
-      <Text style={styles.buttonText}>
-        Return to {new Date().toLocaleString('default', { month: 'long' })}
-      </Text>
-    </TouchableOpacity>
-  )}
-</View>
+        <TouchableOpacity onPress={() => navigateMonth(-1)}>
+          <Ionicons name="chevron-back" size={24} color="black" />
+        </TouchableOpacity>
+        <Text style={styles.currentMonth}>
+          {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+        </Text>
+        <TouchableOpacity onPress={() => navigateMonth(1)}>
+          <Ionicons name="chevron-forward" size={24} color="black" />
+        </TouchableOpacity>
+        {!isCurrentMonth && (
+          <TouchableOpacity 
+            style={styles.currentMonthButton} 
+            onPress={() => setCurrentMonth(new Date())}
+          >
+            <Text style={styles.buttonText}>
+              Return to {new Date().toLocaleString('default', { month: 'long' })}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
       <Text style={styles.title}>Budget Goals</Text>
       <Text style={styles.totalBudget}>Total Budget: {formatCurrency(totalBudget)}</Text>
       
@@ -405,10 +428,6 @@ const styles = StyleSheet.create({
     padding: 5,
     borderRadius: 5,
     marginLeft: 10,
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
   },
 });
 

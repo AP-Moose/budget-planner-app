@@ -191,16 +191,37 @@ export const updateBudgetGoal = async (category, updatedData) => {
       throw new Error('No user logged in');
     }
 
-    const goalRef = doc(db, 'budgetGoals', `${user.uid}_${category}`);
-    await setDoc(goalRef, {
+    // Encode the category name to make it safe for use in document ID
+    const encodedCategory = encodeURIComponent(category.replace(/\s+/g, '_'));
+    const goalId = `${user.uid}_${encodedCategory}`;
+    const goalRef = doc(db, 'budgetGoals', goalId);
+    
+    // Check if the document exists
+    const docSnap = await getDoc(goalRef);
+    
+    const goalData = {
       ...updatedData,
       userId: user.uid,
       category: category,
       amount: Number(updatedData.amount)
-    }, { merge: true });
+    };
+
+    if (docSnap.exists()) {
+      // Update existing document
+      await updateDoc(goalRef, goalData);
+    } else {
+      // Create new document
+      await setDoc(goalRef, goalData);
+    }
+    
     console.log('Budget goal updated successfully for category:', category);
   } catch (error) {
     console.error('Error updating budget goal:', error);
+    if (error.code === 'permission-denied') {
+      console.error('Permission denied. Current user:', auth.currentUser?.uid);
+      console.error('Category:', category);
+      console.error('Updated data:', updatedData);
+    }
     throw error;
   }
 };
@@ -219,11 +240,28 @@ export const getBudgetGoals = async () => {
     );
     
     const snapshot = await getDocs(q);
-    const budgetGoals = snapshot.docs.map(doc => ({
-      id: doc.id.split('_')[1],
-      ...doc.data(),
-      amount: Number(doc.data().amount)
-    }));
+    const budgetGoals = snapshot.docs.map(doc => {
+      const data = doc.data();
+      let category = data.category;
+      
+      // If category is not in the data, try to extract it from the document ID
+      if (!category) {
+        const parts = doc.id.split('_');
+        if (parts.length > 1) {
+          category = decodeURIComponent(parts.slice(1).join('_').replace(/_/g, ' '));
+        } else {
+          // Fallback if we can't extract a category
+          category = 'Unknown Category';
+        }
+      }
+
+      return {
+        id: doc.id,
+        ...data,
+        category: category,
+        amount: Number(data.amount)
+      };
+    });
     console.log(`Retrieved ${budgetGoals.length} budget goals for user:`, user.uid);
     return budgetGoals;
   } catch (error) {
@@ -493,7 +531,6 @@ export const deleteInvestment = async (id) => {
   }
 };
 
-// New functions for loans
 export const addLoan = async (loan) => {
   try {
     const user = auth.currentUser;
@@ -583,7 +620,6 @@ export const deleteLoan = async (id) => {
   }
 };
 
-// Function to update user profile with initial cash balance
 export const updateUserProfile = async (userData) => {
   try {
     const user = auth.currentUser;
@@ -615,7 +651,6 @@ export const getUserProfile = async () => {
     if (userDoc.exists()) {
       return userDoc.data();
     } else {
-      // If profile doesn't exist, create a default one
       const defaultProfile = {
         email: user.email,
         initialCashBalance: 0,
