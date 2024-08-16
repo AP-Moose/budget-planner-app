@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getCurrentUser } from './services/FirebaseService';
 import ReportsScreen from './screens/ReportsScreen';
 import CreditCardScreen from './screens/CreditCardScreen';
+import UserProfileScreen from './screens/UserProfileScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -115,6 +116,24 @@ function CreditCardStack() {
   );
 }
 
+function UserProfileStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={({ route }) => ({
+        header: ({ navigation, options }) => {
+          return <Header title={options.title || route.name} />;
+        },
+      })}
+    >
+      <Stack.Screen 
+        name="UserProfile" 
+        component={UserProfileScreen} 
+        options={{ title: 'User Profile' }} 
+      />
+    </Stack.Navigator>
+  );
+}
+
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -132,6 +151,8 @@ function MainTabs() {
             iconName = focused ? 'bar-chart' : 'bar-chart-outline';
           } else if (route.name === 'CreditCardsTab') {
             iconName = focused ? 'card' : 'card-outline';
+          } else if (route.name === 'ProfileTab') {
+            iconName = focused ? 'person' : 'person-outline';
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -162,6 +183,11 @@ function MainTabs() {
         name="CreditCardsTab"
         component={CreditCardStack}
         options={{ headerShown: false, title: 'Credit Cards' }}
+      />
+      <Tab.Screen
+        name="ProfileTab"
+        component={UserProfileStack}
+        options={{ headerShown: false, title: 'Profile' }}
       />
     </Tab.Navigator>
   );

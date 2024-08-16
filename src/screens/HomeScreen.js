@@ -162,12 +162,12 @@ function HomeScreen({ navigation }) {
   };
 
   const renderItem = useCallback(({ item }) => {
-    const creditCardName = creditCards.find(card => card.id === item.creditCardId)?.name || 'Unknown';
+    const creditCard = creditCards.find(card => card.id === item.creditCardId);
     let creditCardInfo = '';
     if (item.creditCard) {
       creditCardInfo = item.isCardPayment
-        ? `Card Payment: ${creditCardName}`
-        : `Credit Card: ${creditCardName}`;
+        ? `Card Payment: ${creditCard?.name || 'Unknown'}`
+        : `Credit Card: ${creditCard?.name || 'Unknown'}`;
     }
 
     return (

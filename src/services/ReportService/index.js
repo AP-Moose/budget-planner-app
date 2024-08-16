@@ -12,6 +12,7 @@ import { generateCreditUtilizationReport } from './creditUtilizationReport';
 import { generatePaymentHistoryReport } from './paymentHistoryReport';
 import { generateDebtReductionProjection } from './debtReductionProjection';
 import { generateCategoryCreditCardUsage } from './categoryCreditCardUsage';
+import { generateBalanceSheetReport } from './balanceSheetReport';
 
 export const generateReport = async (reportType, startDate, endDate) => {
   try {
@@ -59,6 +60,8 @@ export const generateReport = async (reportType, startDate, endDate) => {
         return generateDebtReductionProjection(filteredTransactions);
       case 'category-credit-card-usage':
         return generateCategoryCreditCardUsage(filteredTransactions);
+      case 'balance-sheet':
+        return generateBalanceSheetReport(filteredTransactions, endDate);
       default:
         throw new Error('Invalid report type');
     }
