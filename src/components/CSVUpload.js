@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Alert, StyleSheet, TextInput, Modal, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, Alert, StyleSheet, TextInput, Modal, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import Papa from 'papaparse';
@@ -10,43 +10,54 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
   const [importStatus, setImportStatus] = useState('');
   const [csvText, setCsvText] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleManualImport = () => {
+  const handleManualImport = async () => {
     console.log('Starting manual CSV import');
-    processCSVData(csvText);
+    setIsLoading(true);
+    try {
+      await processCSVData(csvText);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const processCSVData = (data) => {
     console.log('Processing CSV data');
-    Papa.parse(data, {
-      header: true,
-      skipEmptyLines: 'greedy',
-      complete: async (results) => {
-        console.log('CSV Parsing complete:', results);
-        try {
-          const validData = await validateAndPrepareCSVData(results.data);
-          console.log('Valid data:', validData);
-          if (validData.length > 0) {
-            await importTransactions(validData);
-            setImportStatus('Import successful!');
-            setCsvText('');  // Clear the input after successful import
-            onTransactionsUpdate();
-            Alert.alert('Success', `Successfully imported ${validData.length} transactions.`);
-          } else {
-            setImportStatus('No valid data to import.');
-            Alert.alert('Import Failed', 'No valid data found in the CSV. Please check the file format.');
+    return new Promise((resolve, reject) => {
+      Papa.parse(data, {
+        header: true,
+        skipEmptyLines: 'greedy',
+        complete: async (results) => {
+          console.log('CSV Parsing complete:', results);
+          try {
+            const validData = await validateAndPrepareCSVData(results.data);
+            console.log('Valid data:', validData);
+            if (validData.length > 0) {
+              await importTransactions(validData);
+              setImportStatus('Import successful!');
+              setCsvText('');  // Clear the input after successful import
+              onTransactionsUpdate();
+              Alert.alert('Success', `Successfully imported ${validData.length} transactions.`);
+            } else {
+              setImportStatus('No valid data to import.');
+              Alert.alert('Import Failed', 'No valid data found in the CSV. Please check the file format.');
+            }
+            resolve();
+          } catch (error) {
+            console.error('Error processing CSV data:', error);
+            setImportStatus('Error processing CSV data.');
+            Alert.alert('Error', `Failed to process CSV data: ${error.message}`);
+            reject(error);
           }
-        } catch (error) {
-          console.error('Error processing CSV data:', error);
-          setImportStatus('Error processing CSV data.');
-          Alert.alert('Error', `Failed to process CSV data: ${error.message}`);
+        },
+        error: (error) => {
+          console.error('CSV Parsing Error:', error);
+          setImportStatus('Error parsing CSV file.');
+          Alert.alert('Error', 'Failed to parse CSV file. Please check the file format.');
+          reject(error);
         }
-      },
-      error: (error) => {
-        console.error('CSV Parsing Error:', error);
-        setImportStatus('Error parsing CSV file.');
-        Alert.alert('Error', 'Failed to parse CSV file. Please check the file format.');
-      }
+      });
     });
   };
 
@@ -55,12 +66,14 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
     const creditCards = await getCreditCards();
     const creditCardMap = new Map(creditCards.map(card => [card.name.toLowerCase(), card.id]));
 
-    return (await Promise.all(data.map(async (row, index) => {
+    const validatedData = [];
+    for (let index = 0; index < data.length; index++) {
+      const row = data[index];
       console.log(`Processing row ${index}:`, row);
       if (
         row.amount && !isNaN(parseFloat(row.amount)) &&
         row.category && ALL_CATEGORIES.includes(row.category) &&
-        row.date && !isNaN(Date.parse(row.date)) &&
+        row.date && /^\d{4}-\d{2}-\d{2}$/.test(row.date) &&
         row.description &&
         row.type && ['expense', 'income'].includes(row.type.toLowerCase())
       ) {
@@ -73,7 +86,6 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
           if (creditCardMap.has(cardName)) {
             creditCardId = creditCardMap.get(cardName);
           } else {
-            // Add new credit card
             try {
               const newCardId = await addCreditCard({
                 name: row.creditCardName,
@@ -89,20 +101,28 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
           }
         }
 
-        return {
+        // Create a Date object set to 8pm UTC-4 (midnight UTC) on the given date
+        const [year, month, day] = row.date.split('-').map(Number);
+        const adjustedDate = new Date(Date.UTC(year, month - 1, day, 4, 0, 0));
+
+        console.log(`Row ${index} - Original date: ${row.date}, Adjusted date: ${adjustedDate.toISOString()}`);
+
+        validatedData.push({
           amount: parseFloat(row.amount),
           category: row.category,
-          date: new Date(row.date),
+          date: adjustedDate,
           description: row.description,
           type: row.type.toLowerCase(),
           creditCard,
           creditCardId,
           isCardPayment
-        };
+        });
+      } else {
+        console.log(`Invalid row ${index}:`, row);
       }
-      console.log(`Invalid row ${index}:`, row);
-      return null;
-    }))).filter(row => row !== null);
+    }
+
+    return validatedData;
   };
 
   const importTransactions = async (transactions) => {
@@ -149,10 +169,10 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
 
   const exportSampleCSV = async () => {
     const sampleData = [
-      { amount: '1000', category: 'Salary', date: '2023-08-01', description: 'Monthly salary', type: 'income', creditCard: 'No', creditCardName: '', isCardPayment: 'No' },
-      { amount: '50', category: 'Groceries', date: '2023-08-02', description: 'Weekly groceries', type: 'expense', creditCard: 'Yes', creditCardName: 'Apple Card', isCardPayment: 'No' },
-      { amount: '30', category: 'Dining Out/Takeaway', date: '2023-08-03', description: 'Lunch with colleagues', type: 'expense', creditCard: 'No', creditCardName: '', isCardPayment: 'No' },
-      { amount: '500', category: 'Debt Payment', date: '2023-08-05', description: 'Credit card payment', type: 'expense', creditCard: 'Yes', creditCardName: 'Apple Card', isCardPayment: 'Yes' },
+      { amount: '1000', category: 'Salary', date: '2024-08-01', description: 'Monthly salary', type: 'income', creditCard: 'No', creditCardName: '', isCardPayment: 'No' },
+      { amount: '50', category: 'Groceries', date: '2024-08-02', description: 'Weekly groceries', type: 'expense', creditCard: 'Yes', creditCardName: 'Apple Card', isCardPayment: 'No' },
+      { amount: '30', category: 'Dining Out/Takeaway', date: '2024-08-03', description: 'Lunch with colleagues', type: 'expense', creditCard: 'No', creditCardName: '', isCardPayment: 'No' },
+      { amount: '500', category: 'Debt Payment', date: '2024-08-05', description: 'Credit card payment', type: 'expense', creditCard: 'Yes', creditCardName: 'Apple Card', isCardPayment: 'Yes' },
     ];
 
     const csv = Papa.unparse(sampleData);
@@ -166,6 +186,8 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
       Alert.alert('Error', 'Failed to export sample CSV. Please try again.');
     }
   };
+
+  // ... (rest of the component remains the same)
 
   return (
     <View style={styles.container}>
@@ -195,9 +217,18 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
               value={csvText}
               placeholder="Paste CSV here..."
               placeholderTextColor="#999"
+              editable={!isLoading}
             />
-            <TouchableOpacity style={styles.button} onPress={handleManualImport}>
-              <Text style={styles.buttonText}>Import</Text>
+            <TouchableOpacity 
+              style={[styles.button, isLoading && styles.disabledButton]} 
+              onPress={handleManualImport}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text style={styles.buttonText}>Import</Text>
+              )}
             </TouchableOpacity>
             <TouchableOpacity style={styles.button} onPress={exportSampleCSV}>
               <Text style={styles.buttonText}>Export Sample CSV</Text>
@@ -296,6 +327,9 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 5,
     marginTop: 20,
+  },
+  disabledButton: {
+    backgroundColor: '#A9A9A9',
   },
 });
 
