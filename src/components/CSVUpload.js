@@ -187,13 +187,12 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
     }
   };
 
-  // ... (rest of the component remains the same)
 
   return (
     <View style={styles.container}>
       <View style={styles.row}>
         <TouchableOpacity style={styles.button} onPress={() => setIsModalVisible(true)}>
-          <Text style={styles.buttonText}>Import CSV</Text>
+          <Text style={styles.buttonText}>Bulk Upload</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.button} onPress={exportTransactions}>
           <Text style={styles.buttonText}>Export Transactions</Text>

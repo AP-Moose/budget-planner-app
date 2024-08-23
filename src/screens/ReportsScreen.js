@@ -23,8 +23,7 @@ const ReportsScreen = () => {
     {
       category: "Summary Reports",
       reports: [
-        { label: 'Monthly Income vs Expense Summary', value: 'monthly-summary' },
-        { label: 'Year-to-Date Financial Summary', value: 'ytd-summary' },
+        { label: 'Income vs Expense Summary', value: 'monthly-summary' },
         { label: 'Custom Date Range Report', value: 'custom-range' },
         { label: 'Balance Sheet', value: 'balance-sheet' },
       ]
