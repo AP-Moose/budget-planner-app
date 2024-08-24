@@ -1,72 +1,90 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { getBudgetGoals } from '../../services/FirebaseService';
+import { getTransactions } from '../../services/FirebaseService';
 import { useMonth } from '../../context/MonthContext';
+import { categorizeTransactions, calculateTotals } from '../../utils/reportUtils';
 
-const HomeDashboard = ({ transactions }) => {
+const HomeDashboard = () => {
   const { currentMonth } = useMonth();
-  const [actualIncome, setActualIncome] = useState(0);
-  const [actualExpenses, setActualExpenses] = useState(0);
+  const [dashboardData, setDashboardData] = useState({
+    totalIncome: 0,
+    totalExpenses: 0,
+    netCashFlow: 0,
+    creditCardPurchases: 0,
+    creditCardPayments: 0
+  });
 
   useEffect(() => {
-    const fetchData = async () => {
-      const filteredTransactions = transactions.filter(t => {
+    loadDashboardData();
+  }, [currentMonth]);
+
+  const loadDashboardData = async () => {
+    try {
+      const transactions = await getTransactions();
+      const currentMonthTransactions = transactions.filter(t => {
         const transactionDate = new Date(t.date);
         return transactionDate.getMonth() === currentMonth.getMonth() &&
                transactionDate.getFullYear() === currentMonth.getFullYear();
       });
-      
-      const income = filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0);
-      const expenses = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0);
-      
-      setActualIncome(income);
-      setActualExpenses(expenses);
-    };
 
-    fetchData();
-  }, [transactions, currentMonth]);
+      const categorizedTransactions = categorizeTransactions(currentMonthTransactions);
+      const totals = calculateTotals(categorizedTransactions);
+
+      const cashInflow = totals.totalRegularIncome + totals.totalCreditCardIncome;
+      const cashOutflow = totals.totalRegularExpenses + totals.totalCreditCardPayments;
+
+      const netCashFlow = cashInflow - cashOutflow;
+
+      setDashboardData({
+        totalIncome: cashInflow,
+        totalExpenses: cashOutflow,
+        netCashFlow,
+        creditCardPurchases: totals.totalCreditCardPurchases,
+        creditCardPayments: totals.totalCreditCardPayments
+      });
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    }
+  };
 
   const formatCurrency = (amount) => `$${Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const cashFlow = actualIncome - actualExpenses;
-
-  const getCashFlowMessage = () => {
-    if (cashFlow > 0) {
-      return `Positive cash flow: ${formatCurrency(cashFlow)}`;
-    } else if (cashFlow < 0) {
-      return `Negative cash flow: ${formatCurrency(cashFlow)}`;
-    }
-    return 'Cash flow is balanced';
+  const getCashFlowColor = (amount) => {
+    if (amount > 0) return 'green';
+    if (amount < 0) return 'red';
+    return 'gray';
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.box}>
-        <Text style={styles.boxTitle}>Cash Flow</Text>
+        <Text style={styles.boxTitle}>Monthly Financial Overview</Text>
+        
         <View style={styles.row}>
-          <Text style={styles.label}>Income:</Text>
-          <Text style={styles.value}>{formatCurrency(actualIncome)}</Text>
+          <Text style={styles.label}>Total Income:</Text>
+          <Text style={styles.value}>{formatCurrency(dashboardData.totalIncome)}</Text>
         </View>
+        
         <View style={styles.row}>
-          <Text style={styles.label}>Expenses:</Text>
-          <Text style={styles.value}>{formatCurrency(actualExpenses)}</Text>
+          <Text style={styles.label}>Total Expenses:</Text>
+          <Text style={styles.value}>{formatCurrency(dashboardData.totalExpenses)}</Text>
         </View>
-        <View style={styles.barContainer}>
-          <Text style={styles.barLabel}>-</Text>
-          <View style={styles.barWrapper}>
-            <View style={[
-              styles.bar,
-              { 
-                backgroundColor: cashFlow > 0 ? 'green' : (cashFlow < 0 ? 'red' : 'gray'),
-                width: `${Math.abs(cashFlow) / Math.max(actualIncome, actualExpenses) * 50}%`,
-                marginLeft: cashFlow >= 0 ? '50%' : `${50 - Math.abs(cashFlow) / Math.max(actualIncome, actualExpenses) * 50}%`
-              }
-            ]} />
-            <View style={styles.barCenter} />
-          </View>
-          <Text style={styles.barLabel}>+</Text>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Credit Card Purchases:</Text>
+          <Text style={styles.value}>{formatCurrency(dashboardData.creditCardPurchases)}</Text>
         </View>
-        <Text style={styles.cashFlowMessage}>{getCashFlowMessage()}</Text>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Credit Card Payments:</Text>
+          <Text style={styles.value}>{formatCurrency(dashboardData.creditCardPayments)}</Text>
+        </View>
+
+        <Text style={[styles.cashFlowMessage, { color: getCashFlowColor(dashboardData.netCashFlow) }]}>
+          {dashboardData.netCashFlow > 0
+            ? `Positive cash flow: ${formatCurrency(dashboardData.netCashFlow)}`
+            : `Negative cash flow: ${formatCurrency(dashboardData.netCashFlow)}`}
+        </Text>
       </View>
     </View>
   );
@@ -75,88 +93,49 @@ const HomeDashboard = ({ transactions }) => {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#f0f0f0',
-    padding: 15,
+    padding: 3,
     borderRadius: 10,
+    margin: 10,
   },
   box: {
     backgroundColor: 'white',
     borderRadius: 8,
-    padding: 15,
-    marginBottom: 15,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   boxTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 10,
+    color: '#333',
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 5,
+    marginBottom: 2.5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    paddingBottom: 3,
   },
   label: {
     fontSize: 16,
+    color: '#555',
   },
   value: {
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  barContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginVertical: 10,
-  },
-  barWrapper: {
-    flex: 1,
-    height: 10,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 5,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  bar: {
-    height: '100%',
-    position: 'absolute',
-  },
-  barCenter: {
-    position: 'absolute',
-    left: '50%',
-    top: 0,
-    bottom: 0,
-    width: 2,
-    backgroundColor: 'black',
-  },
-  barLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginHorizontal: 5,
+    color: '#333',
   },
   cashFlowMessage: {
     textAlign: 'center',
     fontStyle: 'italic',
-  },
-  progressBarContainer: {
-    height: 10,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 5,
-    marginVertical: 10,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    borderRadius: 5,
-  },
-  progressText: {
-    textAlign: 'center',
-    marginTop: 5,
-    fontSize: 16,
-  },
-  budgetMessage: {
-    textAlign: 'center',
-    marginTop: 10,
-    fontStyle: 'italic',
+    marginTop: 15,
+    color: '#777',
   },
 });
 

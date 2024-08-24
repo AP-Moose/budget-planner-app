@@ -6,6 +6,7 @@ import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCategoryName } from '../utils
 import { PieChart } from 'react-native-svg-charts';
 import { useMonth } from '../context/MonthContext';
 import { Ionicons } from '@expo/vector-icons';
+import MonthNavigator from '../components/MonthNavigator';  // Import the new component
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -101,38 +102,9 @@ function CategoryScreen({ navigation }) {
     }));
   };
 
-  const navigateMonth = (direction) => {
-    const newDate = new Date(currentMonth);
-    newDate.setMonth(newDate.getMonth() + direction);
-    setCurrentMonth(newDate);
-  };
-
-  const isCurrentMonth = currentMonth.getMonth() === new Date().getMonth() && 
-                       currentMonth.getFullYear() === new Date().getFullYear();
-
   return (
     <View style={styles.container}>
-      <View style={styles.monthNavigation}>
-  <TouchableOpacity onPress={() => navigateMonth(-1)}>
-    <Ionicons name="chevron-back" size={24} color="black" />
-  </TouchableOpacity>
-  <Text style={styles.currentMonth}>
-    {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
-  </Text>
-  <TouchableOpacity onPress={() => navigateMonth(1)}>
-    <Ionicons name="chevron-forward" size={24} color="black" />
-  </TouchableOpacity>
-  {!isCurrentMonth && (
-    <TouchableOpacity 
-      style={styles.currentMonthButton} 
-      onPress={() => setCurrentMonth(new Date())}
-    >
-      <Text style={styles.buttonText}>
-        Return to {new Date().toLocaleString('default', { month: 'long' })}
-      </Text>
-    </TouchableOpacity>
-  )}
-</View>
+      <MonthNavigator currentMonth={currentMonth} setCurrentMonth={setCurrentMonth} />
       
       <View style={styles.tabContainer}>
         <TouchableOpacity
@@ -184,17 +156,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-  },
-  monthNavigation: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 10,
-    backgroundColor: '#e0e0e0',
-  },
-  currentMonth: {
-    fontSize: 18,
-    fontWeight: 'bold',
   },
   tabContainer: {
     flexDirection: 'row',
@@ -281,16 +242,6 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 12,
-  },
-  currentMonthButton: {
-    backgroundColor: '#4CAF50',
-    padding: 5,
-    borderRadius: 5,
-    marginLeft: 10,
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
   },
 });
 

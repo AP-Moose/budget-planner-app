@@ -5,6 +5,7 @@ import { getBudgetGoals, updateBudgetGoal, getTransactions } from '../services/F
 import { EXPENSE_CATEGORIES } from '../utils/categories';
 import { useMonth } from '../context/MonthContext';
 import { Ionicons } from '@expo/vector-icons';
+import MonthNavigator from '../components/MonthNavigator';  // Import the new component
 
 function BudgetGoalsScreen({ navigation }) {
   const { currentMonth, setCurrentMonth } = useMonth();
@@ -16,8 +17,6 @@ function BudgetGoalsScreen({ navigation }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [tempDate, setTempDate] = useState(currentMonth);
 
   const loadGoals = useCallback(async () => {
     setIsLoading(true);
@@ -222,113 +221,14 @@ function BudgetGoalsScreen({ navigation }) {
     );
   }, [actualExpenses, formatCurrency, getProgressColor, setSelectedGoal]);
 
-  const navigateMonth = (direction) => {
-    const newDate = new Date(currentMonth);
-    newDate.setMonth(newDate.getMonth() + direction);
-    setCurrentMonth(newDate);
-  };
-
-  const isCurrentMonth = currentMonth.getMonth() === new Date().getMonth() && 
-                       currentMonth.getFullYear() === new Date().getFullYear();
-
-  const renderDatePicker = () => {
-    const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 5 + i);
-    const months = [
-      'January', 'February', 'March', 'April', 'May', 'June', 
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-
-    return (
-      <Modal
-        visible={showDatePicker}
-        transparent={true}
-        animationType="slide"
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <ScrollView>
-              <Text style={styles.modalTitle}>Select Year</Text>
-              {years.map((year) => (
-                <TouchableOpacity
-                  key={year}
-                  style={styles.dateItem}
-                  onPress={() => setTempDate(new Date(year, tempDate.getMonth()))}
-                >
-                  <Text style={[
-                    styles.dateText,
-                    tempDate.getFullYear() === year && styles.selectedDateText
-                  ]}>{year}</Text>
-                </TouchableOpacity>
-              ))}
-              <Text style={styles.modalTitle}>Select Month</Text>
-              {months.map((month, index) => (
-                <TouchableOpacity
-                  key={month}
-                  style={styles.dateItem}
-                  onPress={() => setTempDate(new Date(tempDate.getFullYear(), index))}
-                >
-                  <Text style={[
-                    styles.dateText,
-                    tempDate.getMonth() === index && styles.selectedDateText
-                  ]}>{month}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <View style={styles.modalButtonContainer}>
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => {
-                  setCurrentMonth(tempDate);
-                  setShowDatePicker(false);
-                }}
-              >
-                <Text style={styles.modalButtonText}>Confirm</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => setShowDatePicker(false)}
-              >
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    );
-  };
-
   return (
     <KeyboardAvoidingView 
       style={styles.container} 
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
     >
-      <View style={styles.monthNavigation}>
-        <TouchableOpacity onPress={() => navigateMonth(-1)}>
-          <Ionicons name="chevron-back" size={24} color="black" />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => {
-          setTempDate(currentMonth);
-          setShowDatePicker(true);
-        }}>
-          <Text style={styles.currentMonth}>
-            {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigateMonth(1)}>
-          <Ionicons name="chevron-forward" size={24} color="black" />
-        </TouchableOpacity>
-        {!isCurrentMonth && (
-          <TouchableOpacity 
-            style={styles.currentMonthButton} 
-            onPress={() => setCurrentMonth(new Date())}
-          >
-            <Text style={styles.buttonText}>
-              Return to {new Date().toLocaleString('default', { month: 'long' })}
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <MonthNavigator currentMonth={currentMonth} setCurrentMonth={setCurrentMonth} />
+      
       <TouchableOpacity 
         style={styles.yearlyViewButton} 
         onPress={() => navigation.navigate('YearlyBudget')}
@@ -391,7 +291,6 @@ function BudgetGoalsScreen({ navigation }) {
           style={styles.goalsList}
         />
       )}
-      {renderDatePicker()}
     </KeyboardAvoidingView>
   );
 }
@@ -400,17 +299,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-  },
-  monthNavigation: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 10,
-    backgroundColor: '#e0e0e0',
-  },
-  currentMonth: {
-    fontSize: 18,
-    fontWeight: 'bold',
   },
   yearlyViewButton: {
     backgroundColor: '#4CAF50',
@@ -551,12 +439,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
   },
-  currentMonthButton: {
-    backgroundColor: '#4CAF50',
-    padding: 5,
-    borderRadius: 5,
-    marginLeft: 10,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -564,50 +446,6 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 10,
-    width: '80%',
-    maxHeight: '80%',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  dateItem: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-  },
-  dateText: {
-    fontSize: 16,
-  },
-  selectedDateText: {
-    fontWeight: 'bold',
-    color: '#2196F3',
-  },
-  modalButtonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 20,
-  },
-  modalButton: {
-    backgroundColor: '#2196F3',
-    padding: 10,
-    borderRadius: 5,
-  },
-  modalButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
   },
 });
 

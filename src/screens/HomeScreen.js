@@ -190,9 +190,9 @@ function HomeScreen({ navigation }) {
         ? `Card Payment: ${creditCard?.name || 'Unknown'}`
         : `Credit Card: ${creditCard?.name || 'Unknown'}`;
     }
-  
+
     return (
-      <View style={[styles.rowFront, isEditMode && styles.editModeItem]}>
+      <View style={[styles.rowFront, isEditMode ? styles.editModeItem : styles.viewModeItem]}>
         <View style={styles.transactionInfo}>
           <Text style={styles.transactionCategory}>{getCategoryName(item.category)}</Text>
           <Text style={styles.transactionDescription}>{item.description}</Text>
@@ -225,7 +225,6 @@ function HomeScreen({ navigation }) {
       </View>
     );
   }, [creditCards, isEditMode, handleDeleteTransaction, handleEditTransaction]);
-  
 
   const isCurrentMonth = currentMonth.getMonth() === new Date().getMonth() && currentMonth.getFullYear() === new Date().getFullYear();
 
@@ -374,7 +373,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     marginTop: 10,
   },
-  transactionsTitle: {
+transactionsTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     margin: 10,
@@ -403,9 +402,7 @@ const styles = StyleSheet.create({
     minHeight: 80,
   },
   editModeItem: {
-    backgroundColor: '#F0F0F0', // Light gray background for edit mode
-    borderLeftWidth: 4,
-    borderLeftColor: '#2196F3', // Blue left border to indicate edit mode
+    opacity: 1,
   },
   viewModeItem: {
     opacity: 0.8,
@@ -504,6 +501,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+    opacity: .90
   },
   dateContainer: {
     flexDirection: 'row',

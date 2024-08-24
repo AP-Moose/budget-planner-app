@@ -187,17 +187,32 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
     }
   };
 
+  const handleImportExport = () => {
+    Alert.alert(
+      "Import/Export",
+      "Choose an action",
+      [
+        {
+          text: "Import",
+          onPress: () => setIsModalVisible(true)
+        },
+        {
+          text: "Export",
+          onPress: exportTransactions
+        },
+        {
+          text: "Cancel",
+          style: "cancel"
+        }
+      ]
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <View style={styles.row}>
-        <TouchableOpacity style={styles.button} onPress={() => setIsModalVisible(true)}>
-          <Text style={styles.buttonText}>Bulk Upload</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={exportTransactions}>
-          <Text style={styles.buttonText}>Export Transactions</Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity style={styles.button} onPress={handleImportExport}>
+        <Text style={styles.buttonText}>Import/Export</Text>
+      </TouchableOpacity>
 
       <Modal
         animationType="slide"
@@ -258,20 +273,12 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 10,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 10,
-    marginVertical: 10,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    marginVertical: 5,
   },
   button: {
     backgroundColor: '#4CAF50',
     padding: 10,
     borderRadius: 5,
-    marginVertical: 5,
   },
   buttonText: {
     color: '#fff',
