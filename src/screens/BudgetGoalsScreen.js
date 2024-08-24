@@ -1,20 +1,23 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, Switch } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, Switch, Modal, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getBudgetGoals, updateBudgetGoal, getTransactions } from '../services/FirebaseService';
 import { EXPENSE_CATEGORIES } from '../utils/categories';
 import { useMonth } from '../context/MonthContext';
 import { Ionicons } from '@expo/vector-icons';
 
-function BudgetGoalsScreen() {
+function BudgetGoalsScreen({ navigation }) {
   const { currentMonth, setCurrentMonth } = useMonth();
   const [budgetGoals, setBudgetGoals] = useState([]);
   const [actualExpenses, setActualExpenses] = useState({});
   const [selectedGoal, setSelectedGoal] = useState(null);
   const [totalBudget, setTotalBudget] = useState(0);
   const [totalSpent, setTotalSpent] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [tempDate, setTempDate] = useState(currentMonth);
 
   const loadGoals = useCallback(async () => {
     setIsLoading(true);
@@ -25,19 +28,12 @@ function BudgetGoalsScreen() {
       let fetchedGoals = await getBudgetGoals(year, month);
       
       // Ensure all categories are present
-      const allCategories = EXPENSE_CATEGORIES.map(category => ({
-        category: category,
-        amount: '0',
-        isRecurring: false
-      }));
-
-      // Merge existing goals with default goals
-      fetchedGoals = allCategories.map(defaultGoal => {
-        const existingGoal = fetchedGoals.find(g => g.category === defaultGoal.category);
-        return existingGoal || defaultGoal;
+      const allCategories = EXPENSE_CATEGORIES.map(category => {
+        const existingGoal = fetchedGoals.find(g => g.category === category);
+        return existingGoal || { category, amount: '0', isRecurring: false };
       });
 
-      setBudgetGoals(fetchedGoals);
+      setBudgetGoals(allCategories);
 
       const transactions = await getTransactions();
       const currentMonthTransactions = transactions.filter(t => {
@@ -55,7 +51,7 @@ function BudgetGoalsScreen() {
 
       setActualExpenses(expenses);
 
-      const total = fetchedGoals.reduce((sum, goal) => sum + parseFloat(goal.amount), 0);
+      const total = allCategories.reduce((sum, goal) => sum + parseFloat(goal.amount), 0);
       setTotalBudget(total);
 
       const spent = Object.values(expenses).reduce((sum, amount) => sum + amount, 0);
@@ -89,6 +85,7 @@ function BudgetGoalsScreen() {
       Alert.alert('Error', 'Please enter an amount.');
       return;
     }
+    setIsUpdating(true);
     try {
       await updateBudgetGoal(selectedGoal.category, {
         amount: selectedGoal.amount,
@@ -96,12 +93,27 @@ function BudgetGoalsScreen() {
         year: currentMonth.getFullYear(),
         month: currentMonth.getMonth() + 1,
       });
+
+      // If recurring, update future months
+      if (selectedGoal.isRecurring) {
+        for (let futureMonth = currentMonth.getMonth() + 2; futureMonth <= 12; futureMonth++) {
+          await updateBudgetGoal(selectedGoal.category, {
+            amount: selectedGoal.amount,
+            isRecurring: selectedGoal.isRecurring,
+            year: currentMonth.getFullYear(),
+            month: futureMonth,
+          });
+        }
+      }
+
       setSelectedGoal(null);
-      loadGoals();
+      await loadGoals();
       Alert.alert('Success', 'Goal Updated');
     } catch (error) {
       console.error('Error updating budget goal:', error);
       Alert.alert('Error', 'Failed to update budget goal. Please try again.');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -110,6 +122,7 @@ function BudgetGoalsScreen() {
       Alert.alert('Error', 'No goal selected.');
       return;
     }
+    setIsUpdating(true);
     try {
       await updateBudgetGoal(selectedGoal.category, { 
         amount: '0',
@@ -118,11 +131,13 @@ function BudgetGoalsScreen() {
         month: currentMonth.getMonth() + 1,
       });
       setSelectedGoal(null);
-      loadGoals();
+      await loadGoals();
       Alert.alert('Success', 'Goal Reset to $0');
     } catch (error) {
       console.error('Error resetting budget goal:', error);
       Alert.alert('Error', 'Failed to reset budget goal. Please try again.');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -216,24 +231,71 @@ function BudgetGoalsScreen() {
   const isCurrentMonth = currentMonth.getMonth() === new Date().getMonth() && 
                        currentMonth.getFullYear() === new Date().getFullYear();
 
-  if (isLoading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#0000ff" />
-      </View>
-    );
-  }
+  const renderDatePicker = () => {
+    const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 5 + i);
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June', 
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
 
-  if (error) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadGoals}>
-          <Text style={styles.buttonText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
+      <Modal
+        visible={showDatePicker}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <ScrollView>
+              <Text style={styles.modalTitle}>Select Year</Text>
+              {years.map((year) => (
+                <TouchableOpacity
+                  key={year}
+                  style={styles.dateItem}
+                  onPress={() => setTempDate(new Date(year, tempDate.getMonth()))}
+                >
+                  <Text style={[
+                    styles.dateText,
+                    tempDate.getFullYear() === year && styles.selectedDateText
+                  ]}>{year}</Text>
+                </TouchableOpacity>
+              ))}
+              <Text style={styles.modalTitle}>Select Month</Text>
+              {months.map((month, index) => (
+                <TouchableOpacity
+                  key={month}
+                  style={styles.dateItem}
+                  onPress={() => setTempDate(new Date(tempDate.getFullYear(), index))}
+                >
+                  <Text style={[
+                    styles.dateText,
+                    tempDate.getMonth() === index && styles.selectedDateText
+                  ]}>{month}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <View style={styles.modalButtonContainer}>
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={() => {
+                  setCurrentMonth(tempDate);
+                  setShowDatePicker(false);
+                }}
+              >
+                <Text style={styles.modalButtonText}>Confirm</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={() => setShowDatePicker(false)}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     );
-  }
+  };
 
   return (
     <KeyboardAvoidingView 
@@ -245,9 +307,14 @@ function BudgetGoalsScreen() {
         <TouchableOpacity onPress={() => navigateMonth(-1)}>
           <Ionicons name="chevron-back" size={24} color="black" />
         </TouchableOpacity>
-        <Text style={styles.currentMonth}>
-          {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
-        </Text>
+        <TouchableOpacity onPress={() => {
+          setTempDate(currentMonth);
+          setShowDatePicker(true);
+        }}>
+          <Text style={styles.currentMonth}>
+            {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+          </Text>
+        </TouchableOpacity>
         <TouchableOpacity onPress={() => navigateMonth(1)}>
           <Ionicons name="chevron-forward" size={24} color="black" />
         </TouchableOpacity>
@@ -262,12 +329,22 @@ function BudgetGoalsScreen() {
           </TouchableOpacity>
         )}
       </View>
+      <TouchableOpacity 
+        style={styles.yearlyViewButton} 
+        onPress={() => navigation.navigate('YearlyBudget')}
+      >
+        <Text style={styles.buttonText}>Yearly View</Text>
+      </TouchableOpacity>
       <Text style={styles.title}>Budget Goals</Text>
       <Text style={styles.totalBudget}>Total Budget: {formatCurrency(totalBudget)}</Text>
       
       {renderBudgetUsage()}
 
-      {selectedGoal ? (
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#0000ff" />
+        </View>
+      ) : selectedGoal ? (
         <View style={styles.formContainer}>
           <Text style={styles.selectedCategory}>{selectedGoal.category}</Text>
           <TextInput
@@ -284,10 +361,22 @@ function BudgetGoalsScreen() {
               onValueChange={(value) => setSelectedGoal(prev => ({...prev, isRecurring: value}))}
             />
           </View>
-          <TouchableOpacity style={styles.updateButton} onPress={handleUpdateGoal}>
-            <Text style={styles.buttonText}>Update Goal</Text>
+          <TouchableOpacity 
+            style={[styles.updateButton, isUpdating && styles.disabledButton]} 
+            onPress={handleUpdateGoal}
+            disabled={isUpdating}
+          >
+            {isUpdating ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <Text style={styles.buttonText}>Update Goal</Text>
+            )}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.resetButton} onPress={handleResetGoal}>
+          <TouchableOpacity 
+            style={[styles.resetButton, isUpdating && styles.disabledButton]} 
+            onPress={handleResetGoal}
+            disabled={isUpdating}
+          >
             <Text style={styles.buttonText}>Reset Goal to $0</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.cancelButton} onPress={() => setSelectedGoal(null)}>
@@ -302,6 +391,7 @@ function BudgetGoalsScreen() {
           style={styles.goalsList}
         />
       )}
+      {renderDatePicker()}
     </KeyboardAvoidingView>
   );
 }
@@ -321,6 +411,13 @@ const styles = StyleSheet.create({
   currentMonth: {
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  yearlyViewButton: {
+    backgroundColor: '#4CAF50',
+    padding: 10,
+    margin: 10,
+    borderRadius: 5,
+    alignItems: 'center',
   },
   title: {
     fontSize: 20,
@@ -460,20 +557,57 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginLeft: 10,
   },
-  centerContainer: {
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  errorText: {
-    color: 'red',
-    fontSize: 16,
-    marginBottom: 20,
+  disabledButton: {
+    opacity: 0.5,
   },
-  retryButton: {
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 10,
+    width: '80%',
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  dateItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  dateText: {
+    fontSize: 16,
+  },
+  selectedDateText: {
+    fontWeight: 'bold',
+    color: '#2196F3',
+  },
+  modalButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 20,
+  },
+  modalButton: {
     backgroundColor: '#2196F3',
     padding: 10,
     borderRadius: 5,
+  },
+  modalButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
 });
 

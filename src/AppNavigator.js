@@ -5,6 +5,7 @@ import HomeScreen from './screens/HomeScreen';
 import CategoryScreen from './screens/CategoryScreen';
 import CategoryDetailScreen from './screens/CategoryDetailScreen';
 import BudgetGoalsScreen from './screens/BudgetGoalsScreen';
+import YearlyBudgetScreen from './screens/YearlyBudgetScreen';
 import LoginScreen from './screens/LoginScreen';
 import Header from './components/Header';
 import { Ionicons } from '@expo/vector-icons';
@@ -62,7 +63,7 @@ function CategoriesStack() {
   );
 }
 
-function BudgetGoalsStack() {
+function BudgetStack() {
   return (
     <Stack.Navigator
       screenOptions={({ route }) => ({
@@ -75,6 +76,11 @@ function BudgetGoalsStack() {
         name="BudgetGoals" 
         component={BudgetGoalsScreen} 
         options={{ title: 'Budget Goals' }} 
+      />
+      <Stack.Screen 
+        name="YearlyBudget" 
+        component={YearlyBudgetScreen} 
+        options={{ title: 'Yearly Budget' }} 
       />
     </Stack.Navigator>
   );
@@ -171,7 +177,7 @@ function MainTabs() {
       />
       <Tab.Screen 
         name="BudgetGoalsTab" 
-        component={BudgetGoalsStack}
+        component={BudgetStack}
         options={{ headerShown: false, title: 'Goals' }}
       />
       <Tab.Screen
