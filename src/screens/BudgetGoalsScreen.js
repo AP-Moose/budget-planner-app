@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, Switch } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getBudgetGoals, updateBudgetGoal, getTransactions } from '../services/FirebaseService';
 import { EXPENSE_CATEGORIES } from '../utils/categories';
@@ -20,12 +20,15 @@ function BudgetGoalsScreen() {
     setIsLoading(true);
     setError(null);
     try {
-      let fetchedGoals = await getBudgetGoals();
+      const year = currentMonth.getFullYear();
+      const month = currentMonth.getMonth() + 1;
+      let fetchedGoals = await getBudgetGoals(year, month);
       
       // Ensure all categories are present
       const allCategories = EXPENSE_CATEGORIES.map(category => ({
         category: category,
-        amount: '0'
+        amount: '0',
+        isRecurring: false
       }));
 
       // Merge existing goals with default goals
@@ -87,7 +90,12 @@ function BudgetGoalsScreen() {
       return;
     }
     try {
-      await updateBudgetGoal(selectedGoal.category, { amount: selectedGoal.amount });
+      await updateBudgetGoal(selectedGoal.category, {
+        amount: selectedGoal.amount,
+        isRecurring: selectedGoal.isRecurring,
+        year: currentMonth.getFullYear(),
+        month: currentMonth.getMonth() + 1,
+      });
       setSelectedGoal(null);
       loadGoals();
       Alert.alert('Success', 'Goal Updated');
@@ -103,7 +111,12 @@ function BudgetGoalsScreen() {
       return;
     }
     try {
-      await updateBudgetGoal(selectedGoal.category, { amount: '0' });
+      await updateBudgetGoal(selectedGoal.category, { 
+        amount: '0',
+        isRecurring: false,
+        year: currentMonth.getFullYear(),
+        month: currentMonth.getMonth() + 1,
+      });
       setSelectedGoal(null);
       loadGoals();
       Alert.alert('Success', 'Goal Reset to $0');
@@ -168,6 +181,7 @@ function BudgetGoalsScreen() {
         <View style={styles.goalDetails}>
           <Text style={styles.goalAmount}>Budget: {formatCurrency(budgeted)}</Text>
           <Text style={styles.goalAmount}>Spent: {formatCurrency(spent)}</Text>
+          <Text style={styles.goalRecurring}>{goal.isRecurring ? 'Recurring' : 'One-time'}</Text>
         </View>
         <View style={styles.progressBar}>
           <View 
@@ -263,6 +277,13 @@ function BudgetGoalsScreen() {
             keyboardType="numeric"
             placeholder="Amount"
           />
+          <View style={styles.switchContainer}>
+            <Text>Recurring</Text>
+            <Switch
+              value={selectedGoal.isRecurring}
+              onValueChange={(value) => setSelectedGoal(prev => ({...prev, isRecurring: value}))}
+            />
+          </View>
           <TouchableOpacity style={styles.updateButton} onPress={handleUpdateGoal}>
             <Text style={styles.buttonText}>Update Goal</Text>
           </TouchableOpacity>
@@ -357,6 +378,10 @@ const styles = StyleSheet.create({
   goalAmount: {
     fontSize: 14,
   },
+  goalRecurring: {
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
   progressBar: {
     height: 10,
     backgroundColor: '#e0e0e0',
@@ -399,6 +424,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderRadius: 5,
   },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   updateButton: {
     backgroundColor: '#2196F3',
     padding: 15,
@@ -428,6 +459,21 @@ const styles = StyleSheet.create({
     padding: 5,
     borderRadius: 5,
     marginLeft: 10,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#2196F3',
+    padding: 10,
+    borderRadius: 5,
   },
 });
 

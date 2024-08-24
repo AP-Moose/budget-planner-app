@@ -191,42 +191,51 @@ export const updateBudgetGoal = async (category, updatedData) => {
       throw new Error('No user logged in');
     }
 
-    // Encode the category name to make it safe for use in document ID
+    const { amount, isRecurring, year, month } = updatedData;
     const encodedCategory = encodeURIComponent(category.replace(/\s+/g, '_'));
-    const goalId = `${user.uid}_${encodedCategory}`;
+    const goalId = `${user.uid}_${encodedCategory}_${year}-${month.toString().padStart(2, '0')}`;
     const goalRef = doc(db, 'budgetGoals', goalId);
     
-    // Check if the document exists
-    const docSnap = await getDoc(goalRef);
-    
     const goalData = {
-      ...updatedData,
       userId: user.uid,
       category: category,
-      amount: Number(updatedData.amount)
+      amount: Number(amount),
+      isRecurring,
+      year,
+      month
     };
 
-    if (docSnap.exists()) {
-      // Update existing document
-      await updateDoc(goalRef, goalData);
-    } else {
-      // Create new document
-      await setDoc(goalRef, goalData);
+    await setDoc(goalRef, goalData, { merge: true });
+    console.log('Budget goal updated successfully:', goalId);
+
+    // If the goal is recurring, update future months
+    if (isRecurring) {
+      const futureMonths = 11; // Update for the next 11 months (1 year total)
+      for (let i = 1; i <= futureMonths; i++) {
+        const futureDate = new Date(year, month - 1 + i, 1);
+        const futureYear = futureDate.getFullYear();
+        const futureMonth = futureDate.getMonth() + 1;
+        const futureGoalId = `${user.uid}_${encodedCategory}_${futureYear}-${futureMonth.toString().padStart(2, '0')}`;
+        const futureGoalRef = doc(db, 'budgetGoals', futureGoalId);
+        
+        // Only set if the future goal doesn't exist
+        const futureGoalDoc = await getDoc(futureGoalRef);
+        if (!futureGoalDoc.exists()) {
+          await setDoc(futureGoalRef, {
+            ...goalData,
+            year: futureYear,
+            month: futureMonth
+          });
+        }
+      }
     }
-    
-    console.log('Budget goal updated successfully for category:', category);
   } catch (error) {
     console.error('Error updating budget goal:', error);
-    if (error.code === 'permission-denied') {
-      console.error('Permission denied. Current user:', auth.currentUser?.uid);
-      console.error('Category:', category);
-      console.error('Updated data:', updatedData);
-    }
     throw error;
   }
 };
 
-export const getBudgetGoals = async () => {
+export const getBudgetGoals = async (year, month) => {
   try {
     const user = auth.currentUser;
     if (!user) {
@@ -236,29 +245,17 @@ export const getBudgetGoals = async () => {
 
     const q = query(
       collection(db, 'budgetGoals'),
-      where('userId', '==', user.uid)
+      where('userId', '==', user.uid),
+      where('year', '==', year),
+      where('month', '==', month)
     );
     
     const snapshot = await getDocs(q);
     const budgetGoals = snapshot.docs.map(doc => {
       const data = doc.data();
-      let category = data.category;
-      
-      // If category is not in the data, try to extract it from the document ID
-      if (!category) {
-        const parts = doc.id.split('_');
-        if (parts.length > 1) {
-          category = decodeURIComponent(parts.slice(1).join('_').replace(/_/g, ' '));
-        } else {
-          // Fallback if we can't extract a category
-          category = 'Unknown Category';
-        }
-      }
-
       return {
         id: doc.id,
         ...data,
-        category: category,
         amount: Number(data.amount)
       };
     });
@@ -665,6 +662,50 @@ export const getUserProfile = async () => {
   }
 };
 
+export const rolloverBudgetGoals = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
+    const q = query(
+      collection(db, 'budgetGoals'),
+      where('userId', '==', user.uid),
+      where('isRecurring', '==', true)
+    );
+
+    const snapshot = await getDocs(q);
+    const goals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    for (const goal of goals) {
+      if (goal.period === 'monthly') {
+        // Roll over to next month
+        const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+        const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
+        await updateBudgetGoal(goal.category, {
+          ...goal,
+          year: nextYear,
+          month: nextMonth,
+        });
+      } else if (goal.period === 'yearly' && currentMonth === 1) {
+        // Roll over to next year
+        await updateBudgetGoal(goal.category, {
+          ...goal,
+          year: currentYear + 1,
+        });
+      }
+    }
+
+    console.log('Budget goals rolled over successfully');
+  } catch (error) {
+    console.error('Error rolling over budget goals:', error);
+    throw error;
+  }
+};
+
 export default {
   signUp,
   signIn,
@@ -693,4 +734,5 @@ export default {
   deleteLoan,
   updateUserProfile,
   getUserProfile,
+  rolloverBudgetGoals,
 };
