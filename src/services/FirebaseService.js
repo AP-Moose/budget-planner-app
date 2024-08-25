@@ -297,14 +297,14 @@ export const updateCreditCard = async (id, updatedData) => {
     if (cardDoc.exists()) {
       const currentData = cardDoc.data();
       const newBalance = updatedData.startingBalance !== undefined 
-        ? Number(updatedData.startingBalance) 
-        : Number(currentData.balance);
+        ? updatedData.startingBalance
+        : currentData.balance;
 
       await updateDoc(cardRef, {
         ...updatedData,
         balance: newBalance,
-        limit: Number(updatedData.limit) || currentData.limit,
-        startingBalance: Number(updatedData.startingBalance) || currentData.startingBalance,
+        limit: updatedData.limit !== undefined ? updatedData.limit : currentData.limit,
+        startingBalance: updatedData.startingBalance !== undefined ? updatedData.startingBalance : currentData.startingBalance,
         startDate: updatedData.startDate ? Timestamp.fromDate(new Date(updatedData.startDate)) : currentData.startDate,
         lastUpdated: Timestamp.fromDate(new Date())
       });

@@ -1,21 +1,50 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { addCreditCard, updateCreditCard, deleteCreditCard, onCreditCardsUpdate } from '../services/FirebaseService';
+import { addCreditCard, updateCreditCard, deleteCreditCard, onCreditCardsUpdate, getTransactions } from '../services/FirebaseService';
 
 const CreditCardScreen = () => {
   const [creditCards, setCreditCards] = useState([]);
   const [newCard, setNewCard] = useState({ name: '', limit: '', startingBalance: '', startDate: new Date() });
   const [editingCard, setEditingCard] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [transactions, setTransactions] = useState([]);
 
   useEffect(() => {
     const unsubscribe = onCreditCardsUpdate((updatedCards) => {
       setCreditCards(updatedCards);
     });
 
+    loadTransactions();
+
     return () => unsubscribe();
   }, []);
+
+  const loadTransactions = async () => {
+    try {
+      const fetchedTransactions = await getTransactions();
+      setTransactions(fetchedTransactions);
+    } catch (error) {
+      console.error('Error loading transactions:', error);
+    }
+  };
+
+  const calculateCurrentBalance = (card) => {
+    const cardTransactions = transactions.filter(t => t.creditCardId === card.id);
+    let balance = Number(card.startingBalance);
+
+    cardTransactions.forEach(t => {
+      if (t.date >= card.startDate) {
+        if (t.type === 'expense' && !t.isCardPayment) {
+          balance += Number(t.amount);
+        } else if (t.isCardPayment) {
+          balance -= Number(t.amount);
+        }
+      }
+    });
+
+    return balance;
+  };
 
   const handleAddCard = async () => {
     if (!newCard.name || !newCard.limit) {
@@ -26,8 +55,8 @@ const CreditCardScreen = () => {
       await addCreditCard({
         ...newCard,
         limit: parseFloat(newCard.limit),
-        startingBalance: parseFloat(newCard.startingBalance || '0'),
-        balance: parseFloat(newCard.startingBalance || '0'),
+        startingBalance: newCard.startingBalance === '' ? 0 : parseFloat(newCard.startingBalance),
+        balance: newCard.startingBalance === '' ? 0 : parseFloat(newCard.startingBalance),
         startDate: newCard.startDate,
       });
       setNewCard({ name: '', limit: '', startingBalance: '', startDate: new Date() });
@@ -39,14 +68,40 @@ const CreditCardScreen = () => {
 
   const handleUpdateCard = async (id, updatedCard) => {
     try {
-      await updateCreditCard(id, updatedCard);
+      console.log('Received updatedCard:', updatedCard);
+  
+      if (!updatedCard || typeof updatedCard !== 'object') {
+        throw new Error('Invalid card data');
+      }
+  
+      const cardToUpdate = {
+        name: updatedCard.name,
+        limit: updatedCard.limit === '' ? 0 : parseFloat(updatedCard.limit),
+        startingBalance: updatedCard.startingBalance === '' ? 0 : parseFloat(updatedCard.startingBalance),
+        startDate: updatedCard.startDate || new Date(),
+      };
+      
+      console.log('Updating card with data:', cardToUpdate);
+  
+      await updateCreditCard(id, cardToUpdate);
       setEditingCard(null);
+      
+      // Update local state
+      const updatedCards = creditCards.map(card => 
+        card.id === id ? {...card, ...cardToUpdate} : card
+      );
+      setCreditCards(updatedCards);
+  
+      // Verify the update
+      const updatedCardInState = updatedCards.find(card => card.id === id);
+      console.log('Updated card in local state:', updatedCardInState);
+  
+      Alert.alert('Success', 'Credit card updated successfully');
     } catch (error) {
       console.error('Error updating credit card:', error);
       Alert.alert('Error', 'Failed to update credit card. Please try again.');
     }
   };
-
   const handleDeleteCard = async (id) => {
     try {
       await deleteCreditCard(id);
@@ -60,29 +115,47 @@ const CreditCardScreen = () => {
     <View style={styles.cardItem}>
       {editingCard === item.id ? (
         <>
-          <TextInput
-            style={styles.input}
-            value={item.name}
-            onChangeText={(text) => setCreditCards(cards => cards.map(c => c.id === item.id ? {...c, name: text} : c))}
-          />
-          <TextInput
-            style={styles.input}
-            value={item.limit.toString()}
-            onChangeText={(text) => setCreditCards(cards => cards.map(c => c.id === item.id ? {...c, limit: text} : c))}
-            keyboardType="numeric"
-          />
-          <TextInput
-            style={styles.input}
-            value={item.startingBalance.toString()}
-            onChangeText={(text) => setCreditCards(cards => cards.map(c => c.id === item.id ? {...c, startingBalance: text} : c))}
-            keyboardType="numeric"
-          />
-          <TouchableOpacity onPress={() => setShowDatePicker(true)}>
-            <Text>Start Date: {item.startDate.toDateString()}</Text>
-          </TouchableOpacity>
+          <View style={styles.rowContainer}>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>Card Name:</Text>
+              <TextInput
+                style={styles.input}
+                value={item.name}
+                onChangeText={(text) => setCreditCards(cards => cards.map(c => c.id === item.id ? {...c, name: text} : c))}
+              />
+            </View>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>Credit Limit:</Text>
+              <TextInput
+                style={styles.input}
+                value={item.limit.toString()}
+                onChangeText={(text) => setCreditCards(cards => cards.map(c => c.id === item.id ? {...c, limit: text} : c))}
+                keyboardType="numeric"
+                returnKeyType="done"
+              />
+            </View>
+          </View>
+          <View style={styles.rowContainer}>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>Starting Balance:</Text>
+              <TextInput
+                style={styles.input}
+                value={item.startingBalance.toString()}
+                onChangeText={(text) => setCreditCards(cards => cards.map(c => c.id === item.id ? {...c, startingBalance: text} : c))}
+                keyboardType="numeric"
+                returnKeyType="done"
+              />
+            </View>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>Start Date:</Text>
+              <TouchableOpacity onPress={() => setShowDatePicker(true)}>
+                <Text style={styles.dateText}>{new Date(item.startDate).toDateString()}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
           {showDatePicker && (
             <DateTimePicker
-              value={item.startDate}
+              value={new Date(item.startDate)}
               mode="date"
               display="default"
               onChange={(event, selectedDate) => {
@@ -93,64 +166,96 @@ const CreditCardScreen = () => {
               }}
             />
           )}
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => handleUpdateCard(item.id, {name: item.name, limit: item.limit, startingBalance: item.startingBalance, startDate: item.startDate})}
-          >
-            <Text style={styles.buttonText}>Save</Text>
-          </TouchableOpacity>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => handleUpdateCard(item.id, item)}
+            >
+              <Text style={styles.buttonText}>Save</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.cancelButton]}
+              onPress={() => setEditingCard(null)}
+            >
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
         </>
       ) : (
         <>
           <Text style={styles.cardName}>{item.name}</Text>
-          <Text>Limit: ${item.limit}</Text>
-          <Text>Balance: ${item.balance}</Text>
-          <Text>Starting Balance: ${item.startingBalance}</Text>
+          <Text>Limit: ${parseFloat(item.limit).toFixed(2)}</Text>
+          <Text>Current Balance: ${calculateCurrentBalance(item).toFixed(2)}</Text>
+          <Text>Starting Balance: ${parseFloat(item.startingBalance).toFixed(2)}</Text>
           <Text>Start Date: {new Date(item.startDate).toDateString()}</Text>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => setEditingCard(item.id)}
-          >
-            <Text style={styles.buttonText}>Edit</Text>
-          </TouchableOpacity>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => setEditingCard(item.id)}
+            >
+              <Text style={styles.buttonText}>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.deleteButton]}
+              onPress={() => handleDeleteCard(item.id)}
+            >
+              <Text style={styles.buttonText}>Delete</Text>
+            </TouchableOpacity>
+          </View>
         </>
       )}
-      <TouchableOpacity
-        style={styles.deleteButton}
-        onPress={() => handleDeleteCard(item.id)}
-      >
-        <Text style={styles.deleteButtonText}>Delete</Text>
-      </TouchableOpacity>
     </View>
   );
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={100}
+    >
       <Text style={styles.title}>Credit Cards</Text>
       <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Card Name"
-          value={newCard.name}
-          onChangeText={(text) => setNewCard({ ...newCard, name: text })}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Card Limit"
-          value={newCard.limit}
-          onChangeText={(text) => setNewCard({ ...newCard, limit: text })}
-          keyboardType="numeric"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Starting Balance"
-          value={newCard.startingBalance}
-          onChangeText={(text) => setNewCard({ ...newCard, startingBalance: text })}
-          keyboardType="numeric"
-        />
-        <TouchableOpacity onPress={() => setShowDatePicker(true)}>
-          <Text>Start Date: {newCard.startDate.toDateString()}</Text>
-        </TouchableOpacity>
+        <View style={styles.rowContainer}>
+          <View style={styles.halfInput}>
+            <Text style={styles.inputLabel}>Card Name:</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Card Name"
+              value={newCard.name}
+              onChangeText={(text) => setNewCard({ ...newCard, name: text })}
+            />
+          </View>
+          <View style={styles.halfInput}>
+            <Text style={styles.inputLabel}>Credit Limit:</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Limit"
+              value={newCard.limit}
+              onChangeText={(text) => setNewCard({ ...newCard, limit: text })}
+              keyboardType="numeric"
+              returnKeyType="done"
+            />
+          </View>
+        </View>
+        <View style={styles.rowContainer}>
+          <View style={styles.halfInput}>
+            <Text style={styles.inputLabel}>Starting Balance:</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Balance"
+              value={newCard.startingBalance}
+              onChangeText={(text) => setNewCard({ ...newCard, startingBalance: text })}
+              keyboardType="numeric"
+              returnKeyType="done"
+            />
+          </View>
+          <View style={styles.halfInput}>
+            <Text style={styles.inputLabel}>Start Date:</Text>
+            <TouchableOpacity onPress={() => setShowDatePicker(true)}>
+              <Text style={styles.dateText}>{newCard.startDate.toDateString()}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
         {showDatePicker && (
           <DateTimePicker
             value={newCard.startDate}
@@ -173,71 +278,92 @@ const CreditCardScreen = () => {
         renderItem={renderCreditCard}
         keyExtractor={(item) => item.id}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      padding: 20,
-      backgroundColor: '#f5f5f5',
-    },
-    title: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      marginBottom: 20,
-    },
-    inputContainer: {
-      marginBottom: 20,
-    },
-    input: {
-      backgroundColor: '#fff',
-      padding: 10,
-      marginBottom: 10,
-      borderRadius: 5,
-    },
-    addButton: {
-      backgroundColor: '#4CAF50',
-      padding: 15,
-      borderRadius: 5,
-      alignItems: 'center',
-    },
-    addButtonText: {
-      color: '#fff',
-      fontWeight: 'bold',
-    },
-    cardItem: {
-      backgroundColor: '#fff',
-      padding: 15,
-      marginBottom: 10,
-      borderRadius: 5,
-    },
-    cardName: {
-      fontSize: 18,
-      fontWeight: 'bold',
-      marginBottom: 5,
-    },
-    button: {
-      backgroundColor: '#2196F3',
-      padding: 10,
-      borderRadius: 5,
-      alignItems: 'center',
-      marginTop: 10,
-    },
-    buttonText: {
-      color: '#fff',
-    },
-    deleteButton: {
-      backgroundColor: '#F44336',
-      padding: 10,
-      borderRadius: 5,
-      alignItems: 'center',
-      marginTop: 10,
-    },
-    deleteButtonText: {
-      color: '#fff',
-    },
-  });
-  
-  export default CreditCardScreen;
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: '#f5f5f5',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  input: {
+    backgroundColor: '#fff',
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 5,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  rowContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  halfInput: {
+    width: '48%',
+  },
+  addButton: {
+    backgroundColor: '#4CAF50',
+    padding: 15,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  addButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  dateText: {
+    backgroundColor: '#fff',
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 5,
+  },
+  cardItem: {
+    backgroundColor: '#fff',
+    padding: 15,
+    marginBottom: 10,
+    borderRadius: 5,
+  },
+  cardName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  button: {
+    backgroundColor: '#2196F3',
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 5,
+  },
+  deleteButton: {
+    backgroundColor: '#F44336',
+  },
+  cancelButton: {
+    backgroundColor: '#9E9E9E',
+  },
+  buttonText: {
+    color: '#fff',
+  },
+});
+
+export default CreditCardScreen;
