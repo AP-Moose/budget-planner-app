@@ -12,7 +12,7 @@ export const generateCategoryCreditCardUsage = (transactions) => {
       const transactionCount = categoryTransactions.length;
 
       report[category] = {
-        totalAmount,
+        totalAmount: totalAmount,
         transactionCount,
         averageTransactionAmount: transactionCount > 0 ? totalAmount / transactionCount : 0
       };

@@ -323,7 +323,7 @@ const ReportsScreen = () => {
       <View style={styles.reportRow}>
         <Text style={styles.reportLabel}>Credit Card Payments:</Text>
         <Text style={styles.reportValue}>{formatCurrency(data.creditCardPayments)}</Text>
-      </View>
+        </View>
     </View>
   );
 
