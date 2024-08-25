@@ -10,14 +10,17 @@ import {
   KeyboardAvoidingView,
   Platform
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { getUserProfile, updateUserProfile, getInvestments, updateInvestment, getLoanInformation, updateLoanInformation } from '../services/FirebaseService';
 
 const UserProfileScreen = ({ navigation }) => {
   const [initialCashBalance, setInitialCashBalance] = useState('');
   const [investments, setInvestments] = useState([]);
   const [loans, setLoans] = useState([]);
-  const [newInvestment, setNewInvestment] = useState({ name: '', amount: '' });
-  const [newLoan, setNewLoan] = useState({ name: '', amount: '', interestRate: '' });
+  const [newInvestment, setNewInvestment] = useState({ name: '', amount: '', startDate: new Date() });
+  const [newLoan, setNewLoan] = useState({ name: '', amount: '', interestRate: '', startDate: new Date() });
+  const [showInvestmentDatePicker, setShowInvestmentDatePicker] = useState(false);
+  const [showLoanDatePicker, setShowLoanDatePicker] = useState(false);
 
   useEffect(() => {
     loadUserProfile();
@@ -57,7 +60,7 @@ const UserProfileScreen = ({ navigation }) => {
 
   const handleSave = async () => {
     try {
-      await updateUserProfile({ initialCashBalance });
+      await updateUserProfile({ initialCashBalance: parseFloat(initialCashBalance) || 0 });
       Alert.alert('Success', 'User profile updated successfully');
     } catch (error) {
       console.error('Error updating user profile:', error);
@@ -71,8 +74,12 @@ const UserProfileScreen = ({ navigation }) => {
       return;
     }
     try {
-      await updateInvestment({ ...newInvestment, amount: parseFloat(newInvestment.amount) });
-      setNewInvestment({ name: '', amount: '' });
+      await updateInvestment({ 
+        ...newInvestment, 
+        amount: parseFloat(newInvestment.amount),
+        startDate: newInvestment.startDate.toISOString()
+      });
+      setNewInvestment({ name: '', amount: '', startDate: new Date() });
       loadInvestments();
       Alert.alert('Success', 'Investment added successfully');
     } catch (error) {
@@ -90,15 +97,28 @@ const UserProfileScreen = ({ navigation }) => {
       await updateLoanInformation({ 
         ...newLoan, 
         amount: parseFloat(newLoan.amount),
-        interestRate: parseFloat(newLoan.interestRate)
+        interestRate: parseFloat(newLoan.interestRate),
+        startDate: newLoan.startDate.toISOString()
       });
-      setNewLoan({ name: '', amount: '', interestRate: '' });
+      setNewLoan({ name: '', amount: '', interestRate: '', startDate: new Date() });
       loadLoans();
       Alert.alert('Success', 'Loan added successfully');
     } catch (error) {
       console.error('Error adding loan:', error);
       Alert.alert('Error', 'Failed to add loan. Please try again.');
     }
+  };
+
+  const onChangeInvestmentDate = (event, selectedDate) => {
+    const currentDate = selectedDate || newInvestment.startDate;
+    setShowInvestmentDatePicker(Platform.OS === 'ios');
+    setNewInvestment({...newInvestment, startDate: currentDate});
+  };
+
+  const onChangeLoanDate = (event, selectedDate) => {
+    const currentDate = selectedDate || newLoan.startDate;
+    setShowLoanDatePicker(Platform.OS === 'ios');
+    setNewLoan({...newLoan, startDate: currentDate});
   };
 
   return (
@@ -128,6 +148,7 @@ const UserProfileScreen = ({ navigation }) => {
           {investments.map((investment, index) => (
             <View key={index} style={styles.item}>
               <Text>{investment.name}: ${investment.amount.toFixed(2)}</Text>
+              <Text>Start Date: {new Date(investment.startDate).toLocaleDateString()}</Text>
             </View>
           ))}
           <TextInput
@@ -143,6 +164,18 @@ const UserProfileScreen = ({ navigation }) => {
             keyboardType="numeric"
             placeholder="Investment Amount"
           />
+          <TouchableOpacity style={styles.input} onPress={() => setShowInvestmentDatePicker(true)}>
+            <Text>{newInvestment.startDate.toLocaleDateString()}</Text>
+          </TouchableOpacity>
+          {showInvestmentDatePicker && (
+            <DateTimePicker
+              testID="investmentDatePicker"
+              value={newInvestment.startDate}
+              mode="date"
+              display="default"
+              onChange={onChangeInvestmentDate}
+            />
+          )}
           <TouchableOpacity style={styles.button} onPress={handleAddInvestment}>
             <Text style={styles.buttonText}>Add Investment</Text>
           </TouchableOpacity>
@@ -153,6 +186,7 @@ const UserProfileScreen = ({ navigation }) => {
           {loans.map((loan, index) => (
             <View key={index} style={styles.item}>
               <Text>{loan.name}: ${loan.amount.toFixed(2)} at {loan.interestRate}% interest</Text>
+              <Text>Start Date: {new Date(loan.startDate).toLocaleDateString()}</Text>
             </View>
           ))}
           <TextInput
@@ -175,6 +209,18 @@ const UserProfileScreen = ({ navigation }) => {
             keyboardType="numeric"
             placeholder="Interest Rate (%)"
           />
+          <TouchableOpacity style={styles.input} onPress={() => setShowLoanDatePicker(true)}>
+            <Text>{newLoan.startDate.toLocaleDateString()}</Text>
+          </TouchableOpacity>
+          {showLoanDatePicker && (
+            <DateTimePicker
+              testID="loanDatePicker"
+              value={newLoan.startDate}
+              mode="date"
+              display="default"
+              onChange={onChangeLoanDate}
+            />
+          )}
           <TouchableOpacity style={styles.button} onPress={handleAddLoan}>
             <Text style={styles.buttonText}>Add Loan</Text>
           </TouchableOpacity>
