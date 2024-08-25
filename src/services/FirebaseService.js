@@ -86,11 +86,6 @@ export const addTransaction = async (transaction) => {
     return docRef.id;
   } catch (error) {
     console.error('Error adding transaction:', error);
-    if (error.code === 'permission-denied') {
-      console.error('Permission denied. Current user:', auth.currentUser?.uid);
-      console.error('Transaction data:', transaction);
-      console.error('Firestore rules:', 'Please check your Firestore rules');
-    }
     throw error;
   }
 };
@@ -191,51 +186,21 @@ export const updateBudgetGoal = async (category, updatedData) => {
       throw new Error('No user logged in');
     }
 
-    const { amount, isRecurring, year, month } = updatedData;
-    const encodedCategory = encodeURIComponent(category.replace(/\s+/g, '_'));
-    const goalId = `${user.uid}_${encodedCategory}_${year}-${month.toString().padStart(2, '0')}`;
-    const goalRef = doc(db, 'budgetGoals', goalId);
-    
-    const goalData = {
+    const goalRef = doc(db, 'budgetGoals', `${user.uid}_${category}`);
+    await setDoc(goalRef, {
+      ...updatedData,
       userId: user.uid,
       category: category,
-      amount: Number(amount),
-      isRecurring,
-      year,
-      month
-    };
-
-    await setDoc(goalRef, goalData, { merge: true });
-    console.log('Budget goal updated successfully:', goalId);
-
-    // If the goal is recurring, update future months
-    if (isRecurring) {
-      const futureMonths = 11; // Update for the next 11 months (1 year total)
-      for (let i = 1; i <= futureMonths; i++) {
-        const futureDate = new Date(year, month - 1 + i, 1);
-        const futureYear = futureDate.getFullYear();
-        const futureMonth = futureDate.getMonth() + 1;
-        const futureGoalId = `${user.uid}_${encodedCategory}_${futureYear}-${futureMonth.toString().padStart(2, '0')}`;
-        const futureGoalRef = doc(db, 'budgetGoals', futureGoalId);
-        
-        // Only set if the future goal doesn't exist
-        const futureGoalDoc = await getDoc(futureGoalRef);
-        if (!futureGoalDoc.exists()) {
-          await setDoc(futureGoalRef, {
-            ...goalData,
-            year: futureYear,
-            month: futureMonth
-          });
-        }
-      }
-    }
+      amount: Number(updatedData.amount)
+    }, { merge: true });
+    console.log('Budget goal updated successfully for category:', category);
   } catch (error) {
     console.error('Error updating budget goal:', error);
     throw error;
   }
 };
 
-export const getBudgetGoals = async (year, month) => {
+export const getBudgetGoals = async () => {
   try {
     const user = auth.currentUser;
     if (!user) {
@@ -245,20 +210,15 @@ export const getBudgetGoals = async (year, month) => {
 
     const q = query(
       collection(db, 'budgetGoals'),
-      where('userId', '==', user.uid),
-      where('year', '==', year),
-      where('month', '==', month)
+      where('userId', '==', user.uid)
     );
     
     const snapshot = await getDocs(q);
-    const budgetGoals = snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        amount: Number(data.amount)
-      };
-    });
+    const budgetGoals = snapshot.docs.map(doc => ({
+      id: doc.id.split('_')[1],
+      ...doc.data(),
+      amount: Number(doc.data().amount)
+    }));
     console.log(`Retrieved ${budgetGoals.length} budget goals for user:`, user.uid);
     return budgetGoals;
   } catch (error) {
@@ -402,13 +362,6 @@ const updateCreditCardBalance = async (cardId, amount, transactionType, isCardPa
     }
   } catch (error) {
     console.error('Error updating credit card balance:', error);
-    if (error.code === 'permission-denied') {
-      console.error('Permission denied. Current user:', auth.currentUser?.uid);
-      console.error('Card ID:', cardId);
-      console.error('Transaction amount:', amount);
-      console.error('Transaction type:', transactionType);
-      console.error('Is card payment:', isCardPayment);
-    }
     throw error;
   }
 };
@@ -441,271 +394,6 @@ export const onCreditCardsUpdate = (callback) => {
   });
 };
 
-export const addInvestment = async (investment) => {
-  try {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('No user logged in');
-    }
-
-    const investmentToSave = {
-      ...investment,
-      userId: user.uid,
-      amount: Number(investment.amount),
-      date: investment.date instanceof Date ? investment.date : new Date(investment.date)
-    };
-
-    const docRef = await addDoc(collection(db, 'investments'), investmentToSave);
-    console.log('Investment added successfully with ID:', docRef.id);
-    return docRef.id;
-  } catch (error) {
-    console.error('Error adding investment:', error);
-    throw error;
-  }
-};
-
-export const getInvestments = async () => {
-  try {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('No user logged in');
-    }
-
-    const q = query(
-      collection(db, 'investments'),
-      where('userId', '==', user.uid),
-      orderBy('date', 'desc')
-    );
-    
-    const snapshot = await getDocs(q);
-    const investments = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      amount: Number(doc.data().amount),
-      date: doc.data().date.toDate()
-    }));
-    console.log(`Retrieved ${investments.length} investments for user:`, user.uid);
-    return investments;
-  } catch (error) {
-    console.error('Error getting investments:', error);
-    throw error;
-  }
-};
-
-export const updateInvestment = async (id, updatedData) => {
-  try {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('No user logged in');
-    }
-
-    const investmentRef = doc(db, 'investments', id);
-    await updateDoc(investmentRef, {
-      ...updatedData,
-      amount: Number(updatedData.amount),
-      date: updatedData.date instanceof Date ? updatedData.date : new Date(updatedData.date)
-    });
-    console.log('Investment updated successfully:', id);
-  } catch (error) {
-    console.error('Error updating investment:', error);
-    throw error;
-  }
-};
-
-export const deleteInvestment = async (id) => {
-  try {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('No user logged in');
-    }
-
-    const investmentRef = doc(db, 'investments', id);
-    await deleteDoc(investmentRef);
-    console.log('Investment deleted successfully:', id);
-  } catch (error) {
-    console.error('Error deleting investment:', error);
-    throw error;
-  }
-};
-
-export const addLoan = async (loan) => {
-  try {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('No user logged in');
-    }
-
-    const loanToSave = {
-      ...loan,
-      userId: user.uid,
-      amount: Number(loan.amount),
-      interestRate: Number(loan.interestRate),
-      startDate: loan.startDate instanceof Date ? loan.startDate : new Date(loan.startDate)
-    };
-
-    const docRef = await addDoc(collection(db, 'loans'), loanToSave);
-    console.log('Loan added successfully with ID:', docRef.id);
-    return docRef.id;
-  } catch (error) {
-    console.error('Error adding loan:', error);
-    throw error;
-  }
-};
-
-export const getLoans = async () => {
-  try {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('No user logged in');
-    }
-
-    const q = query(
-      collection(db, 'loans'),
-      where('userId', '==', user.uid)
-    );
-    
-    const snapshot = await getDocs(q);
-    const loans = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      amount: Number(doc.data().amount),
-      interestRate: Number(doc.data().interestRate),
-      startDate: doc.data().startDate.toDate()
-    }));
-    console.log(`Retrieved ${loans.length} loans for user:`, user.uid);
-    return loans;
-  } catch (error) {
-    console.error('Error getting loans:', error);
-    throw error;
-  }
-};
-
-export const updateLoan = async (id, updatedData) => {
-  try {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('No user logged in');
-    }
-
-    const loanRef = doc(db, 'loans', id);
-    await updateDoc(loanRef, {
-      ...updatedData,
-      amount: Number(updatedData.amount),
-      interestRate: Number(updatedData.interestRate),
-      startDate: updatedData.startDate instanceof Date ? updatedData.startDate : new Date(updatedData.startDate)
-    });
-    console.log('Loan updated successfully:', id);
-  } catch (error) {
-    console.error('Error updating loan:', error);
-    throw error;
-  }
-};
-
-export const deleteLoan = async (id) => {
-  try {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('No user logged in');
-    }
-
-    const loanRef = doc(db, 'loans', id);
-    await deleteDoc(loanRef);
-    console.log('Loan deleted successfully:', id);
-  } catch (error) {
-    console.error('Error deleting loan:', error);
-    throw error;
-  }
-};
-
-export const updateUserProfile = async (userData) => {
-  try {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('No user logged in');
-    }
-
-    const userRef = doc(db, 'users', user.uid);
-    await setDoc(userRef, {
-      ...userData,
-      initialCashBalance: Number(userData.initialCashBalance) || 0
-    }, { merge: true });
-    console.log('User profile updated successfully');
-  } catch (error) {
-    console.error('Error updating user profile:', error);
-    throw error;
-  }
-};
-
-export const getUserProfile = async () => {
-  try {
-    const user = auth.currentUser;
-    if (!user) {
-      throw new Error('No user logged in');
-    }
-
-    const userRef = doc(db, 'users', user.uid);
-    const userDoc = await getDoc(userRef);
-    if (userDoc.exists()) {
-      return userDoc.data();
-    } else {
-      const defaultProfile = {
-        email: user.email,
-        initialCashBalance: 0,
-        createdAt: Timestamp.now()
-      };
-      await setDoc(userRef, defaultProfile);
-      return defaultProfile;
-    }
-  } catch (error) {
-    console.error('Error getting user profile:', error);
-    throw error;
-  }
-};
-
-export const rolloverBudgetGoals = async () => {
-  try {
-    const user = auth.currentUser;
-    if (!user) throw new Error('No user logged in');
-
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
-
-    const q = query(
-      collection(db, 'budgetGoals'),
-      where('userId', '==', user.uid),
-      where('isRecurring', '==', true)
-    );
-
-    const snapshot = await getDocs(q);
-    const goals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-    for (const goal of goals) {
-      if (goal.period === 'monthly') {
-        // Roll over to next month
-        const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
-        const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
-        await updateBudgetGoal(goal.category, {
-          ...goal,
-          year: nextYear,
-          month: nextMonth,
-        });
-      } else if (goal.period === 'yearly' && currentMonth === 1) {
-        // Roll over to next year
-        await updateBudgetGoal(goal.category, {
-          ...goal,
-          year: currentYear + 1,
-        });
-      }
-    }
-
-    console.log('Budget goals rolled over successfully');
-  } catch (error) {
-    console.error('Error rolling over budget goals:', error);
-    throw error;
-  }
-};
-
 export default {
   signUp,
   signIn,
@@ -724,15 +412,4 @@ export default {
   updateCreditCard,
   deleteCreditCard,
   onCreditCardsUpdate,
-  addInvestment,
-  getInvestments,
-  updateInvestment,
-  deleteInvestment,
-  addLoan,
-  getLoans,
-  updateLoan,
-  deleteLoan,
-  updateUserProfile,
-  getUserProfile,
-  rolloverBudgetGoals,
 };

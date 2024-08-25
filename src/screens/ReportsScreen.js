@@ -1,17 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Modal } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useMonth } from '../context/MonthContext';
 import { generateReport, exportReportToCSV } from '../services/ReportService';
 import { ALL_CATEGORIES, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../utils/categories';
-import BalanceSheetView from '../components/BalanceSheetView';
 
 const ReportsScreen = () => {
   const { currentMonth } = useMonth();
-  const [reportMonth, setReportMonth] = useState(currentMonth);
   const [reportType, setReportType] = useState(null);
-  const [startDate, setStartDate] = useState(new Date(reportMonth.getFullYear(), reportMonth.getMonth(), 1));
-  const [endDate, setEndDate] = useState(new Date(reportMonth.getFullYear(), reportMonth.getMonth() + 1, 0));
+  const [startDate, setStartDate] = useState(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1));
+  const [endDate, setEndDate] = useState(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0));
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [reportData, setReportData] = useState(null);
@@ -23,9 +21,9 @@ const ReportsScreen = () => {
     {
       category: "Summary Reports",
       reports: [
-        { label: 'Income vs Expense Summary', value: 'monthly-summary' },
+        { label: 'Monthly Income vs Expense Summary', value: 'monthly-summary' },
+        { label: 'Year-to-Date Financial Summary', value: 'ytd-summary' },
         { label: 'Custom Date Range Report', value: 'custom-range' },
-        { label: 'Balance Sheet', value: 'balance-sheet' },
       ]
     },
     {
@@ -64,7 +62,7 @@ const ReportsScreen = () => {
 
   useEffect(() => {
     updateDateRange();
-  }, [reportType, reportMonth, isYTD]);
+  }, [reportType, currentMonth, isYTD]);
 
   const updateDateRange = () => {
     const now = new Date();
@@ -72,8 +70,8 @@ const ReportsScreen = () => {
       setStartDate(new Date(now.getFullYear(), 0, 1));
       setEndDate(now);
     } else if (reportType === 'monthly-summary') {
-      setStartDate(new Date(reportMonth.getFullYear(), reportMonth.getMonth(), 1));
-      setEndDate(new Date(reportMonth.getFullYear(), reportMonth.getMonth() + 1, 0));
+      setStartDate(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1));
+      setEndDate(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0));
     } else if (reportType === 'expense-trend') {
       const sixMonthsAgo = new Date(now);
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
@@ -191,7 +189,6 @@ const ReportsScreen = () => {
       'payment-history': withErrorHandling(renderPaymentHistory),
       'debt-reduction-projection': withErrorHandling(renderDebtReductionProjection),
       'category-credit-card-usage': withErrorHandling(renderCategoryCreditCardUsage),
-      'balance-sheet': withErrorHandling((data) => <BalanceSheetView reportData={data} />),
     };
 
     const renderFunction = renderFunctions[reportType];
@@ -322,7 +319,7 @@ const ReportsScreen = () => {
       <View style={styles.reportRow}>
         <Text style={styles.reportLabel}>Credit Card Purchases:</Text>
         <Text style={styles.reportValue}>{formatCurrency(data.creditCardPurchases)}</Text>
-        </View>
+      </View>
       <View style={styles.reportRow}>
         <Text style={styles.reportLabel}>Credit Card Payments:</Text>
         <Text style={styles.reportValue}>{formatCurrency(data.creditCardPayments)}</Text>
@@ -564,7 +561,6 @@ const ReportsScreen = () => {
             setShowStartDatePicker(false);
             if (selectedDate) {
               if (reportType === 'monthly-summary') {
-                setReportMonth(selectedDate);
                 setStartDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
                 setEndDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0));
               } else {
