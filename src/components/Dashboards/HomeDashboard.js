@@ -9,9 +9,10 @@ const HomeDashboard = () => {
   const [dashboardData, setDashboardData] = useState({
     totalIncome: 0,
     totalExpenses: 0,
+    totalCashOutflow: 0,
     netCashFlow: 0,
     creditCardPurchases: 0,
-    creditCardPayments: 0
+    creditCardPayments: 0,
   });
 
   useEffect(() => {
@@ -23,31 +24,40 @@ const HomeDashboard = () => {
       const transactions = await getTransactions();
       const currentMonthTransactions = transactions.filter(t => {
         const transactionDate = new Date(t.date);
-        return transactionDate.getMonth() === currentMonth.getMonth() &&
-               transactionDate.getFullYear() === currentMonth.getFullYear();
+        return (
+          transactionDate.getMonth() === currentMonth.getMonth() &&
+          transactionDate.getFullYear() === currentMonth.getFullYear()
+        );
       });
 
       const categorizedTransactions = categorizeTransactions(currentMonthTransactions);
       const totals = calculateTotals(categorizedTransactions);
 
-      const cashInflow = totals.totalRegularIncome + totals.totalCreditCardIncome;
-      const cashOutflow = totals.totalRegularExpenses + totals.totalCreditCardPayments;
+      const totalIncome = totals.totalRegularIncome + totals.totalCreditCardIncome;
+      const totalExpenses = totals.totalRegularExpenses + totals.totalCreditCardPurchases;
+      const totalCashOutflow = totals.totalRegularExpenses + totals.totalCreditCardPayments;
 
-      const netCashFlow = cashInflow - cashOutflow;
+      const netCashFlow = totalIncome - totalCashOutflow;
 
       setDashboardData({
-        totalIncome: cashInflow,
-        totalExpenses: cashOutflow,
+        totalIncome,
+        totalExpenses,
+        totalCashOutflow,
         netCashFlow,
         creditCardPurchases: totals.totalCreditCardPurchases,
-        creditCardPayments: totals.totalCreditCardPayments
+        creditCardPayments: totals.totalCreditCardPayments,
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     }
   };
 
-  const formatCurrency = (amount) => `$${Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const formatCurrency = (amount) => {
+    return `$${Math.abs(amount).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
 
   const getCashFlowColor = (amount) => {
     if (amount > 0) return 'green';
@@ -59,15 +69,20 @@ const HomeDashboard = () => {
     <View style={styles.container}>
       <View style={styles.box}>
         <Text style={styles.boxTitle}>Monthly Financial Overview</Text>
-        
+
         <View style={styles.row}>
           <Text style={styles.label}>Total Income:</Text>
           <Text style={styles.value}>{formatCurrency(dashboardData.totalIncome)}</Text>
         </View>
-        
+
         <View style={styles.row}>
           <Text style={styles.label}>Total Expenses:</Text>
           <Text style={styles.value}>{formatCurrency(dashboardData.totalExpenses)}</Text>
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Total Cash Outflow:</Text>
+          <Text style={styles.value}>{formatCurrency(dashboardData.totalCashOutflow)}</Text>
         </View>
 
         <View style={styles.row}>
@@ -80,7 +95,12 @@ const HomeDashboard = () => {
           <Text style={styles.value}>{formatCurrency(dashboardData.creditCardPayments)}</Text>
         </View>
 
-        <Text style={[styles.cashFlowMessage, { color: getCashFlowColor(dashboardData.netCashFlow) }]}>
+        <Text
+          style={[
+            styles.cashFlowMessage,
+            { color: getCashFlowColor(dashboardData.netCashFlow) },
+          ]}
+        >
           {dashboardData.netCashFlow > 0
             ? `Positive cash flow: ${formatCurrency(dashboardData.netCashFlow)}`
             : `Negative cash flow: ${formatCurrency(dashboardData.netCashFlow)}`}
@@ -93,7 +113,7 @@ const HomeDashboard = () => {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#f0f0f0',
-    padding: 3,
+    padding: 10,
     borderRadius: 10,
     margin: 10,
   },
@@ -117,10 +137,10 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 2.5,
+    marginBottom: 5,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
-    paddingBottom: 3,
+    paddingBottom: 5,
   },
   label: {
     fontSize: 16,
