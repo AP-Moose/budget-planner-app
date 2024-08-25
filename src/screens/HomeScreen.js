@@ -34,6 +34,19 @@ function HomeScreen({ navigation }) {
   const listRef = useRef(null);
   const [isEditMode, setIsEditMode] = useState(false);
 
+  // Credit card-related functions
+  const toggleCreditCard = () => {
+    setNewTransaction(prev => ({ ...prev, creditCard: !prev.creditCard }));
+  };
+
+  const handleCreditCardSelection = (creditCardId) => {
+    setNewTransaction(prev => ({ ...prev, creditCardId }));
+  };
+
+  const toggleIsCardPayment = () => {
+    setNewTransaction(prev => ({ ...prev, isCardPayment: !prev.isCardPayment }));
+  };
+
   const loadTransactions = useCallback(async () => {
     try {
       const fetchedTransactions = await getTransactions();
@@ -228,6 +241,79 @@ function HomeScreen({ navigation }) {
 
   const isCurrentMonth = currentMonth.getMonth() === new Date().getMonth() && currentMonth.getFullYear() === new Date().getFullYear();
 
+  const renderAddTransactionForm = () => (
+    <View style={styles.addTransactionForm}>
+      <View style={styles.switchContainer}>
+        <Text>Credit Card Transaction:</Text>
+        <Switch
+          value={newTransaction.creditCard}
+          onValueChange={toggleCreditCard}
+        />
+      </View>
+      {newTransaction.creditCard && (
+        <>
+          <RNPickerSelect
+            onValueChange={handleCreditCardSelection}
+            items={creditCards.map(card => ({ label: card.name, value: card.id }))}
+            style={pickerSelectStyles}
+            value={newTransaction.creditCardId}
+            placeholder={{ label: "Select a credit card", value: null }}
+          />
+          <View style={styles.switchContainer}>
+            <Text>Is Card Payment:</Text>
+            <Switch
+              value={newTransaction.isCardPayment}
+              onValueChange={toggleIsCardPayment}
+            />
+          </View>
+        </>
+      )}
+      <TextInput
+        style={styles.input}
+        value={newTransaction.amount}
+        onChangeText={(text) => setNewTransaction(prev => ({...prev, amount: text}))}
+        keyboardType="decimal-pad"
+        placeholder="Amount"
+        placeholderTextColor="#999"
+      />
+      <TextInput
+        style={styles.input}
+        value={newTransaction.description}
+        onChangeText={(text) => setNewTransaction(prev => ({...prev, description: text}))}
+        placeholder="Description"
+        placeholderTextColor="#999"
+      />
+      <RNPickerSelect
+        onValueChange={(value) => setNewTransaction(prev => ({...prev, category: value}))}
+        items={newTransaction.type === 'income' ? INCOME_CATEGORIES.map(cat => ({ label: cat, value: cat })) : EXPENSE_CATEGORIES.map(cat => ({ label: cat, value: cat }))}
+        style={pickerSelectStyles}
+        value={newTransaction.category}
+        placeholder={{ label: "Select a category", value: null }}
+      />
+      <View style={styles.dateContainer}>
+        <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
+          <Text style={styles.dateButtonText}>
+            {new Date(newTransaction.date).toLocaleDateString()}
+          </Text>
+        </TouchableOpacity>
+      </View>
+      {showDatePicker && (
+        <DateTimePicker
+          value={new Date(newTransaction.date)}
+          mode="date"
+          display="default"
+          onChange={onChangeDate}
+        />
+      )}
+      <TouchableOpacity style={styles.addButton} onPress={handleAddTransaction}>
+        <Text style={styles.buttonText}>Add Transaction</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.cancelButton} onPress={() => setIsAddingTransaction(false)}>
+        <Text style={styles.buttonText}>Cancel</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
     <KeyboardAvoidingView 
       style={styles.container} 
@@ -328,7 +414,9 @@ function HomeScreen({ navigation }) {
           />
         </View>
       </ScrollView>
-      {!isAddingTransaction && (
+      {isAddingTransaction ? (
+        renderAddTransactionForm()
+      ) : (
         <TouchableOpacity 
           style={styles.floatingAddButton} 
           onPress={() => setIsAddingTransaction(true)}
@@ -373,7 +461,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     marginTop: 10,
   },
-transactionsTitle: {
+  transactionsTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     margin: 10,
@@ -532,6 +620,18 @@ transactionsTitle: {
     fontSize: 12,
     color: '#2196F3',
     marginTop: 2,
+  },
+  addTransactionForm: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
   },
 });
 
