@@ -1,4 +1,5 @@
 import { getCreditCards } from '../FirebaseService';
+import { calculateCreditCardBalance } from '../../utils/creditCardUtils';
 
 export const generateCreditUtilizationReport = async (transactions) => {
   console.log('Generating credit utilization report');
@@ -7,21 +8,13 @@ export const generateCreditUtilizationReport = async (transactions) => {
     const report = {};
 
     for (const card of creditCards) {
-      const cardTransactions = transactions.filter(t => t.creditCardId === card.id);
-      const purchases = cardTransactions
-        .filter(t => t.type === 'expense' && !t.isCardPayment)
-        .reduce((sum, t) => sum + Number(t.amount), 0);
-      const payments = cardTransactions
-        .filter(t => t.isCardPayment)
-        .reduce((sum, t) => sum + Number(t.amount), 0);
-      
-      const currentBalance = card.balance + purchases - payments;
+      const currentBalance = calculateCreditCardBalance(card, transactions);
       const utilization = (currentBalance / card.limit) * 100;
 
       report[card.name] = {
         limit: card.limit,
-        currentBalance,
-        availableCredit: card.limit - currentBalance,
+        currentBalance: currentBalance.toFixed(2),
+        availableCredit: (card.limit - currentBalance).toFixed(2),
         utilization: utilization.toFixed(2)
       };
     }

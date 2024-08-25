@@ -1,24 +1,5 @@
 import { categorizeTransactions } from '../../utils/reportUtils';
-
-const calculateOpeningBalance = (card, transactions, statementStartDate) => {
-  const cardStartDate = new Date(card.startDate);
-  const relevantTransactions = transactions.filter(t => 
-    t.creditCardId === card.id &&
-    new Date(t.date) >= cardStartDate &&
-    new Date(t.date) < statementStartDate
-  );
-
-  let balance = Number(card.startingBalance) || 0;
-  relevantTransactions.forEach(t => {
-    if (t.type === 'expense' && !t.isCardPayment) {
-      balance += Number(t.amount);
-    } else if (t.isCardPayment || t.type === 'income') {
-      balance -= Number(t.amount);
-    }
-  });
-
-  return balance;
-};
+import { calculateCreditCardBalance } from '../../utils/creditCardUtils';
 
 export const generateCreditCardStatement = (transactions, creditCards, startDate, endDate) => {
   console.log('Generating credit card statement');
@@ -27,14 +8,14 @@ export const generateCreditCardStatement = (transactions, creditCards, startDate
     const creditCardStatement = {};
 
     creditCards.forEach(card => {
+      const openingBalance = calculateCreditCardBalance(card, transactions.filter(t => new Date(t.date) < startDate));
+      const closingBalance = calculateCreditCardBalance(card, transactions.filter(t => new Date(t.date) <= endDate));
+
       const cardTransactions = transactions.filter(t => 
         t.creditCardId === card.id &&
         new Date(t.date) >= startDate &&
         new Date(t.date) <= endDate
       );
-
-      const openingBalance = calculateOpeningBalance(card, transactions, startDate);
-      let closingBalance = openingBalance;
 
       const purchases = cardTransactions.filter(t => t.type === 'expense' && !t.isCardPayment)
         .reduce((sum, t) => sum + Number(t.amount), 0);
@@ -42,8 +23,6 @@ export const generateCreditCardStatement = (transactions, creditCards, startDate
         .reduce((sum, t) => sum + Number(t.amount), 0);
       const income = cardTransactions.filter(t => t.type === 'income')
         .reduce((sum, t) => sum + Number(t.amount), 0);
-
-      closingBalance += purchases - payments - income;
 
       creditCardStatement[card.name] = {
         openingBalance: openingBalance.toFixed(2),

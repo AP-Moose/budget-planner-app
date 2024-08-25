@@ -807,8 +807,10 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   transactionDate: {
-    flex: 2,
+    flex: 2.7,
     color: '#555',
+    marginRight: 5,
+    paddingRight: 5,
   },
   transactionDescription: {
     flex: 4,
