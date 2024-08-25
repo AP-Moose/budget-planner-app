@@ -1,4 +1,5 @@
 import { getCreditCards } from '../FirebaseService';
+import { calculateCreditCardBalance } from '../../utils/creditCardUtils';
 
 const calculateMonthsBetweenDates = (date1, date2) => {
   return (date2.getFullYear() - date1.getFullYear()) * 12 + (date2.getMonth() - date1.getMonth());
@@ -31,10 +32,11 @@ export const generateDebtReductionProjection = async (transactions) => {
       const averageMonthlySpending = monthsCovered > 0 ? totalSpending / monthsCovered : 0;
 
       const netMonthlyPayment = averageMonthlyPayment - averageMonthlySpending;
-      const monthsToPayOff = netMonthlyPayment > 0 ? Math.ceil(card.balance / netMonthlyPayment) : Infinity;
+      const currentBalance = calculateCreditCardBalance(card, transactions);
+      const monthsToPayOff = netMonthlyPayment > 0 ? Math.ceil(currentBalance / netMonthlyPayment) : Infinity;
 
       report[card.name] = {
-        currentBalance: card.balance,
+        currentBalance: currentBalance.toFixed(2),
         startDate: card.startDate,
         averageMonthlyPayment: averageMonthlyPayment.toFixed(2),
         averageMonthlySpending: averageMonthlySpending.toFixed(2),
