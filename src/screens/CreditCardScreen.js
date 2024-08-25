@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { addCreditCard, updateCreditCard, deleteCreditCard, onCreditCardsUpdate, getTransactions } from '../services/FirebaseService';
 
@@ -9,6 +9,7 @@ const CreditCardScreen = () => {
   const [editingCard, setEditingCard] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [transactions, setTransactions] = useState([]);
+  const [updatingCardIds, setUpdatingCardIds] = useState([]); // New state for tracking updating cards
 
   useEffect(() => {
     const unsubscribe = onCreditCardsUpdate((updatedCards) => {
@@ -69,11 +70,13 @@ const CreditCardScreen = () => {
   const handleUpdateCard = async (id, updatedCard) => {
     try {
       console.log('Received updatedCard:', updatedCard);
-  
+
       if (!updatedCard || typeof updatedCard !== 'object') {
         throw new Error('Invalid card data');
       }
-  
+
+      setUpdatingCardIds(prev => [...prev, id]); // Start loading
+
       const cardToUpdate = {
         name: updatedCard.name,
         limit: updatedCard.limit === '' ? 0 : parseFloat(updatedCard.limit),
@@ -82,7 +85,7 @@ const CreditCardScreen = () => {
       };
       
       console.log('Updating card with data:', cardToUpdate);
-  
+
       await updateCreditCard(id, cardToUpdate);
       setEditingCard(null);
       
@@ -91,17 +94,20 @@ const CreditCardScreen = () => {
         card.id === id ? {...card, ...cardToUpdate} : card
       );
       setCreditCards(updatedCards);
-  
+
       // Verify the update
       const updatedCardInState = updatedCards.find(card => card.id === id);
       console.log('Updated card in local state:', updatedCardInState);
-  
+
       Alert.alert('Success', 'Credit card updated successfully');
     } catch (error) {
       console.error('Error updating credit card:', error);
       Alert.alert('Error', 'Failed to update credit card. Please try again.');
+    } finally {
+      setUpdatingCardIds(prev => prev.filter(cardId => cardId !== id)); // Stop loading
     }
   };
+
   const handleDeleteCard = async (id) => {
     try {
       await deleteCreditCard(id);
@@ -168,14 +174,20 @@ const CreditCardScreen = () => {
           )}
           <View style={styles.buttonRow}>
             <TouchableOpacity
-              style={styles.button}
+              style={[styles.button, updatingCardIds.includes(item.id) && styles.disabledButton]}
               onPress={() => handleUpdateCard(item.id, item)}
+              disabled={updatingCardIds.includes(item.id)}
             >
-              <Text style={styles.buttonText}>Save</Text>
+              {updatingCardIds.includes(item.id) ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text style={styles.buttonText}>Save</Text>
+              )}
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.cancelButton]}
               onPress={() => setEditingCard(null)}
+              disabled={updatingCardIds.includes(item.id)}
             >
               <Text style={styles.buttonText}>Cancel</Text>
             </TouchableOpacity>
@@ -363,6 +375,9 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#fff',
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
 });
 
