@@ -9,7 +9,7 @@ const CreditCardScreen = () => {
   const [editingCard, setEditingCard] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [transactions, setTransactions] = useState([]);
-  const [updatingCardIds, setUpdatingCardIds] = useState([]); // New state for tracking updating cards
+  const [updatingCardIds, setUpdatingCardIds] = useState([]);
 
   useEffect(() => {
     const unsubscribe = onCreditCardsUpdate((updatedCards) => {
@@ -28,23 +28,6 @@ const CreditCardScreen = () => {
     } catch (error) {
       console.error('Error loading transactions:', error);
     }
-  };
-
-  const calculateCurrentBalance = (card) => {
-    const cardTransactions = transactions.filter(t => t.creditCardId === card.id);
-    let balance = Number(card.startingBalance);
-
-    cardTransactions.forEach(t => {
-      if (t.date >= card.startDate) {
-        if (t.type === 'expense' && !t.isCardPayment) {
-          balance += Number(t.amount);
-        } else if (t.isCardPayment) {
-          balance -= Number(t.amount);
-        }
-      }
-    });
-
-    return balance;
   };
 
   const handleAddCard = async () => {
@@ -75,7 +58,7 @@ const CreditCardScreen = () => {
         throw new Error('Invalid card data');
       }
 
-      setUpdatingCardIds(prev => [...prev, id]); // Start loading
+      setUpdatingCardIds(prev => [...prev, id]);
 
       const cardToUpdate = {
         name: updatedCard.name,
@@ -89,22 +72,12 @@ const CreditCardScreen = () => {
       await updateCreditCard(id, cardToUpdate);
       setEditingCard(null);
       
-      // Update local state
-      const updatedCards = creditCards.map(card => 
-        card.id === id ? {...card, ...cardToUpdate} : card
-      );
-      setCreditCards(updatedCards);
-
-      // Verify the update
-      const updatedCardInState = updatedCards.find(card => card.id === id);
-      console.log('Updated card in local state:', updatedCardInState);
-
       Alert.alert('Success', 'Credit card updated successfully');
     } catch (error) {
       console.error('Error updating credit card:', error);
       Alert.alert('Error', 'Failed to update credit card. Please try again.');
     } finally {
-      setUpdatingCardIds(prev => prev.filter(cardId => cardId !== id)); // Stop loading
+      setUpdatingCardIds(prev => prev.filter(cardId => cardId !== id));
     }
   };
 
@@ -197,7 +170,7 @@ const CreditCardScreen = () => {
         <>
           <Text style={styles.cardName}>{item.name}</Text>
           <Text>Limit: ${parseFloat(item.limit).toFixed(2)}</Text>
-          <Text>Current Balance: ${calculateCurrentBalance(item).toFixed(2)}</Text>
+          <Text>Current Balance: ${item.balance.toFixed(2)}</Text>
           <Text>Starting Balance: ${parseFloat(item.startingBalance).toFixed(2)}</Text>
           <Text>Start Date: {new Date(item.startDate).toDateString()}</Text>
           <View style={styles.buttonRow}>

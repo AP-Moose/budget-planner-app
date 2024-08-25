@@ -3,6 +3,7 @@ import { getFirestore, collection, addDoc, getDocs, query, orderBy, updateDoc, d
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
 import { firebaseConfig } from '../config';
 import { getCategoryType } from '../utils/categories';
+import { calculateCreditCardBalance } from '../utils/creditCardUtils';
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -266,16 +267,19 @@ export const getCreditCards = async () => {
     );
     
     const snapshot = await getDocs(q);
+    const transactions = await getTransactions();
+    
     const creditCards = snapshot.docs.map(doc => {
       const data = doc.data();
-      return {
+      const card = {
         id: doc.id,
         ...data,
-        balance: Number(data.balance) || 0,
         limit: Number(data.limit) || 0,
         startingBalance: Number(data.startingBalance) || 0,
         startDate: data.startDate ? data.startDate.toDate() : new Date(),
       };
+      card.balance = calculateCreditCardBalance(card, transactions);
+      return card;
     });
     return creditCards;
   } catch (error) {
@@ -296,16 +300,22 @@ export const updateCreditCard = async (id, updatedData) => {
     
     if (cardDoc.exists()) {
       const currentData = cardDoc.data();
-      const newBalance = updatedData.startingBalance !== undefined 
-        ? updatedData.startingBalance
-        : currentData.balance;
+      const transactions = await getTransactions();
+      const card = {
+        id,
+        ...currentData,
+        ...updatedData,
+        startingBalance: updatedData.startingBalance !== undefined ? updatedData.startingBalance : currentData.startingBalance,
+        startDate: updatedData.startDate ? new Date(updatedData.startDate) : currentData.startDate,
+      };
+      const newBalance = calculateCreditCardBalance(card, transactions);
 
       await updateDoc(cardRef, {
         ...updatedData,
         balance: newBalance,
         limit: updatedData.limit !== undefined ? updatedData.limit : currentData.limit,
-        startingBalance: updatedData.startingBalance !== undefined ? updatedData.startingBalance : currentData.startingBalance,
-        startDate: updatedData.startDate ? Timestamp.fromDate(new Date(updatedData.startDate)) : currentData.startDate,
+        startingBalance: card.startingBalance,
+        startDate: Timestamp.fromDate(card.startDate),
         lastUpdated: Timestamp.fromDate(new Date())
       });
       console.log('Credit card updated successfully:', id);
@@ -340,17 +350,9 @@ const updateCreditCardBalance = async (cardId, amount, transactionType, isCardPa
     const cardDoc = await getDoc(cardRef);
     
     if (cardDoc.exists()) {
-      const currentBalance = cardDoc.data().balance;
-      let newBalance;
-      
-      if (isCardPayment) {
-        newBalance = currentBalance - Number(amount);
-      } else if (transactionType === 'expense') {
-        newBalance = currentBalance + Number(amount);
-      } else {
-        // For income transactions on credit card (e.g., cashback rewards)
-        newBalance = currentBalance - Number(amount);
-      }
+      const card = cardDoc.data();
+      const transactions = await getTransactions();
+      const newBalance = calculateCreditCardBalance({...card, id: cardId}, transactions);
 
       await updateDoc(cardRef, { 
         balance: newBalance,
@@ -378,17 +380,19 @@ export const onCreditCardsUpdate = (callback) => {
     where('userId', '==', user.uid)
   );
 
-  return onSnapshot(q, (snapshot) => {
+  return onSnapshot(q, async (snapshot) => {
+    const transactions = await getTransactions();
     const creditCards = snapshot.docs.map(doc => {
       const data = doc.data();
-      return {
+      const card = {
         id: doc.id,
         ...data,
-        balance: Number(data.balance) || 0,
         limit: Number(data.limit) || 0,
         startingBalance: Number(data.startingBalance) || 0,
         startDate: data.startDate ? data.startDate.toDate() : new Date(),
       };
+      card.balance = calculateCreditCardBalance(card, transactions);
+      return card;
     });
     callback(creditCards);
   });
