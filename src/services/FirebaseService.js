@@ -394,6 +394,64 @@ export const onCreditCardsUpdate = (callback) => {
   });
 };
 
+export const getInvestments = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const investmentsRef = collection(db, 'investments');
+    const q = query(investmentsRef, where('userId', '==', user.uid));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error getting investments:', error);
+    throw error;
+  }
+};
+
+export const updateInvestment = async (investmentData) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const investmentRef = doc(db, 'investments', investmentData.id || uuidv4());
+    await setDoc(investmentRef, { ...investmentData, userId: user.uid }, { merge: true });
+  } catch (error) {
+    console.error('Error updating investment:', error);
+    throw error;
+  }
+};
+
+export const getLoanInformation = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const loansRef = collection(db, 'loans');
+    const q = query(loansRef, where('userId', '==', user.uid));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error getting loan information:', error);
+    throw error;
+  }
+};
+
+export const updateLoanInformation = async (loanData) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const loanRef = doc(db, 'loans', loanData.id || uuidv4());
+    await setDoc(loanRef, { ...loanData, userId: user.uid }, { merge: true });
+  } catch (error) {
+    console.error('Error updating loan information:', error);
+    throw error;
+  }
+};
+
 export default {
   signUp,
   signIn,
@@ -412,4 +470,8 @@ export default {
   updateCreditCard,
   deleteCreditCard,
   onCreditCardsUpdate,
+  getInvestments,
+  updateInvestment,
+  getLoanInformation,
+  updateLoanInformation,
 };
