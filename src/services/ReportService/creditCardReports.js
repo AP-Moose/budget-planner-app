@@ -1,8 +1,23 @@
 import { categorizeTransactions } from '../../utils/reportUtils';
 
-// Helper function to safely format numbers
-const formatNumber = (num) => {
-  return (parseFloat(num) || 0).toFixed(2);
+const calculateOpeningBalance = (card, transactions, statementStartDate) => {
+  const cardStartDate = new Date(card.startDate);
+  const relevantTransactions = transactions.filter(t => 
+    t.creditCardId === card.id &&
+    new Date(t.date) >= cardStartDate &&
+    new Date(t.date) < statementStartDate
+  );
+
+  let balance = Number(card.startingBalance) || 0;
+  relevantTransactions.forEach(t => {
+    if (t.type === 'expense' && !t.isCardPayment) {
+      balance += Number(t.amount);
+    } else if (t.isCardPayment || t.type === 'income') {
+      balance -= Number(t.amount);
+    }
+  });
+
+  return balance;
 };
 
 export const generateCreditCardStatement = (transactions, creditCards, startDate, endDate) => {
@@ -17,40 +32,31 @@ export const generateCreditCardStatement = (transactions, creditCards, startDate
         new Date(t.date) >= startDate &&
         new Date(t.date) <= endDate
       );
-      const cardPurchases = categorizedTransactions.creditCardPurchases.filter(t => 
-        t.creditCardId === card.id &&
-        new Date(t.date) >= startDate &&
-        new Date(t.date) <= endDate
-      );
-      const cardPayments = categorizedTransactions.creditCardPayments.filter(t => 
-        t.creditCardId === card.id &&
-        new Date(t.date) >= startDate &&
-        new Date(t.date) <= endDate
-      );
-      const cardIncome = categorizedTransactions.creditCardIncome.filter(t => 
-        t.creditCardId === card.id &&
-        new Date(t.date) >= startDate &&
-        new Date(t.date) <= endDate
-      );
-
-      const purchases = cardPurchases.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-      const payments = cardPayments.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-      const income = cardIncome.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
 
       const openingBalance = calculateOpeningBalance(card, transactions, startDate);
-      const closingBalance = openingBalance + purchases - payments - income;
+      let closingBalance = openingBalance;
+
+      const purchases = cardTransactions.filter(t => t.type === 'expense' && !t.isCardPayment)
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+      const payments = cardTransactions.filter(t => t.isCardPayment)
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+      const income = cardTransactions.filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+
+      closingBalance += purchases - payments - income;
 
       creditCardStatement[card.name] = {
-        openingBalance: formatNumber(openingBalance),
-        purchases: formatNumber(purchases),
-        payments: formatNumber(payments),
-        income: formatNumber(income),
-        closingBalance: formatNumber(closingBalance),
+        openingBalance: openingBalance.toFixed(2),
+        purchases: purchases.toFixed(2),
+        payments: payments.toFixed(2),
+        income: income.toFixed(2),
+        closingBalance: closingBalance.toFixed(2),
         transactions: cardTransactions.map(t => ({
           date: t.date,
           description: t.description,
-          amount: formatNumber(t.amount),
-          type: t.type
+          amount: t.amount.toFixed(2),
+          type: t.type,
+          isCardPayment: t.isCardPayment
         }))
       };
     });
@@ -60,34 +66,6 @@ export const generateCreditCardStatement = (transactions, creditCards, startDate
     console.error('Error in generateCreditCardStatement:', error);
     throw error;
   }
-};
-
-const calculateOpeningBalance = (card, transactions, statementStartDate) => {
-  const previousTransactions = transactions.filter(t => 
-    t.creditCardId === card.id &&
-    new Date(t.date) < statementStartDate
-  );
-
-  const previousPurchases = previousTransactions
-    .filter(t => t.type === 'expense')
-    .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-
-  const previousPayments = previousTransactions
-    .filter(t => t.type === 'income' && t.isCardPayment)
-    .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-
-  const previousIncome = previousTransactions
-    .filter(t => t.type === 'income' && !t.isCardPayment)
-    .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-
-  const startingBalance = parseFloat(card.startingBalance) || 0;
-  const cardStartDate = new Date(card.startDate);
-  
-  if (cardStartDate > statementStartDate) {
-    return startingBalance;
-  }
-
-  return startingBalance + previousPurchases - previousPayments - previousIncome;
 };
 
 export default {
