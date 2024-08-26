@@ -24,6 +24,7 @@ const ReportsScreen = () => {
         { label: 'Monthly Income vs Expense Summary', value: 'monthly-summary' },
         { label: 'Year-to-Date Financial Summary', value: 'ytd-summary' },
         { label: 'Custom Date Range Report', value: 'custom-range' },
+        { label: 'Balance Sheet', value: 'balance-sheet' },
       ]
     },
     {
@@ -215,6 +216,7 @@ const ReportsScreen = () => {
       'payment-history': withErrorHandling(renderPaymentHistory),
       'debt-reduction-projection': withErrorHandling(renderDebtReductionProjection),
       'category-credit-card-usage': withErrorHandling(renderCategoryCreditCardUsage),
+      'balance-sheet': withErrorHandling(renderBalanceSheet),
     };
 
     const renderFunction = renderFunctions[reportType];
@@ -590,6 +592,69 @@ const renderCategoryCreditCardUsage = (data) => (
   </View>
 );
 
+const renderBalanceSheet = (data) => (
+  <View style={styles.reportContainer}>
+    <Text style={styles.reportTitle}>Balance Sheet</Text>
+    <Text style={styles.reportSubtitle}>As of: {formatDate(data.asOfDate)}</Text>
+    
+    <Text style={styles.sectionTitle}>Assets</Text>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Cash:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.assets.cash)}</Text>
+    </View>
+    <Text style={styles.subSectionTitle}>Investments</Text>
+    {Object.entries(data.assets.investments).map(([name, value]) => (
+      <View key={name} style={styles.reportRow}>
+        <Text style={styles.reportLabel}>{name}:</Text>
+        <Text style={styles.reportValue}>{formatCurrency(value)}</Text>
+      </View>
+    ))}
+    <Text style={styles.subSectionTitle}>Other Assets</Text>
+    {Object.entries(data.assets.otherAssets).map(([name, value]) => (
+      <View key={name} style={styles.reportRow}>
+        <Text style={styles.reportLabel}>{name}:</Text>
+        <Text style={styles.reportValue}>{formatCurrency(value)}</Text>
+      </View>
+    ))}
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Total Assets:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.assets.total)}</Text>
+    </View>
+
+    <Text style={styles.sectionTitle}>Liabilities</Text>
+    <Text style={styles.subSectionTitle}>Credit Cards</Text>
+    {Object.entries(data.liabilities.creditCards).map(([name, value]) => (
+      <View key={name} style={styles.reportRow}>
+        <Text style={styles.reportLabel}>{name}:</Text>
+        <Text style={styles.reportValue}>{formatCurrency(value)}</Text>
+      </View>
+    ))}
+    <Text style={styles.subSectionTitle}>Loans</Text>
+    {Object.entries(data.liabilities.loans).map(([name, value]) => (
+      <View key={name} style={styles.reportRow}>
+        <Text style={styles.reportLabel}>{name}:</Text>
+        <Text style={styles.reportValue}>{formatCurrency(value)}</Text>
+      </View>
+    ))}
+    <Text style={styles.subSectionTitle}>Other Liabilities</Text>
+    {Object.entries(data.liabilities.otherLiabilities).map(([name, value]) => (
+      <View key={name} style={styles.reportRow}>
+        <Text style={styles.reportLabel}>{name}:</Text>
+        <Text style={styles.reportValue}>{formatCurrency(value)}</Text>
+      </View>
+    ))}
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Total Liabilities:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.liabilities.total)}</Text>
+    </View>
+
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Net Worth:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.netWorth)}</Text>
+    </View>
+  </View>
+);
+
 const renderReportTypeModal = () => (
   <Modal
     visible={showReportTypeModal}
@@ -636,7 +701,7 @@ return (
       </TouchableOpacity>
     </View>
 
-    {reportType !== 'ytd-summary' && (
+    {reportType !== 'ytd-summary' && reportType !== 'balance-sheet' && (
       <TouchableOpacity 
         style={styles.ytdButton} 
         onPress={() => setIsYTD(!isYTD)}
@@ -660,284 +725,298 @@ return (
 
     {showEndDatePicker && (
       <DateTimePicker
-      value={endDate}
-      mode="date"
-      display="default"
-      onChange={(event, selectedDate) => {
-        setShowEndDatePicker(false);
-        if (selectedDate) setEndDate(selectedDate);
-      }}
-    />
-  )}
+        value={endDate}
+        mode="date"
+        display="default"
+        onChange={(event, selectedDate) => {
+          setShowEndDatePicker(false);
+          if (selectedDate) setEndDate(selectedDate);
+        }}
+      />
+    )}
 
-  <TouchableOpacity style={styles.generateButton} onPress={handleGenerateReport} disabled={isLoading || !reportType}>
-    <Text style={styles.buttonText}>{isLoading ? 'Generating...' : 'Generate Report'}</Text>
-  </TouchableOpacity>
+    <TouchableOpacity style={styles.generateButton} onPress={handleGenerateReport} disabled={isLoading || !reportType}>
+      <Text style={styles.buttonText}>{isLoading ? 'Generating...' : 'Generate Report'}</Text>
+    </TouchableOpacity>
 
-  <TouchableOpacity style={styles.exportButton} onPress={handleExportReport} disabled={!reportData || isLoading}>
-    <Text style={styles.buttonText}>Export to CSV</Text>
-  </TouchableOpacity>
+    <TouchableOpacity style={styles.exportButton} onPress={handleExportReport} disabled={!reportData || isLoading}>
+      <Text style={styles.buttonText}>Export to CSV</Text>
+    </TouchableOpacity>
 
-  {isLoading && <ActivityIndicator size="large" color="#0000ff" />}
+    {isLoading && <ActivityIndicator size="large" color="#0000ff" />}
 
-  <View style={styles.reportContainer}>
-    {reportData && renderReportData()}
-  </View>
+    <View style={styles.reportContainer}>
+      {reportData && renderReportData()}
+    </View>
 
-  {renderReportTypeModal()}
-</ScrollView>
+    {renderReportTypeModal()}
+  </ScrollView>
 );
 };
 
 const styles = StyleSheet.create({
-container: {
-flex: 1,
-padding: 20,
-backgroundColor: '#f5f5f5',
-},
-title: {
-fontSize: 24,
-fontWeight: 'bold',
-marginBottom: 20,
-color: '#333',
-},
-reportTypeContainer: {
-borderWidth: 1,
-borderColor: '#ccc',
-borderRadius: 5,
-marginBottom: 20,
-backgroundColor: '#fff',
-},
-reportTypeButton: {
-padding: 15,
-},
-reportTypeText: {
-color: '#333',
-},
-reportTypePlaceholder: {
-color: '#999',
-},
-dateContainer: {
-flexDirection: 'row',
-justifyContent: 'space-between',
-marginBottom: 20,
-},
-dateButton: {
-padding: 10,
-borderWidth: 1,
-borderColor: '#ccc',
-borderRadius: 5,
-flex: 1,
-marginHorizontal: 5,
-backgroundColor: '#fff',
-},
-generateButton: {
-backgroundColor: '#4CAF50',
-padding: 15,
-borderRadius: 5,
-alignItems: 'center',
-marginBottom: 10,
-},
-exportButton: {
-backgroundColor: '#2196F3',
-padding: 15,
-borderRadius: 5,
-alignItems: 'center',
-marginBottom: 20,
-},
-buttonText: {
-color: 'white',
-fontWeight: 'bold',
-},
-reportContainer: {
-marginTop: 20,
-borderWidth: 1,
-borderColor: '#ccc',
-borderRadius: 5,
-padding: 15,
-backgroundColor: '#fff',
-},
-reportTitle: {
-fontSize: 20,
-fontWeight: 'bold',
-marginBottom: 15,
-color: '#333',
-},
-reportSubtitle: {
-fontSize: 16,
-fontWeight: 'bold',
-marginTop: 10,
-marginBottom: 10,
-color: '#444',
-},
-reportSection: {
-marginBottom: 15,
-},
-reportRow: {
-flexDirection: 'row',
-justifyContent: 'space-between',
-marginBottom: 5,
-},
-reportLabel: {
-flex: 1,
-fontSize: 16,
-color: '#555',
-},
-reportValue: {
-fontSize: 16,
-fontWeight: 'bold',
-color: '#333',
-},
-positiveValue: {
-color: 'green',
-},
-negativeValue: {
-color: 'red',
-},
-modalContainer: {
-flex: 1,
-justifyContent: 'center',
-alignItems: 'center',
-backgroundColor: 'rgba(0, 0, 0, 0.5)',
-},
-modalContent: {
-backgroundColor: 'white',
-padding: 20,
-borderRadius: 10,
-width: '80%',
-maxHeight: '80%',
-},
-categoryHeader: {
-fontSize: 18,
-fontWeight: 'bold',
-marginTop: 15,
-marginBottom: 10,
-color: '#333',
-},
-modalItem: {
-padding: 15,
-borderBottomWidth: 1,
-borderBottomColor: '#ccc',
-},
-categorySection: {
-marginBottom: 20,
-},
-tableHeader: {
-flexDirection: 'row',
-borderBottomWidth: 1,
-borderBottomColor: '#ccc',
-paddingBottom: 10,
-marginBottom: 5,
-},
-tableRow: {
-flexDirection: 'row',
-paddingVertical: 4,
-borderBottomWidth: 1,
-borderBottomColor: '#eee',
-},
-dateHeader: {
-flex: 2,
-fontWeight: 'bold',
-paddingRight: 5,
-},
-amountHeader: {
-flex: 2,
-fontWeight: 'bold',
-textAlign: 'left',
-paddingRight: 5,
-},
-descriptionHeader: {
-flex: 3,
-fontWeight: 'bold',
-textAlign: 'left',
-},
-creditCardHeader: {
-flex: 1.5,
-fontWeight: 'bold',
-textAlign: 'left',
-},
-dateCell: {
-flex: 2,
-paddingRight: 5,
-fontSize: 10,
-},
-amountCell: {
-flex: 2,
-textAlign: 'left',
-paddingRight: 5,
-fontSize: 10,
-},
-descriptionCell: {
-flex: 3,
-fontSize: 10,
-},
-creditCardCell: {
-flex: 1,
-textAlign: 'left',
-fontSize: 10,
-},
-ytdButton: {
-backgroundColor: '#4CAF50',
-padding: 10,
-borderRadius: 5,
-alignItems: 'center',
-marginBottom: 10,
-},
-creditCardSection: {
-marginBottom: 20,
-borderWidth: 1,
-borderColor: '#ccc',
-borderRadius: 5,
-padding: 10,
-},
-transactionTitle: {
-fontSize: 16,
-fontWeight: 'bold',
-marginTop: 10,
-marginBottom: 5,
-color: '#444',
-},
-transactionRow: {
-flexDirection: 'row',
-justifyContent: 'space-between',
-marginBottom: 5,
-},
-transactionDate: {
-flex: 2.7,
-color: '#555',
-marginRight: 5,
-paddingRight: 5,
-},
-transactionDescription: {
-flex: 4,
-color: '#333',
-},
-transactionAmount: {
-flex: 2,
-textAlign: 'right',
-color: '#333',
-},
-paymentRow: {
-flexDirection: 'row',
-justifyContent: 'space-between',
-marginBottom: 10,
-borderBottomWidth: 1,
-borderBottomColor: '#ccc',
-paddingBottom: 5,
-},
-paymentDate: {
-flex: 1,
-color: '#555',
-},
-paymentCardName: {
-flex: 2,
-color: '#333',
-},
-paymentAmount: {
-flex: 1,
-textAlign: 'right',
-color: '#333',
-},
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: '#f5f5f5',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    color: '#333',
+  },
+  reportTypeContainer: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    marginBottom: 20,
+    backgroundColor: '#fff',
+  },
+  reportTypeButton: {
+    padding: 15,
+  },
+  reportTypeText: {
+    color: '#333',
+  },
+  reportTypePlaceholder: {
+    color: '#999',
+  },
+  dateContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  dateButton: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    flex: 1,
+    marginHorizontal: 5,
+    backgroundColor: '#fff',
+  },
+  generateButton: {
+    backgroundColor: '#4CAF50',
+    padding: 15,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  exportButton: {
+    backgroundColor: '#2196F3',
+    padding: 15,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  reportContainer: {
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 15,
+    backgroundColor: '#fff',
+  },
+  reportTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    color: '#333',
+  },
+  reportSubtitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 10,
+    marginBottom: 10,
+    color: '#444',
+  },
+  reportSection: {
+    marginBottom: 15,
+  },
+  reportRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  reportLabel: {
+    flex: 1,
+    fontSize: 16,
+    color: '#555',
+  },
+  reportValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  positiveValue: {
+    color: 'green',
+  },
+  negativeValue: {
+    color: 'red',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 10,
+    width: '80%',
+    maxHeight: '80%',
+  },
+  categoryHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 15,
+    marginBottom: 10,
+    color: '#333',
+  },
+  modalItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  categorySection: {
+    marginBottom: 20,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    paddingBottom: 10,
+    marginBottom: 5,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  dateHeader: {
+    flex: 2,
+    fontWeight: 'bold',
+    paddingRight: 5,
+  },
+  amountHeader: {
+    flex: 2,
+    fontWeight: 'bold',
+    textAlign: 'left',
+    paddingRight: 5,
+  },
+  descriptionHeader: {
+    flex: 3,
+    fontWeight: 'bold',
+    textAlign: 'left',
+  },
+  creditCardHeader: {
+    flex: 1.5,
+    fontWeight: 'bold',
+    textAlign: 'left',
+  },
+  dateCell: {
+    flex: 2,
+    paddingRight: 5,
+    fontSize: 10,
+  },
+  amountCell: {
+    flex: 2,
+    textAlign: 'left',
+    paddingRight: 5,
+    fontSize: 10,
+  },
+  descriptionCell: {
+    flex: 3,
+    fontSize: 10,
+  },
+  creditCardCell: {
+    flex: 1,
+    textAlign: 'left',
+    fontSize: 10,
+  },
+  ytdButton: {
+    backgroundColor: '#4CAF50',
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  creditCardSection: {
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 10,
+  },
+  transactionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 10,
+    marginBottom: 5,
+    color: '#444',
+  },
+  transactionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  transactionDate: {
+    flex: 2.7,
+    color: '#555',
+    marginRight: 5,
+    paddingRight: 5,
+  },
+  transactionDescription: {
+    flex: 4,
+    color: '#333',
+  },
+  transactionAmount: {
+    flex: 2,
+    textAlign: 'right',
+    color: '#333',
+  },
+  paymentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    paddingBottom: 5,
+  },
+  paymentDate: {
+    flex: 1,
+    color: '#555',
+  },
+  paymentCardName: {
+    flex: 2,
+    color: '#333',
+  },
+  paymentAmount: {
+    flex: 1,
+    textAlign: 'right',
+    color: '#333',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 15,
+    marginBottom: 10,
+    color: '#333',
+  },
+  subSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 10,
+    marginBottom: 5,
+    color: '#555',
+  },
 });
 
 export default ReportsScreen;

@@ -1,19 +1,16 @@
-import { getCreditCards, getInvestments, getLoanInformation, getUserProfile, getOtherAssets, getOtherLiabilities } from '../FirebaseService';
+import { getCreditCards, getBalanceSheetItems, getUserProfile } from '../FirebaseService';
 import { calculateTotalAssets, calculateTotalLiabilities, calculateNetWorth } from '../../utils/financialCalculations';
 
 export const generateBalanceSheetReport = async (transactions, asOfDate) => {
   console.log('Generating balance sheet report');
   try {
     const creditCards = await getCreditCards();
-    const investments = await getInvestments();
-    const loans = await getLoanInformation();
+    const balanceSheetItems = await getBalanceSheetItems();
     const userProfile = await getUserProfile();
-    const otherAssets = await getOtherAssets();
-    const otherLiabilities = await getOtherLiabilities();
 
     // Calculate cash balance
     let cashBalance = userProfile?.initialCashBalance || 0;
-    const cashTransactions = transactions.filter(t => !t.creditCard);
+    const cashTransactions = transactions.filter(t => !t.creditCard && new Date(t.date) <= asOfDate);
     cashBalance += cashTransactions.reduce((sum, t) => {
       return t.type === 'income' ? sum + Number(t.amount) : sum - Number(t.amount);
     }, 0);
@@ -26,7 +23,7 @@ export const generateBalanceSheetReport = async (transactions, asOfDate) => {
 
     // Update credit card balances based on transactions
     transactions.forEach(t => {
-      if (t.creditCard && t.creditCardId) {
+      if (t.creditCard && t.creditCardId && new Date(t.date) <= asOfDate) {
         if (t.isCardPayment) {
           creditCardBalances[t.creditCardId] = (creditCardBalances[t.creditCardId] || 0) - Number(t.amount);
         } else if (t.type === 'expense') {
@@ -35,58 +32,49 @@ export const generateBalanceSheetReport = async (transactions, asOfDate) => {
       }
     });
 
-    // Calculate investment values
-    const investmentValues = investments.reduce((acc, investment) => {
-      acc[investment.id] = investment.amount;
-      return acc;
-    }, {});
+    // Categorize balance sheet items
+    const assets = {investments: {}, otherAssets: {}};
+    const liabilities = {loans: {}, otherLiabilities: {}};
 
-    // Calculate loan balances
-    const loanBalances = loans.reduce((acc, loan) => {
-      acc[loan.id] = loan.amount;
-      return acc;
-    }, {});
-
-    // Calculate other assets and liabilities
-    const otherAssetValues = otherAssets.reduce((acc, asset) => {
-      acc[asset.id] = asset.amount;
-      return acc;
-    }, {});
-
-    const otherLiabilityValues = otherLiabilities.reduce((acc, liability) => {
-      acc[liability.id] = liability.amount;
-      return acc;
-    }, {});
+    balanceSheetItems.forEach(item => {
+      if (item.type === 'Asset') {
+        if (item.category === 'Investment') {
+          assets.investments[item.name] = Number(item.amount);
+        } else {
+          assets.otherAssets[item.name] = Number(item.amount);
+        }
+      } else if (item.type === 'Liability') {
+        if (item.category === 'Loan') {
+          liabilities.loans[item.name] = Number(item.amount);
+        } else {
+          liabilities.otherLiabilities[item.name] = Number(item.amount);
+        }
+      }
+    });
 
     // Calculate totals
-    const totalAssets = calculateTotalAssets(cashBalance, investmentValues, otherAssetValues);
-    const totalLiabilities = calculateTotalLiabilities(creditCardBalances, loanBalances, otherLiabilityValues);
+    const totalAssets = calculateTotalAssets(cashBalance, assets.investments, assets.otherAssets);
+    const totalLiabilities = calculateTotalLiabilities(creditCardBalances, liabilities.loans, liabilities.otherLiabilities);
     const netWorth = calculateNetWorth(totalAssets, totalLiabilities);
 
     return {
       asOfDate: asOfDate.toISOString(),
       assets: {
         cash: cashBalance,
-        investments: investmentValues,
-        otherAssets: otherAssetValues,
+        investments: assets.investments,
+        otherAssets: assets.otherAssets,
         total: totalAssets
       },
       liabilities: {
         creditCards: creditCardBalances,
-        loans: loanBalances,
-        otherLiabilities: otherLiabilityValues,
+        loans: liabilities.loans,
+        otherLiabilities: liabilities.otherLiabilities,
         total: totalLiabilities
       },
       netWorth: netWorth
     };
   } catch (error) {
     console.error('Error in generateBalanceSheetReport:', error);
-    // Return a default structure even if there's an error
-    return {
-      asOfDate: asOfDate.toISOString(),
-      assets: { cash: 0, investments: {}, otherAssets: {}, total: 0 },
-      liabilities: { creditCards: {}, loans: {}, otherLiabilities: {}, total: 0 },
-      netWorth: 0
-    };
+    throw error;
   }
 };
