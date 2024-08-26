@@ -8,8 +8,7 @@ import {
   Alert,
   ScrollView,
   KeyboardAvoidingView,
-  Platform,
-  Modal
+  Platform
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { 
@@ -17,27 +16,27 @@ import {
   updateUserProfile, 
   getBalanceSheetItems,
   updateBalanceSheetItem,
-  deleteBalanceSheetItem
+  deleteBalanceSheetItem,
+  getCreditCards
 } from '../services/FirebaseService';
 
 const UserProfileScreen = ({ navigation }) => {
   const [initialCashBalance, setInitialCashBalance] = useState('');
   const [balanceSheetItems, setBalanceSheetItems] = useState([]);
+  const [creditCards, setCreditCards] = useState([]);
   const [newItem, setNewItem] = useState({ 
     type: 'Asset', 
     category: 'Investment', 
     name: '', 
     amount: '', 
-    interestRate: '', 
     date: new Date() 
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTypePicker, setShowTypePicker] = useState(false);
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
   useEffect(() => {
     loadUserProfile();
     loadBalanceSheetItems();
+    loadCreditCards();
   }, []);
 
   const loadUserProfile = async () => {
@@ -60,6 +59,16 @@ const UserProfileScreen = ({ navigation }) => {
     }
   };
 
+  const loadCreditCards = async () => {
+    try {
+      const cards = await getCreditCards();
+      setCreditCards(cards);
+    } catch (error) {
+      console.error('Error loading credit cards:', error);
+      Alert.alert('Error', 'Failed to load credit cards. Please try again.');
+    }
+  };
+
   const handleSave = async () => {
     try {
       await updateUserProfile({ initialCashBalance: parseFloat(initialCashBalance) || 0 });
@@ -79,7 +88,6 @@ const UserProfileScreen = ({ navigation }) => {
       await updateBalanceSheetItem({
         ...newItem,
         amount: parseFloat(newItem.amount),
-        interestRate: newItem.interestRate ? parseFloat(newItem.interestRate) : null,
         date: newItem.date.toISOString()
       });
       setNewItem({ 
@@ -87,7 +95,6 @@ const UserProfileScreen = ({ navigation }) => {
         category: 'Investment', 
         name: '', 
         amount: '', 
-        interestRate: '', 
         date: new Date() 
       });
       loadBalanceSheetItems();
@@ -115,85 +122,51 @@ const UserProfileScreen = ({ navigation }) => {
     setNewItem({...newItem, date: currentDate});
   };
 
-  const renderPicker = (visible, setVisible, options, selectedValue, onSelect, title) => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={() => setVisible(false)}
-    >
-      <View style={styles.modalView}>
-        <Text style={styles.modalTitle}>{title}</Text>
-        {options.map((option) => (
-          <TouchableOpacity
-            key={option.value}
-            style={[
-              styles.modalButton,
-              selectedValue === option.value && styles.selectedButton
-            ]}
-            onPress={() => {
-              onSelect(option.value);
-              setVisible(false);
-            }}
-          >
-            <Text style={styles.modalButtonText}>{option.label}</Text>
-          </TouchableOpacity>
-        ))}
-        <TouchableOpacity style={styles.cancelButton} onPress={() => setVisible(false)}>
-          <Text style={styles.cancelButtonText}>Cancel</Text>
-        </TouchableOpacity>
-      </View>
-    </Modal>
-  );
-
-  const groupItemsByCategory = (items, type) => {
-    return items
-      .filter(item => item.type === type)
-      .reduce((acc, item) => {
-        if (!acc[item.category]) {
-          acc[item.category] = [];
-        }
-        acc[item.category].push(item);
-        return acc;
-      }, {});
-  };
-
-  const calculateTotal = (items) => {
-    return items.reduce((sum, item) => sum + parseFloat(item.amount), 0);
-  };
-
-  const renderBalanceSheetSection = (title, items) => {
-    const groupedItems = groupItemsByCategory(items, title);
-    const total = calculateTotal(items);
+  const renderBalanceSheetItems = () => {
+    const assets = balanceSheetItems.filter(item => item.type === 'Asset');
+    const liabilities = balanceSheetItems.filter(item => item.type === 'Liability');
 
     return (
-      <View style={styles.balanceSheetSection}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        {Object.entries(groupedItems).map(([category, categoryItems]) => (
-          <View key={category} style={styles.categoryGroup}>
-            <Text style={styles.categoryTitle}>{category}</Text>
-            {categoryItems.map((item, index) => (
-              <View key={index} style={styles.item}>
-                <Text>{item.name}: ${parseFloat(item.amount).toFixed(2)}</Text>
-                {item.interestRate && <Text>Interest Rate: {item.interestRate}%</Text>}
-                <Text>Date: {new Date(item.date).toLocaleDateString()}</Text>
-                <TouchableOpacity onPress={() => handleDeleteItem(item.id)}>
-                  <Text style={styles.deleteButton}>Delete</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
+      <View>
+        <Text style={styles.sectionTitle}>Assets</Text>
+        {assets.map((item, index) => (
+          <View key={index} style={styles.item}>
+            <Text>{item.name}: ${parseFloat(item.amount).toFixed(2)}</Text>
+            <Text>Category: {item.category}</Text>
+            <Text>Date: {new Date(item.date).toLocaleDateString()}</Text>
+            <TouchableOpacity onPress={() => handleDeleteItem(item.id)}>
+              <Text style={styles.deleteButton}>Delete</Text>
+            </TouchableOpacity>
           </View>
         ))}
-        <Text style={styles.totalText}>Total {title}: ${total.toFixed(2)}</Text>
+
+        <Text style={styles.sectionTitle}>Liabilities</Text>
+        {liabilities.map((item, index) => (
+          <View key={index} style={styles.item}>
+            <Text>{item.name}: ${parseFloat(item.amount).toFixed(2)}</Text>
+            <Text>Category: {item.category}</Text>
+            <Text>Date: {new Date(item.date).toLocaleDateString()}</Text>
+            <TouchableOpacity onPress={() => handleDeleteItem(item.id)}>
+              <Text style={styles.deleteButton}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
       </View>
     );
   };
 
-  const assets = balanceSheetItems.filter(item => item.type === 'Asset');
-  const liabilities = balanceSheetItems.filter(item => item.type === 'Liability');
-  const totalAssets = calculateTotal(assets);
-  const totalLiabilities = calculateTotal(liabilities);
-  const netWorth = totalAssets - totalLiabilities;
+  const renderCreditCardLiabilities = () => {
+    return (
+      <View>
+        <Text style={styles.sectionTitle}>Credit Card Liabilities</Text>
+        {creditCards.map((card, index) => (
+          <View key={index} style={styles.item}>
+            <Text>{card.name}: ${card.balance.toFixed(2)}</Text>
+          </View>
+        ))}
+      </View>
+    );
+  };
 
   return (
     <KeyboardAvoidingView 
@@ -218,20 +191,13 @@ const UserProfileScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Balance Sheet</Text>
-          {renderBalanceSheetSection('Asset', assets)}
-          {renderBalanceSheetSection('Liability', liabilities)}
-          <Text style={styles.netWorthText}>Net Worth: ${netWorth.toFixed(2)}</Text>
+          <Text style={styles.sectionTitle}>Balance Sheet Items</Text>
+          {renderBalanceSheetItems()}
+          {renderCreditCardLiabilities()}
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Add New Item</Text>
-          <TouchableOpacity style={styles.input} onPress={() => setShowTypePicker(true)}>
-            <Text>{newItem.type || "Select type..."}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.input} onPress={() => setShowCategoryPicker(true)}>
-            <Text>{newItem.category || "Select category..."}</Text>
-          </TouchableOpacity>
           <TextInput
             style={styles.input}
             value={newItem.name}
@@ -245,15 +211,6 @@ const UserProfileScreen = ({ navigation }) => {
             keyboardType="numeric"
             placeholder="Amount"
           />
-          {newItem.category === 'Loan' && (
-            <TextInput
-              style={styles.input}
-              value={newItem.interestRate}
-              onChangeText={(text) => setNewItem({...newItem, interestRate: text})}
-              keyboardType="numeric"
-              placeholder="Interest Rate (%)"
-            />
-          )}
           <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
             <Text>{newItem.date.toLocaleDateString()}</Text>
           </TouchableOpacity>
@@ -266,34 +223,45 @@ const UserProfileScreen = ({ navigation }) => {
               onChange={onChangeDate}
             />
           )}
+          <View style={styles.pickerContainer}>
+            <TouchableOpacity
+              style={[styles.pickerButton, newItem.type === 'Asset' && styles.selectedButton]}
+              onPress={() => setNewItem({...newItem, type: 'Asset'})}
+            >
+              <Text style={styles.pickerButtonText}>Asset</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.pickerButton, newItem.type === 'Liability' && styles.selectedButton]}
+              onPress={() => setNewItem({...newItem, type: 'Liability'})}
+            >
+              <Text style={styles.pickerButtonText}>Liability</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.pickerContainer}>
+            <TouchableOpacity
+              style={[styles.pickerButton, newItem.category === 'Investment' && styles.selectedButton]}
+              onPress={() => setNewItem({...newItem, category: 'Investment'})}
+            >
+              <Text style={styles.pickerButtonText}>Investment</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.pickerButton, newItem.category === 'Loan' && styles.selectedButton]}
+              onPress={() => setNewItem({...newItem, category: 'Loan'})}
+            >
+              <Text style={styles.pickerButtonText}>Loan</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.pickerButton, newItem.category === 'Other' && styles.selectedButton]}
+              onPress={() => setNewItem({...newItem, category: 'Other'})}
+            >
+              <Text style={styles.pickerButtonText}>Other</Text>
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity style={styles.button} onPress={handleAddItem}>
             <Text style={styles.buttonText}>Add Item</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
-      {renderPicker(
-        showTypePicker,
-        setShowTypePicker,
-        [
-          { label: 'Asset', value: 'Asset' },
-          { label: 'Liability', value: 'Liability' },
-        ],
-        newItem.type,
-        (value) => setNewItem({...newItem, type: value}),
-        "Select Type"
-      )}
-      {renderPicker(
-        showCategoryPicker,
-        setShowCategoryPicker,
-        [
-          { label: 'Investment', value: 'Investment' },
-          { label: 'Loan', value: 'Loan' },
-          { label: 'Other', value: 'Other' },
-        ],
-        newItem.category,
-        (value) => setNewItem({...newItem, category: value}),
-        "Select Category"
-      )}
     </KeyboardAvoidingView>
   );
 };
@@ -347,79 +315,25 @@ const styles = StyleSheet.create({
     color: 'red',
     marginTop: 5,
   },
-  modalView: {
-    margin: 20,
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 35,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5
-  },
-  modalTitle: {
-    marginBottom: 15,
-    textAlign: "center",
-    fontWeight: "bold",
-    fontSize: 18
-  },
-  modalButton: {
-    backgroundColor: "#f0f0f0",
-    borderRadius: 5,
-    padding: 10,
-    elevation: 2,
+  pickerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 10,
-    width: 200,
-    alignItems: "center"
+  },
+  pickerButton: {
+    flex: 1,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    alignItems: 'center',
+    marginHorizontal: 2,
   },
   selectedButton: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: '#4CAF50',
   },
-  modalButtonText: {
-    color: "black",
-    fontWeight: "bold",
-    textAlign: "center"
-  },
-  cancelButton: {
-    backgroundColor: "#FF0000",
-    borderRadius: 5,
-    padding: 10,
-    elevation: 2,
-    marginTop: 10,
-    width: 200,
-    alignItems: "center"
-  },
-  cancelButtonText: {
-    color: "white",
-    fontWeight: "bold",
-    textAlign: "center"
-  },
-  balanceSheetSection: {
-    marginBottom: 20,
-  },
-  categoryGroup: {
-    marginBottom: 10,
-  },
-  categoryTitle: {
-    fontSize: 16,
+  pickerButtonText: {
     fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  totalText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginTop: 10,
-  },
-  netWorthText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 20,
-    textAlign: 'center',
   },
 });
 
