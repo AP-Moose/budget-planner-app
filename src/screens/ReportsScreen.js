@@ -100,8 +100,9 @@ const ReportsScreen = () => {
     return date.toLocaleDateString('en-US', { 
       year: 'numeric', 
       month: '2-digit', 
-      day: '2-digit' 
-    });
+      day: '2-digit',
+      timeZone: 'UTC'  // Ensure consistent date output
+    }).replace(/\//g, '-');  // Replace slashes with dashes for better formatting
   };
 
   const handleGenerateReport = async () => {
@@ -317,372 +318,373 @@ const ReportsScreen = () => {
       ))}
     </View>
   );
+
   const renderBudgetVsActual = (data) => (
     <View style={styles.reportContainer}>
       <Text style={styles.reportTitle}>Budget vs Actual</Text>
       {data.map((item) => (
         <View key={item.category} style={styles.reportSection}>
-          <Text style={styles.reportSubtitle}>{item.category}</Text>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Budgeted:</Text>
-            <Text style={styles.reportValue}>{formatCurrency(item.budgeted)}</Text>
-          </View>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Actual:</Text>
-            <Text style={styles.reportValue}>{formatCurrency(item.actual)}</Text>
-          </View>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Difference:</Text>
-            <Text style={[styles.reportValue, item.difference < 0 ? styles.negativeValue : styles.positiveValue]}>
-              {formatCurrency(item.difference)}
-            </Text>
-          </View>
+        <Text style={styles.reportSubtitle}>{item.category}</Text>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Budgeted:</Text>
+          <Text style={styles.reportValue}>{formatCurrency(item.budgeted)}</Text>
         </View>
-      ))}
-    </View>
-  );
-
-  const renderIncomeSources = (data) => (
-    <View style={styles.reportContainer}>
-      <Text style={styles.reportTitle}>Income Sources</Text>
-      {INCOME_CATEGORIES.map((category) => (
-        <View key={category} style={styles.reportRow}>
-          <Text style={styles.reportLabel}>{category}:</Text>
-          <Text style={styles.reportValue}>{formatCurrency(data[category])}</Text>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Actual:</Text>
+          <Text style={styles.reportValue}>{formatCurrency(item.actual)}</Text>
         </View>
-      ))}
-    </View>
-  );
-
-  const renderSavingsRate = (data) => (
-    <View style={styles.reportContainer}>
-      <Text style={styles.reportTitle}>Savings Rate Report</Text>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Total Income:</Text>
-        <Text style={styles.reportValue}>{formatCurrency(data.totalIncome)}</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Total Expenses:</Text>
-        <Text style={styles.reportValue}>{formatCurrency(data.totalExpenses)}</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Total Savings:</Text>
-        <Text style={styles.reportValue}>{formatCurrency(data.totalSavings)}</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Savings Rate:</Text>
-        <Text style={styles.reportValue}>{data.savingsRate.toFixed(2)}%</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Monthly Average Savings:</Text>
-        <Text style={styles.reportValue}>{formatCurrency(data.monthlyAverageSavings)}</Text>
-      </View>
-    </View>
-  );
-
-  const renderExpenseTrend = (data) => (
-    <View style={styles.reportContainer}>
-      <Text style={styles.reportTitle}>Expense Trend Analysis</Text>
-      {data.map((month) => (
-        <View key={month.month} style={styles.reportRow}>
-          <Text style={styles.reportLabel}>{month.month}:</Text>
-          <Text style={styles.reportValue}>{formatCurrency(month.totalExpense)}</Text>
-        </View>
-      ))}
-    </View>
-  );
-
-  const renderCashFlow = (data) => (
-    <View style={styles.reportContainer}>
-      <Text style={styles.reportTitle}>Cash Flow Statement</Text>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Cash Inflow:</Text>
-        <Text style={styles.reportValue}>{formatCurrency(data.cashInflow)}</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Cash Outflow:</Text>
-        <Text style={styles.reportValue}>{formatCurrency(data.cashOutflow)}</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Net Cash Flow:</Text>
-        <Text style={[styles.reportValue, data.netCashFlow < 0 ? styles.negativeValue : styles.positiveValue]}>
-          {formatCurrency(data.netCashFlow)}
-        </Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Credit Card Purchases:</Text>
-        <Text style={styles.reportValue}>{formatCurrency(data.creditCardPurchases)}</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Credit Card Payments:</Text>
-        <Text style={styles.reportValue}>{formatCurrency(data.creditCardPayments)}</Text>
-      </View>
-    </View>
-  );
-
-  const renderCategoryTransactionDetail = (data) => (
-    <View style={styles.reportContainer}>
-      <Text style={styles.reportTitle}>Category Transaction Detail</Text>
-      {ALL_CATEGORIES.map((category) => (
-        <View key={category} style={styles.categorySection}>
-          <Text style={styles.reportSubtitle}>{category}</Text>
-          <View style={styles.tableHeader}>
-            <Text style={styles.dateHeader}>Date</Text>
-            <Text style={styles.amountHeader}>Amount</Text>
-            <Text style={styles.descriptionHeader}>Description</Text>
-            <Text style={styles.creditCardHeader}>Credit Card</Text>
-          </View>
-          {data[category] && data[category].map((transaction, index) => (
-            <View key={index} style={styles.tableRow}>
-              <Text style={styles.dateCell}>{formatDate(transaction.date)}</Text>
-              <Text style={styles.amountCell}>{formatCurrency(transaction.amount)}</Text>
-              <Text style={styles.descriptionCell} numberOfLines={2} ellipsizeMode="tail">
-                {transaction.description}
-              </Text>
-              <Text style={styles.creditCardCell}>{transaction.creditCard ? 'Yes' : 'No'}</Text>
-            </View>
-          ))}
-        </View>
-      ))}
-    </View>
-  );
-
-  const renderCreditCardStatement = (data) => (
-    <View style={styles.reportContainer}>
-      <Text style={styles.reportTitle}>Credit Card Statement</Text>
-      {Object.entries(data).map(([cardName, cardData]) => (
-        <View key={cardName} style={styles.creditCardSection}>
-          <Text style={styles.reportSubtitle}>{cardName}</Text>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Opening Balance:</Text>
-            <Text style={styles.reportValue}>{formatCurrency(cardData.openingBalance)}</Text>
-          </View>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Purchases:</Text>
-            <Text style={styles.reportValue}>{formatCurrency(cardData.purchases)}</Text>
-          </View>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Payments:</Text>
-            <Text style={styles.reportValue}>{formatCurrency(cardData.payments)}</Text>
-          </View>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Income:</Text>
-            <Text style={styles.reportValue}>{formatCurrency(cardData.income)}</Text>
-          </View>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Closing Balance:</Text>
-            <Text style={styles.reportValue}>{formatCurrency(cardData.closingBalance)}</Text>
-          </View>
-          <Text style={styles.transactionTitle}>Transactions:</Text>
-          {cardData.transactions && cardData.transactions.map((transaction, index) => (
-            <View key={index} style={styles.transactionRow}>
-              <Text style={styles.transactionDate}>{formatDate(transaction.date)}</Text>
-              <Text style={styles.transactionDescription}>{transaction.description}</Text>
-              <Text style={styles.transactionAmount}>{formatCurrency(transaction.amount)}</Text>
-            </View>
-          ))}
-        </View>
-      ))}
-    </View>
-  );
-
-  const renderCreditUtilization = (data) => (
-    <View style={styles.reportContainer}>
-      <Text style={styles.reportTitle}>Credit Utilization Report</Text>
-      {Object.entries(data).map(([cardName, cardData]) => (
-        <View key={cardName} style={styles.creditCardSection}>
-          <Text style={styles.reportSubtitle}>{cardName}</Text>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Credit Limit:</Text>
-            <Text style={styles.reportValue}>{formatCurrency(cardData.limit)}</Text>
-          </View>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Current Balance:</Text>
-            <Text style={styles.reportValue}>{formatCurrency(cardData.currentBalance)}</Text>
-          </View>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Available Credit:</Text>
-            <Text style={styles.reportValue}>{formatCurrency(cardData.availableCredit)}</Text>
-          </View>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Utilization:</Text>
-            <Text style={styles.reportValue}>{cardData.utilization.toFixed(2)}%</Text>
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-
-  const renderPaymentHistory = (data) => (
-    <View style={styles.reportContainer}>
-      <Text style={styles.reportTitle}>Payment History Report</Text>
-      {data.map((payment, index) => (
-        <View key={index} style={styles.paymentRow}>
-          <Text style={styles.paymentDate}>{formatDate(payment.date)}</Text>
-          <Text style={styles.paymentCardName}>{payment.creditCardName}</Text>
-          <Text style={styles.paymentAmount}>{formatCurrency(payment.amount)}</Text>
-        </View>
-      ))}
-    </View>
-  );
-
-  const renderDebtReductionProjection = (data) => (
-    <View style={styles.reportContainer}>
-      <Text style={styles.reportTitle}>Debt Reduction Projection</Text>
-      {Object.entries(data).map(([cardName, cardData]) => (
-        <View key={cardName} style={styles.creditCardSection}>
-          <Text style={styles.reportSubtitle}>{cardName}</Text>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Current Balance:</Text>
-            <Text style={styles.reportValue}>{formatCurrency(cardData.currentBalance)}</Text>
-          </View>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Avg. Monthly Payment:</Text>
-            <Text style={styles.reportValue}>{formatCurrency(cardData.averageMonthlyPayment)}</Text>
-          </View>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Avg. Monthly Spending:</Text>
-            <Text style={styles.reportValue}>{formatCurrency(cardData.averageMonthlySpending)}</Text>
-          </View>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Net Monthly Payment:</Text>
-            <Text style={styles.reportValue}>{formatCurrency(cardData.netMonthlyPayment)}</Text>
-          </View>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Months to Pay Off:</Text>
-            <Text style={styles.reportValue}>{cardData.monthsToPayOff}</Text>
-          </View>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Projected Payoff Date:</Text>
-            <Text style={styles.reportValue}>{cardData.projectedPayoffDate}</Text>
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-
-  const renderCategoryCreditCardUsage = (data) => (
-    <View style={styles.reportContainer}>
-      <Text style={styles.reportTitle}>Category Credit Card Usage</Text>
-      {Object.entries(data).map(([category, categoryData]) => (
-        <View key={category} style={styles.categorySection}>
-          <Text style={styles.reportSubtitle}>{category}</Text>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Total Amount:</Text>
-            <Text style={styles.reportValue}>{formatCurrency(categoryData.totalAmount)}</Text>
-          </View>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Transaction Count:</Text>
-            <Text style={styles.reportValue}>{categoryData.transactionCount}</Text>
-          </View>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Avg. Transaction Amount:</Text>
-            <Text style={styles.reportValue}>{formatCurrency(categoryData.averageTransactionAmount)}</Text>
-          </View>
-          <View style={styles.reportRow}>
-            <Text style={styles.reportLabel}>Percentage of Total:</Text>
-            <Text style={styles.reportValue}>{categoryData.percentageOfTotal.toFixed(2)}%</Text>
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-
-  const renderReportTypeModal = () => (
-    <Modal
-      visible={showReportTypeModal}
-      transparent={true}
-      animationType="slide"
-    >
-      <View style={styles.modalContainer}>
-        <ScrollView style={styles.modalContent}>
-          {reportTypes.map((category, index) => (
-            <View key={index}>
-              <Text style={styles.categoryHeader}>{category.category}</Text>
-              {category.reports.map((type) => (
-                <TouchableOpacity
-                  key={type.value}
-                  style={styles.modalItem}
-                  onPress={() => {
-                    setReportType(type.value);
-                    setShowReportTypeModal(false);
-                    setIsYTD(type.value === 'ytd-summary');
-                  }}
-                >
-                  <Text>{type.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ))}
-        </ScrollView>
-      </View>
-    </Modal>
-  );
-
-  return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Financial Reports</Text>
-      
-      <View style={styles.reportTypeContainer}>
-        <TouchableOpacity 
-          style={styles.reportTypeButton} 
-          onPress={() => setShowReportTypeModal(true)}
-        >
-          <Text style={reportType ? styles.reportTypeText : styles.reportTypePlaceholder}>
-            {reportType ? reportTypes.find(category => category.reports.some(report => report.value === reportType))?.reports.find(report => report.value === reportType)?.label : "Select a report to generate..."}
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Difference:</Text>
+          <Text style={[styles.reportValue, item.difference < 0 ? styles.negativeValue : styles.positiveValue]}>
+            {formatCurrency(item.difference)}
           </Text>
-        </TouchableOpacity>
+        </View>
       </View>
+    ))}
+  </View>
+);
 
-      {reportType !== 'ytd-summary' && (
-        <TouchableOpacity 
-          style={styles.ytdButton} 
-          onPress={() => setIsYTD(!isYTD)}
-        >
-          <Text style={styles.buttonText}>{isYTD ? 'Custom Date Range' : 'Year-to-Date'}</Text>
-        </TouchableOpacity>
-      )}
-      {renderDateSelection()}
+const renderIncomeSources = (data) => (
+  <View style={styles.reportContainer}>
+    <Text style={styles.reportTitle}>Income Sources</Text>
+    {INCOME_CATEGORIES.map((category) => (
+      <View key={category} style={styles.reportRow}>
+        <Text style={styles.reportLabel}>{category}:</Text>
+        <Text style={styles.reportValue}>{formatCurrency(data[category])}</Text>
+      </View>
+    ))}
+  </View>
+);
 
-{showStartDatePicker && (
-  <DateTimePicker
-    value={startDate}
-    mode="date"
-    display="default"
-    onChange={(event, selectedDate) => {
-      setShowStartDatePicker(false);
-      if (selectedDate) setStartDate(selectedDate);
-    }}
-  />
-)}
+const renderSavingsRate = (data) => (
+  <View style={styles.reportContainer}>
+    <Text style={styles.reportTitle}>Savings Rate Report</Text>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Total Income:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.totalIncome)}</Text>
+    </View>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Total Expenses:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.totalExpenses)}</Text>
+    </View>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Total Savings:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.totalSavings)}</Text>
+    </View>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Savings Rate:</Text>
+      <Text style={styles.reportValue}>{data.savingsRate.toFixed(2)}%</Text>
+    </View>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Monthly Average Savings:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.monthlyAverageSavings)}</Text>
+    </View>
+  </View>
+);
 
-{showEndDatePicker && (
-  <DateTimePicker
-    value={endDate}
-    mode="date"
-    display="default"
-    onChange={(event, selectedDate) => {
-      setShowEndDatePicker(false);
-      if (selectedDate) setEndDate(selectedDate);
-    }}
-  />
-)}
+const renderExpenseTrend = (data) => (
+  <View style={styles.reportContainer}>
+    <Text style={styles.reportTitle}>Expense Trend Analysis</Text>
+    {data.map((month) => (
+      <View key={month.month} style={styles.reportRow}>
+        <Text style={styles.reportLabel}>{month.month}:</Text>
+        <Text style={styles.reportValue}>{formatCurrency(month.totalExpense)}</Text>
+      </View>
+    ))}
+  </View>
+);
 
-<TouchableOpacity style={styles.generateButton} onPress={handleGenerateReport} disabled={isLoading || !reportType}>
-  <Text style={styles.buttonText}>{isLoading ? 'Generating...' : 'Generate Report'}</Text>
-</TouchableOpacity>
+const renderCashFlow = (data) => (
+  <View style={styles.reportContainer}>
+    <Text style={styles.reportTitle}>Cash Flow Statement</Text>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Cash Inflow:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.cashInflow)}</Text>
+    </View>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Cash Outflow:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.cashOutflow)}</Text>
+    </View>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Net Cash Flow:</Text>
+      <Text style={[styles.reportValue, data.netCashFlow < 0 ? styles.negativeValue : styles.positiveValue]}>
+        {formatCurrency(data.netCashFlow)}
+      </Text>
+    </View>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Credit Card Purchases:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.creditCardPurchases)}</Text>
+    </View>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Credit Card Payments:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.creditCardPayments)}</Text>
+    </View>
+  </View>
+);
 
-<TouchableOpacity style={styles.exportButton} onPress={handleExportReport} disabled={!reportData || isLoading}>
-  <Text style={styles.buttonText}>Export to CSV</Text>
-</TouchableOpacity>
+const renderCategoryTransactionDetail = (data) => (
+  <View style={styles.reportContainer}>
+    <Text style={styles.reportTitle}>Category Transaction Detail</Text>
+    {ALL_CATEGORIES.map((category) => (
+      <View key={category} style={styles.categorySection}>
+        <Text style={styles.reportSubtitle}>{category}</Text>
+        <View style={styles.tableHeader}>
+          <Text style={styles.dateHeader}>Date</Text>
+          <Text style={styles.amountHeader}>Amount</Text>
+          <Text style={styles.descriptionHeader}>Description</Text>
+          <Text style={styles.creditCardHeader}>Credit Card</Text>
+        </View>
+        {data[category] && data[category].map((transaction, index) => (
+          <View key={index} style={styles.tableRow}>
+            <Text style={styles.dateCell}>{formatDate(transaction.date)}</Text>
+            <Text style={styles.amountCell}>{formatCurrency(transaction.amount)}</Text>
+            <Text style={styles.descriptionCell} numberOfLines={1} ellipsizeMode="tail">
+              {transaction.description}
+            </Text>
+            <Text style={styles.creditCardCell}>{transaction.creditCard ? 'Yes' : 'No'}</Text>
+          </View>
+        ))}
+      </View>
+    ))}
+  </View>
+);
 
-{isLoading && <ActivityIndicator size="large" color="#0000ff" />}
+const renderCreditCardStatement = (data) => (
+  <View style={styles.reportContainer}>
+    <Text style={styles.reportTitle}>Credit Card Statement</Text>
+    {Object.entries(data).map(([cardName, cardData]) => (
+      <View key={cardName} style={styles.creditCardSection}>
+        <Text style={styles.reportSubtitle}>{cardName}</Text>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Opening Balance:</Text>
+          <Text style={styles.reportValue}>{formatCurrency(cardData.openingBalance)}</Text>
+        </View>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Purchases:</Text>
+          <Text style={styles.reportValue}>{formatCurrency(cardData.purchases)}</Text>
+        </View>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Payments:</Text>
+          <Text style={styles.reportValue}>{formatCurrency(cardData.payments)}</Text>
+        </View>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Income:</Text>
+          <Text style={styles.reportValue}>{formatCurrency(cardData.income)}</Text>
+        </View>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Closing Balance:</Text>
+          <Text style={styles.reportValue}>{formatCurrency(cardData.closingBalance)}</Text>
+        </View>
+        <Text style={styles.transactionTitle}>Transactions:</Text>
+        {cardData.transactions && cardData.transactions.map((transaction, index) => (
+          <View key={index} style={styles.transactionRow}>
+            <Text style={styles.transactionDate}>{formatDate(transaction.date)}</Text>
+            <Text style={styles.transactionDescription}>{transaction.description}</Text>
+            <Text style={styles.transactionAmount}>{formatCurrency(transaction.amount)}</Text>
+          </View>
+        ))}
+      </View>
+    ))}
+  </View>
+);
 
-<View style={styles.reportContainer}>
-  {reportData && renderReportData()}
-</View>
+const renderCreditUtilization = (data) => (
+  <View style={styles.reportContainer}>
+    <Text style={styles.reportTitle}>Credit Utilization Report</Text>
+    {Object.entries(data).map(([cardName, cardData]) => (
+      <View key={cardName} style={styles.creditCardSection}>
+        <Text style={styles.reportSubtitle}>{cardName}</Text>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Credit Limit:</Text>
+          <Text style={styles.reportValue}>{formatCurrency(cardData.limit)}</Text>
+        </View>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Current Balance:</Text>
+          <Text style={styles.reportValue}>{formatCurrency(cardData.currentBalance)}</Text>
+        </View>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Available Credit:</Text>
+          <Text style={styles.reportValue}>{formatCurrency(cardData.availableCredit)}</Text>
+        </View>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Utilization:</Text>
+          <Text style={styles.reportValue}>{cardData.utilization.toFixed(2)}%</Text>
+        </View>
+      </View>
+    ))}
+  </View>
+);
 
-{renderReportTypeModal()}
+const renderPaymentHistory = (data) => (
+  <View style={styles.reportContainer}>
+    <Text style={styles.reportTitle}>Payment History Report</Text>
+    {data.map((payment, index) => (
+      <View key={index} style={styles.paymentRow}>
+        <Text style={styles.paymentDate}>{formatDate(payment.date)}</Text>
+        <Text style={styles.paymentCardName}>{payment.creditCardName}</Text>
+        <Text style={styles.paymentAmount}>{formatCurrency(payment.amount)}</Text>
+      </View>
+    ))}
+  </View>
+);
+
+const renderDebtReductionProjection = (data) => (
+  <View style={styles.reportContainer}>
+    <Text style={styles.reportTitle}>Debt Reduction Projection</Text>
+    {Object.entries(data).map(([cardName, cardData]) => (
+      <View key={cardName} style={styles.creditCardSection}>
+        <Text style={styles.reportSubtitle}>{cardName}</Text>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Current Balance:</Text>
+          <Text style={styles.reportValue}>{formatCurrency(cardData.currentBalance)}</Text>
+        </View>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Avg. Monthly Payment:</Text>
+          <Text style={styles.reportValue}>{formatCurrency(cardData.averageMonthlyPayment)}</Text>
+        </View>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Avg. Monthly Spending:</Text>
+          <Text style={styles.reportValue}>{formatCurrency(cardData.averageMonthlySpending)}</Text>
+        </View>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Net Monthly Payment:</Text>
+          <Text style={styles.reportValue}>{formatCurrency(cardData.netMonthlyPayment)}</Text>
+        </View>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Months to Pay Off:</Text>
+          <Text style={styles.reportValue}>{cardData.monthsToPayOff}</Text>
+        </View>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Projected Payoff Date:</Text>
+          <Text style={styles.reportValue}>{cardData.projectedPayoffDate}</Text>
+        </View>
+      </View>
+    ))}
+  </View>
+);
+
+const renderCategoryCreditCardUsage = (data) => (
+  <View style={styles.reportContainer}>
+    <Text style={styles.reportTitle}>Category Credit Card Usage</Text>
+    {Object.entries(data).map(([category, categoryData]) => (
+      <View key={category} style={styles.categorySection}>
+        <Text style={styles.reportSubtitle}>{category}</Text>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Total Amount:</Text>
+          <Text style={styles.reportValue}>{formatCurrency(categoryData.totalAmount)}</Text>
+        </View>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Transaction Count:</Text>
+          <Text style={styles.reportValue}>{categoryData.transactionCount}</Text>
+        </View>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Avg. Transaction Amount:</Text>
+          <Text style={styles.reportValue}>{formatCurrency(categoryData.averageTransactionAmount)}</Text>
+        </View>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Percentage of Total:</Text>
+          <Text style={styles.reportValue}>{categoryData.percentageOfTotal.toFixed(2)}%</Text>
+        </View>
+      </View>
+    ))}
+  </View>
+);
+
+const renderReportTypeModal = () => (
+  <Modal
+    visible={showReportTypeModal}
+    transparent={true}
+    animationType="slide"
+  >
+    <View style={styles.modalContainer}>
+      <ScrollView style={styles.modalContent}>
+        {reportTypes.map((category, index) => (
+          <View key={index}>
+            <Text style={styles.categoryHeader}>{category.category}</Text>
+            {category.reports.map((type) => (
+              <TouchableOpacity
+                key={type.value}
+                style={styles.modalItem}
+                onPress={() => {
+                  setReportType(type.value);
+                  setShowReportTypeModal(false);
+                  setIsYTD(type.value === 'ytd-summary');
+                }}
+              >
+                <Text>{type.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  </Modal>
+);
+
+return (
+  <ScrollView style={styles.container}>
+    <Text style={styles.title}>Financial Reports</Text>
+    
+    <View style={styles.reportTypeContainer}>
+      <TouchableOpacity 
+        style={styles.reportTypeButton} 
+        onPress={() => setShowReportTypeModal(true)}
+      >
+        <Text style={reportType ? styles.reportTypeText : styles.reportTypePlaceholder}>
+          {reportType ? reportTypes.find(category => category.reports.some(report => report.value === reportType))?.reports.find(report => report.value === reportType)?.label : "Select a report to generate..."}
+        </Text>
+      </TouchableOpacity>
+    </View>
+
+    {reportType !== 'ytd-summary' && (
+      <TouchableOpacity 
+        style={styles.ytdButton} 
+        onPress={() => setIsYTD(!isYTD)}
+      >
+        <Text style={styles.buttonText}>{isYTD ? 'Custom Date Range' : 'Year-to-Date'}</Text>
+      </TouchableOpacity>
+    )}
+    {renderDateSelection()}
+
+    {showStartDatePicker && (
+      <DateTimePicker
+        value={startDate}
+        mode="date"
+        display="default"
+        onChange={(event, selectedDate) => {
+          setShowStartDatePicker(false);
+          if (selectedDate) setStartDate(selectedDate);
+        }}
+      />
+    )}
+
+    {showEndDatePicker && (
+      <DateTimePicker
+      value={endDate}
+      mode="date"
+      display="default"
+      onChange={(event, selectedDate) => {
+        setShowEndDatePicker(false);
+        if (selectedDate) setEndDate(selectedDate);
+      }}
+    />
+  )}
+
+  <TouchableOpacity style={styles.generateButton} onPress={handleGenerateReport} disabled={isLoading || !reportType}>
+    <Text style={styles.buttonText}>{isLoading ? 'Generating...' : 'Generate Report'}</Text>
+  </TouchableOpacity>
+
+  <TouchableOpacity style={styles.exportButton} onPress={handleExportReport} disabled={!reportData || isLoading}>
+    <Text style={styles.buttonText}>Export to CSV</Text>
+  </TouchableOpacity>
+
+  {isLoading && <ActivityIndicator size="large" color="#0000ff" />}
+
+  <View style={styles.reportContainer}>
+    {reportData && renderReportData()}
+  </View>
+
+  {renderReportTypeModal()}
 </ScrollView>
 );
 };
@@ -762,10 +764,10 @@ marginBottom: 15,
 color: '#333',
 },
 reportSubtitle: {
-fontSize: 18,
+fontSize: 16,
 fontWeight: 'bold',
 marginTop: 10,
-marginBottom: 5,
+marginBottom: 10,
 color: '#444',
 },
 reportSection: {
@@ -824,47 +826,55 @@ tableHeader: {
 flexDirection: 'row',
 borderBottomWidth: 1,
 borderBottomColor: '#ccc',
-paddingBottom: 5,
+paddingBottom: 10,
 marginBottom: 5,
 },
 tableRow: {
 flexDirection: 'row',
-paddingVertical: 5,
+paddingVertical: 4,
 borderBottomWidth: 1,
 borderBottomColor: '#eee',
 },
 dateHeader: {
-flex: 3,
+flex: 2,
 fontWeight: 'bold',
+paddingRight: 5,
 },
 amountHeader: {
-flex: 3,
+flex: 2,
 fontWeight: 'bold',
-textAlign: 'right',
+textAlign: 'left',
+paddingRight: 5,
 },
 descriptionHeader: {
-flex: 4,
+flex: 3,
 fontWeight: 'bold',
-textAlign: 'center',
+textAlign: 'left',
 },
 creditCardHeader: {
-flex: 2,
+flex: 1.5,
 fontWeight: 'bold',
-textAlign: 'center',
+textAlign: 'left',
 },
 dateCell: {
-flex: 3,
+flex: 2,
+paddingRight: 5,
+fontSize: 10,
 },
 amountCell: {
-flex: 3,
-textAlign: 'right',
+flex: 2,
+textAlign: 'left',
+paddingRight: 5,
+fontSize: 10,
 },
 descriptionCell: {
-flex: 4,
+flex: 3,
+fontSize: 10,
 },
 creditCardCell: {
-flex: 2,
-textAlign: 'center',
+flex: 1,
+textAlign: 'left',
+fontSize: 10,
 },
 ytdButton: {
 backgroundColor: '#4CAF50',
