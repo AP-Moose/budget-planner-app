@@ -273,31 +273,18 @@ export const addCreditCard = async (cardData) => {
 export const getCreditCards = async () => {
   try {
     const user = auth.currentUser;
-    if (!user) {
-      throw new Error('No user logged in');
-    }
+    if (!user) throw new Error('No user logged in');
 
-    const q = query(
-      collection(db, 'creditCards'),
-      where('userId', '==', user.uid)
-    );
-    
+    const creditCardsRef = collection(db, 'creditCards');
+    const q = query(creditCardsRef, where('userId', '==', user.uid));
     const snapshot = await getDocs(q);
-    const transactions = await getTransactions();
-    
-    const creditCards = snapshot.docs.map(doc => {
-      const data = doc.data();
-      const card = {
-        id: doc.id,
-        ...data,
-        limit: Number(data.limit) || 0,
-        startingBalance: Number(data.startingBalance) || 0,
-        startDate: data.startDate ? data.startDate.toDate() : new Date(),
-      };
-      card.balance = calculateCreditCardBalance(card, transactions);
-      return card;
-    });
-    return creditCards;
+
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      name: doc.data().name,
+      balance: doc.data().balance,
+      // Include other relevant fields
+    }));
   } catch (error) {
     console.error('Error getting credit cards:', error);
     throw error;

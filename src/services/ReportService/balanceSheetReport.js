@@ -24,10 +24,13 @@ export const generateBalanceSheetReport = async (transactions, asOfDate) => {
     // Update credit card balances based on transactions
     transactions.forEach(t => {
       if (t.creditCard && t.creditCardId && new Date(t.date) <= asOfDate) {
-        if (t.isCardPayment) {
-          creditCardBalances[t.creditCardId] = (creditCardBalances[t.creditCardId] || 0) - Number(t.amount);
-        } else if (t.type === 'expense') {
-          creditCardBalances[t.creditCardId] = (creditCardBalances[t.creditCardId] || 0) + Number(t.amount);
+        const card = creditCards.find(c => c.id === t.creditCardId);
+        if (card) {
+          if (t.isCardPayment) {
+            creditCardBalances[card.name] = (creditCardBalances[card.name] || 0) - Number(t.amount);
+          } else if (t.type === 'expense') {
+            creditCardBalances[card.name] = (creditCardBalances[card.name] || 0) + Number(t.amount);
+          }
         }
       }
     });
