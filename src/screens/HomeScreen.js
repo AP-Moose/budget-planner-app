@@ -10,6 +10,7 @@ import HomeDashboard from '../components/Dashboards/HomeDashboard';
 import CSVUpload from '../components/CSVUpload';
 import { Ionicons } from '@expo/vector-icons';
 import { useMonth } from '../context/MonthContext';
+import MonthNavigator from '../components/MonthNavigator';  // Import the MonthNavigator component
 
 function HomeScreen({ navigation }) {
   const { currentMonth, setCurrentMonth } = useMonth();
@@ -172,13 +173,6 @@ function HomeScreen({ navigation }) {
     setShowDatePicker(false);
   };
 
-  const navigateMonth = (direction) => {
-    const newDate = new Date(currentMonth);
-    newDate.setMonth(newDate.getMonth() + direction);
-    setCurrentMonth(newDate);
-    setNewTransaction(prev => ({ ...prev, date: newDate }));
-  };
-
   const handleDoneEditing = () => {
     Keyboard.dismiss();
   };
@@ -238,8 +232,6 @@ function HomeScreen({ navigation }) {
       </View>
     );
   }, [creditCards, isEditMode, handleDeleteTransaction, handleEditTransaction]);
-
-  const isCurrentMonth = currentMonth.getMonth() === new Date().getMonth() && currentMonth.getFullYear() === new Date().getFullYear();
 
   const renderAddTransactionForm = () => (
     <View style={styles.addTransactionForm}>
@@ -322,22 +314,7 @@ function HomeScreen({ navigation }) {
     >
       <ScrollView style={styles.scrollView}>
         <HomeDashboard currentMonth={currentMonth} transactions={transactions} />
-        <View style={styles.monthNavigation}>
-          <TouchableOpacity onPress={() => navigateMonth(-1)}>
-            <Ionicons name="chevron-back" size={24} color="black" />
-          </TouchableOpacity>
-          <Text style={styles.currentMonth}>
-            {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
-          </Text>
-          <TouchableOpacity onPress={() => navigateMonth(1)}>
-            <Ionicons name="chevron-forward" size={24} color="black" />
-          </TouchableOpacity>
-          {!isCurrentMonth && (
-            <TouchableOpacity style={styles.currentMonthButton} onPress={() => setCurrentMonth(new Date())}>
-              <Text style={styles.buttonText}>Return to {new Date().toLocaleString('default', { month: 'long' })}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        <MonthNavigator currentMonth={currentMonth} setCurrentMonth={setCurrentMonth} />
         <CSVUpload onTransactionsUpdate={loadTransactions} />
         <View style={styles.transactionsHeader}>
           <Text style={styles.transactionsTitle}>{currentMonth.toLocaleString('default', { month: 'long' })} Transactions</Text>
@@ -435,24 +412,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-  },
-  monthNavigation: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 10,
-    backgroundColor: '#e0e0e0',
-    marginTop: 10,
-  },
-  currentMonth: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  currentMonthButton: {
-    backgroundColor: '#4CAF50',
-    padding: 5,
-    borderRadius: 5,
-    marginLeft: 10,
   },
   transactionsHeader: {
     flexDirection: 'row',
