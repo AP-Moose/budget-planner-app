@@ -20,7 +20,7 @@ export const generateReport = async (reportType, startDate, endDate) => {
     const transactions = await getTransactions();
     const budgetGoals = await getBudgetGoals();
     const creditCards = await getCreditCards();
-    
+
     const filteredTransactions = transactions.filter(t => {
       const transactionDate = new Date(t.date);
       return transactionDate >= startDate && transactionDate <= endDate;

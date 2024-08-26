@@ -1,5 +1,21 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, updateDoc, deleteDoc, doc, where, setDoc, getDoc, onSnapshot, Timestamp } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  getDocs, 
+  query, 
+  orderBy, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  where, 
+  setDoc, 
+  getDoc, 
+  onSnapshot, 
+  Timestamp,
+  serverTimestamp
+} from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
 import { firebaseConfig } from '../config';
 import { getCategoryType } from '../utils/categories';
@@ -419,8 +435,17 @@ export const updateInvestment = async (investmentData) => {
     const user = auth.currentUser;
     if (!user) throw new Error('No user logged in');
 
-    const investmentRef = doc(db, 'investments', investmentData.id || uuidv4());
-    await setDoc(investmentRef, { ...investmentData, userId: user.uid }, { merge: true });
+    const investmentRef = investmentData.id 
+      ? doc(db, 'investments', investmentData.id)
+      : doc(collection(db, 'investments'));
+    
+    await setDoc(investmentRef, { 
+      ...investmentData, 
+      userId: user.uid,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    
+    return investmentRef.id;
   } catch (error) {
     console.error('Error updating investment:', error);
     throw error;
@@ -448,10 +473,177 @@ export const updateLoanInformation = async (loanData) => {
     const user = auth.currentUser;
     if (!user) throw new Error('No user logged in');
 
-    const loanRef = doc(db, 'loans', loanData.id || uuidv4());
-    await setDoc(loanRef, { ...loanData, userId: user.uid }, { merge: true });
+    const loanRef = loanData.id 
+      ? doc(db, 'loans', loanData.id)
+      : doc(collection(db, 'loans'));
+    
+    await setDoc(loanRef, { 
+      ...loanData, 
+      userId: user.uid,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    
+    return loanRef.id;
   } catch (error) {
     console.error('Error updating loan information:', error);
+    throw error;
+  }
+};
+
+export const getOtherAssets = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const assetsRef = collection(db, 'otherAssets');
+    const q = query(assetsRef, where('userId', '==', user.uid));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error getting other assets:', error);
+    throw error;
+  }
+};
+
+export const updateOtherAsset = async (assetData) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const assetRef = assetData.id 
+      ? doc(db, 'otherAssets', assetData.id)
+      : doc(collection(db, 'otherAssets'));
+    
+    await setDoc(assetRef, { 
+      ...assetData, 
+      userId: user.uid,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    
+    return assetRef.id;
+  } catch (error) {
+    console.error('Error updating other asset:', error);
+    throw error;
+  }
+};
+
+export const getOtherLiabilities = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const liabilitiesRef = collection(db, 'otherLiabilities');
+    const q = query(liabilitiesRef, where('userId', '==', user.uid));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error getting other liabilities:', error);
+    throw error;
+  }
+};
+
+export const updateOtherLiability = async (liabilityData) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const liabilityRef = liabilityData.id 
+      ? doc(db, 'otherLiabilities', liabilityData.id)
+      : doc(collection(db, 'otherLiabilities'));
+    
+    await setDoc(liabilityRef, { 
+      ...liabilityData, 
+      userId: user.uid,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    
+    return liabilityRef.id;
+  } catch (error) {
+    console.error('Error updating other liability:', error);
+    throw error;
+  }
+};
+
+export const getUserProfile = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const userProfileRef = doc(db, 'users', user.uid);
+    const userProfileDoc = await getDoc(userProfileRef);
+
+    if (userProfileDoc.exists()) {
+      return userProfileDoc.data();
+    } else {
+      return { initialCashBalance: 0 };
+    }
+  } catch (error) {
+    console.error('Error getting user profile:', error);
+    throw error;
+  }
+};
+
+export const updateUserProfile = async (profileData) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const userProfileRef = doc(db, 'users', user.uid);
+    await setDoc(userProfileRef, profileData, { merge: true });
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    throw error;
+  }
+};
+
+export const getBalanceSheetItems = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const balanceSheetRef = collection(db, 'balanceSheet');
+    const q = query(balanceSheetRef, where('userId', '==', user.uid));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error getting balance sheet items:', error);
+    throw error;
+  }
+};
+
+export const updateBalanceSheetItem = async (itemData) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const itemRef = itemData.id 
+      ? doc(db, 'balanceSheet', itemData.id)
+      : doc(collection(db, 'balanceSheet'));
+    
+    await setDoc(itemRef, { 
+      ...itemData, 
+      userId: user.uid,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    
+    return itemRef.id;
+  } catch (error) {
+    console.error('Error updating balance sheet item:', error);
+    throw error;
+  }
+};
+
+export const deleteBalanceSheetItem = async (itemId) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    await deleteDoc(doc(db, 'balanceSheet', itemId));
+  } catch (error) {
+    console.error('Error deleting balance sheet item:', error);
     throw error;
   }
 };
@@ -478,4 +670,13 @@ export default {
   updateInvestment,
   getLoanInformation,
   updateLoanInformation,
+  getOtherAssets,
+  updateOtherAsset,
+  getOtherLiabilities,
+  updateOtherLiability,
+  getUserProfile,
+  updateUserProfile,
+  getBalanceSheetItems,
+  updateBalanceSheetItem,
+  deleteBalanceSheetItem,
 };
