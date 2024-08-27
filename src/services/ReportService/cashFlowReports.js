@@ -6,8 +6,8 @@ export const generateCashFlowStatement = (transactions) => {
     const categorizedTransactions = categorizeTransactions(transactions);
     const totals = calculateTotals(categorizedTransactions);
 
-    const cashInflow = totals.totalRegularIncome + totals.totalCreditCardIncome;
-    const cashOutflow = totals.totalRegularExpenses + totals.totalCreditCardPayments;
+    const cashInflow = totals.totalRegularIncome + totals.totalCreditCardIncome + totals.totalCashbackRewards;
+    const cashOutflow = totals.totalRegularExpenses + totals.totalCreditCardPayments + totals.totalLoanPayments;
     const netCashFlow = cashInflow - cashOutflow;
 
     return {
@@ -16,12 +16,16 @@ export const generateCashFlowStatement = (transactions) => {
       netCashFlow,
       creditCardPurchases: totals.totalCreditCardPurchases,
       creditCardPayments: totals.totalCreditCardPayments,
+      loanPayments: totals.totalLoanPayments,
+      cashbackRewards: totals.totalCashbackRewards,
       details: {
         regularIncome: totals.totalRegularIncome,
         creditCardIncome: totals.totalCreditCardIncome,
+        cashbackRewards: totals.totalCashbackRewards,
         regularExpenses: totals.totalRegularExpenses,
         creditCardPurchases: totals.totalCreditCardPurchases,
-        creditCardPayments: totals.totalCreditCardPayments
+        creditCardPayments: totals.totalCreditCardPayments,
+        loanPayments: totals.totalLoanPayments
       }
     };
   } catch (error) {

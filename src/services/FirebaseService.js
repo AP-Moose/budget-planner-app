@@ -89,7 +89,10 @@ export const addTransaction = async (transaction) => {
       userId: user.uid,
       creditCard: Boolean(transaction.creditCard),
       creditCardId: transaction.creditCardId || null,
-      isCardPayment: Boolean(transaction.isCardPayment)
+      isCardPayment: Boolean(transaction.isCardPayment),
+      isLoanPayment: Boolean(transaction.isLoanPayment),
+      loanId: transaction.loanId || null,
+      isCashback: Boolean(transaction.isCashback)
     };
 
     console.log('Attempting to save transaction:', transactionToSave);
@@ -98,6 +101,10 @@ export const addTransaction = async (transaction) => {
 
     if (transactionToSave.creditCard && transactionToSave.creditCardId) {
       await updateCreditCardBalance(transactionToSave.creditCardId, transactionToSave.amount, transactionToSave.type, transactionToSave.isCardPayment);
+    }
+
+    if (transactionToSave.isLoanPayment && transactionToSave.loanId) {
+      await updateLoanBalance(transactionToSave.loanId, transactionToSave.amount);
     }
 
     return docRef.id;
@@ -635,6 +642,48 @@ export const deleteBalanceSheetItem = async (itemId) => {
   }
 };
 
+export const updateLoanBalance = async (loanId, amount) => {
+  try {
+    const loanRef = doc(db, 'loans', loanId);
+    const loanDoc = await getDoc(loanRef);
+    
+    if (loanDoc.exists()) {
+      const currentBalance = loanDoc.data().currentBalance;
+      const newBalance = currentBalance - amount;
+
+      await updateDoc(loanRef, { 
+        currentBalance: newBalance,
+        lastUpdated: Timestamp.fromDate(new Date())
+      });
+      console.log('Loan balance updated:', loanId, 'New balance:', newBalance);
+    } else {
+      console.error('Loan not found:', loanId);
+    }
+  } catch (error) {
+    console.error('Error updating loan balance:', error);
+    throw error;
+  }
+};
+
+export const getLoans = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const loansRef = collection(db, 'loans');
+    const q = query(loansRef, where('userId', '==', user.uid));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error('Error getting loans:', error);
+    throw error;
+  }
+};
+
 export default {
   signUp,
   signIn,
@@ -666,4 +715,6 @@ export default {
   getBalanceSheetItems,
   updateBalanceSheetItem,
   deleteBalanceSheetItem,
+  getLoans,
+  updateLoanBalance,
 };

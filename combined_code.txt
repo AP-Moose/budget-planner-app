@@ -1368,13 +1368,13 @@ export const useMonth = () => useContext(MonthContext);
 File: src\screens\BudgetGoalsScreen.js
 
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, Switch, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, Switch, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getBudgetGoals, updateBudgetGoal, getTransactions } from '../services/FirebaseService';
 import { EXPENSE_CATEGORIES } from '../utils/categories';
 import { useMonth } from '../context/MonthContext';
 import { Ionicons } from '@expo/vector-icons';
-import MonthNavigator from '../components/MonthNavigator';  // Import the new component
+import MonthNavigator from '../components/MonthNavigator';
 
 function BudgetGoalsScreen({ navigation }) {
   const { currentMonth, setCurrentMonth } = useMonth();
@@ -1386,6 +1386,7 @@ function BudgetGoalsScreen({ navigation }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState(null);
+  const [debtPaymentGoal, setDebtPaymentGoal] = useState({ category: 'Debt Payment', amount: '0', isRecurring: false });
 
   const loadGoals = useCallback(async () => {
     setIsLoading(true);
@@ -1401,6 +1402,10 @@ function BudgetGoalsScreen({ navigation }) {
         return existingGoal || { category, amount: '0', isRecurring: false };
       });
 
+      // Set debt payment goal
+      const existingDebtGoal = fetchedGoals.find(g => g.category === 'Debt Payment');
+      setDebtPaymentGoal(existingDebtGoal || { category: 'Debt Payment', amount: '0', isRecurring: false });
+
       setBudgetGoals(allCategories);
 
       const transactions = await getTransactions();
@@ -1410,16 +1415,26 @@ function BudgetGoalsScreen({ navigation }) {
                transactionDate.getFullYear() === currentMonth.getFullYear();
       });
 
-      const expenses = currentMonthTransactions.reduce((acc, t) => {
+      const expenses = {};
+      currentMonthTransactions.forEach(t => {
         if (t.type === 'expense') {
-          acc[t.category] = (acc[t.category] || 0) + t.amount;
+          if (t.creditCard && !t.isCardPayment) {
+            expenses[t.category] = (expenses[t.category] || 0) + t.amount;
+          } else if (!t.creditCard) {
+            expenses[t.category] = (expenses[t.category] || 0) + t.amount;
+          }
         }
-        return acc;
-      }, {});
+      });
+
+      // Calculate total debt payments
+      const totalDebtPayments = currentMonthTransactions
+        .filter(t => t.isCardPayment)
+        .reduce((sum, t) => sum + t.amount, 0);
+      expenses['Debt Payment'] = totalDebtPayments;
 
       setActualExpenses(expenses);
 
-      const total = allCategories.reduce((sum, goal) => sum + parseFloat(goal.amount), 0);
+      const total = allCategories.reduce((sum, goal) => sum + parseFloat(goal.amount), 0) + parseFloat(debtPaymentGoal.amount);
       setTotalBudget(total);
 
       const spent = Object.values(expenses).reduce((sum, amount) => sum + amount, 0);
@@ -1448,26 +1463,26 @@ function BudgetGoalsScreen({ navigation }) {
     return '#FF6B6B';
   };
 
-  const handleUpdateGoal = async () => {
-    if (!selectedGoal || !selectedGoal.category || !selectedGoal.amount) {
+  const handleUpdateGoal = async (goal) => {
+    if (!goal || !goal.category || !goal.amount) {
       Alert.alert('Error', 'Please enter an amount.');
       return;
     }
     setIsUpdating(true);
     try {
-      await updateBudgetGoal(selectedGoal.category, {
-        amount: selectedGoal.amount,
-        isRecurring: selectedGoal.isRecurring,
+      await updateBudgetGoal(goal.category, {
+        amount: goal.amount,
+        isRecurring: goal.isRecurring,
         year: currentMonth.getFullYear(),
         month: currentMonth.getMonth() + 1,
       });
 
       // If recurring, update future months
-      if (selectedGoal.isRecurring) {
+      if (goal.isRecurring) {
         for (let futureMonth = currentMonth.getMonth() + 2; futureMonth <= 12; futureMonth++) {
-          await updateBudgetGoal(selectedGoal.category, {
-            amount: selectedGoal.amount,
-            isRecurring: selectedGoal.isRecurring,
+          await updateBudgetGoal(goal.category, {
+            amount: goal.amount,
+            isRecurring: goal.isRecurring,
             year: currentMonth.getFullYear(),
             month: futureMonth,
           });
@@ -1480,30 +1495,6 @@ function BudgetGoalsScreen({ navigation }) {
     } catch (error) {
       console.error('Error updating budget goal:', error);
       Alert.alert('Error', 'Failed to update budget goal. Please try again.');
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleResetGoal = async () => {
-    if (!selectedGoal) {
-      Alert.alert('Error', 'No goal selected.');
-      return;
-    }
-    setIsUpdating(true);
-    try {
-      await updateBudgetGoal(selectedGoal.category, { 
-        amount: '0',
-        isRecurring: false,
-        year: currentMonth.getFullYear(),
-        month: currentMonth.getMonth() + 1,
-      });
-      setSelectedGoal(null);
-      await loadGoals();
-      Alert.alert('Success', 'Goal Reset to $0');
-    } catch (error) {
-      console.error('Error resetting budget goal:', error);
-      Alert.alert('Error', 'Failed to reset budget goal. Please try again.');
     } finally {
       setIsUpdating(false);
     }
@@ -1632,7 +1623,7 @@ function BudgetGoalsScreen({ navigation }) {
           </View>
           <TouchableOpacity 
             style={[styles.updateButton, isUpdating && styles.disabledButton]} 
-            onPress={handleUpdateGoal}
+            onPress={() => handleUpdateGoal(selectedGoal)}
             disabled={isUpdating}
           >
             {isUpdating ? (
@@ -1641,24 +1632,22 @@ function BudgetGoalsScreen({ navigation }) {
               <Text style={styles.buttonText}>Update Goal</Text>
             )}
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.resetButton, isUpdating && styles.disabledButton]} 
-            onPress={handleResetGoal}
-            disabled={isUpdating}
-          >
-            <Text style={styles.buttonText}>Reset Goal to $0</Text>
-          </TouchableOpacity>
           <TouchableOpacity style={styles.cancelButton} onPress={() => setSelectedGoal(null)}>
             <Text style={styles.buttonText}>Cancel</Text>
           </TouchableOpacity>
         </View>
       ) : (
-        <FlatList
-          data={budgetGoals}
-          renderItem={renderGoalItem}
-          keyExtractor={(item) => item.category}
-          style={styles.goalsList}
-        />
+        <ScrollView style={styles.goalsList}>
+          <Text style={styles.sectionTitle}>Debt Payments</Text>
+          {renderGoalItem({ item: debtPaymentGoal })}
+          <Text style={styles.sectionTitle}>Expense Categories</Text>
+          <FlatList
+            data={budgetGoals.filter(goal => goal.category !== 'Debt Payment')}
+            renderItem={renderGoalItem}
+            keyExtractor={(item) => item.category}
+            scrollEnabled={false}
+          />
+        </ScrollView>
       )}
     </KeyboardAvoidingView>
   );
@@ -1711,6 +1700,13 @@ const styles = StyleSheet.create({
   },
   goalsList: {
     flex: 1,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 20,
+    marginBottom: 10,
+    marginLeft: 10,
   },
   goalItem: {
     backgroundColor: '#fff',
@@ -1791,13 +1787,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
-  resetButton: {
-    backgroundColor: '#FF9800',
-    padding: 15,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginBottom: 10,
-  },
   cancelButton: {
     backgroundColor: '#9E9E9E',
     padding: 15,
@@ -1819,7 +1808,6 @@ const styles = StyleSheet.create({
 });
 
 export default BudgetGoalsScreen;
-
 
 File: src\screens\CategoryDetailScreen.js
 

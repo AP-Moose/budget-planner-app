@@ -1,16 +1,16 @@
-import React, { useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, KeyboardAvoidingView, Platform, ScrollView, Keyboard, Switch, FlatList } from 'react-native';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ScrollView, Keyboard, Switch, FlatList } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { getTransactions, deleteTransaction, addTransaction, updateTransaction, getCreditCards } from '../services/FirebaseService';
+import { Picker } from '@react-native-picker/picker';
+import { getTransactions, deleteTransaction, addTransaction, updateTransaction, getCreditCards, getLoans } from '../services/FirebaseService';
 import { getCategoryName, INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../utils/categories';
 import SearchBar from '../components/SearchBar';
-import RNPickerSelect from 'react-native-picker-select';
 import HomeDashboard from '../components/Dashboards/HomeDashboard';
 import CSVUpload from '../components/CSVUpload';
 import { Ionicons } from '@expo/vector-icons';
 import { useMonth } from '../context/MonthContext';
-import MonthNavigator from '../components/MonthNavigator';  // Import the MonthNavigator component
+import MonthNavigator from '../components/MonthNavigator';
 
 function HomeScreen({ navigation }) {
   const { currentMonth, setCurrentMonth } = useMonth();
@@ -27,26 +27,17 @@ function HomeScreen({ navigation }) {
     date: new Date(), 
     creditCard: false,
     creditCardId: null,
-    isCardPayment: false
+    isCardPayment: false,
+    isLoanPayment: false,
+    loanId: null,
+    isCashback: false
   });
   const [isAddingTransaction, setIsAddingTransaction] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [creditCards, setCreditCards] = useState([]);
+  const [loans, setLoans] = useState([]);
   const listRef = useRef(null);
   const [isEditMode, setIsEditMode] = useState(false);
-
-  // Credit card-related functions
-  const toggleCreditCard = () => {
-    setNewTransaction(prev => ({ ...prev, creditCard: !prev.creditCard }));
-  };
-
-  const handleCreditCardSelection = (creditCardId) => {
-    setNewTransaction(prev => ({ ...prev, creditCardId }));
-  };
-
-  const toggleIsCardPayment = () => {
-    setNewTransaction(prev => ({ ...prev, isCardPayment: !prev.isCardPayment }));
-  };
 
   const loadTransactions = useCallback(async () => {
     try {
@@ -58,8 +49,8 @@ function HomeScreen({ navigation }) {
       });
       setTransactions(filteredByMonth);
       setFilteredTransactions(filteredByMonth);
-      const newBalance = filteredByMonth.reduce((sum, transaction) => {
-        return transaction.type === 'income' ? sum + parseFloat(transaction.amount) : sum - parseFloat(transaction.amount);
+      const newBalance = filteredByMonth.reduce((balance, t) => {
+        return t.type === 'income' ? balance + parseFloat(t.amount) : balance - parseFloat(t.amount);
       }, 0);
       setBalance(newBalance);
     } catch (error) {
@@ -78,12 +69,27 @@ function HomeScreen({ navigation }) {
     }
   }, []);
 
+  const loadLoans = useCallback(async () => {
+    try {
+      const fetchedLoans = await getLoans();
+      setLoans(fetchedLoans);
+    } catch (error) {
+      console.error('Error loading loans:', error);
+      Alert.alert('Error', 'Failed to load loans. Please try again.');
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       loadTransactions();
       loadCreditCards();
-    }, [loadTransactions, loadCreditCards])
+      loadLoans();
+    }, [loadTransactions, loadCreditCards, loadLoans])
   );
+
+  useEffect(() => {
+    console.log('Loans:', loans);
+  }, [loans]);
 
   const handleSearch = useCallback((query) => {
     setSearchQuery(query);
@@ -149,7 +155,10 @@ function HomeScreen({ navigation }) {
         date: new Date(currentMonth), 
         creditCard: false,
         creditCardId: null,
-        isCardPayment: false
+        isCardPayment: false,
+        isLoanPayment: false,
+        loanId: null,
+        isCashback: false
       });
       setIsAddingTransaction(false);
       Alert.alert('Success', 'Transaction added successfully');
@@ -169,12 +178,44 @@ function HomeScreen({ navigation }) {
     }
   };
 
-  const handleDoneSelectingDate = () => {
-    setShowDatePicker(false);
+  const toggleCreditCard = () => {
+    setNewTransaction(prev => ({ 
+      ...prev, 
+      creditCard: !prev.creditCard,
+      isLoanPayment: false,
+      isCashback: false 
+    }));
   };
 
-  const handleDoneEditing = () => {
-    Keyboard.dismiss();
+  const handleCreditCardSelection = (creditCardId) => {
+    setNewTransaction(prev => ({ ...prev, creditCardId }));
+  };
+
+  const toggleIsCardPayment = () => {
+    setNewTransaction(prev => ({ ...prev, isCardPayment: !prev.isCardPayment }));
+  };
+
+  const toggleIsLoanPayment = () => {
+    setNewTransaction(prev => ({ 
+      ...prev, 
+      isLoanPayment: !prev.isLoanPayment, 
+      creditCard: false,
+      isCashback: false 
+    }));
+  };
+
+  const handleLoanSelection = (loanId) => {
+    setNewTransaction(prev => ({ ...prev, loanId }));
+  };
+
+  const toggleIsCashback = () => {
+    setNewTransaction(prev => ({ 
+      ...prev, 
+      isCashback: !prev.isCashback, 
+      type: 'income',
+      creditCard: false,
+      isLoanPayment: false 
+    }));
   };
 
   const formatCurrency = (amount) => {
@@ -206,6 +247,12 @@ function HomeScreen({ navigation }) {
           <Text style={styles.transactionDate}>{new Date(item.date).toLocaleDateString()}</Text>
           {item.creditCard && (
             <Text style={styles.creditCardIndicator}>{creditCardInfo}</Text>
+          )}
+          {item.isLoanPayment && (
+            <Text style={styles.loanIndicator}>Loan Payment</Text>
+          )}
+          {item.isCashback && (
+            <Text style={styles.cashbackIndicator}>Cashback/Reward</Text>
           )}
         </View>
         <View style={styles.amountAndEditContainer}>
@@ -240,17 +287,21 @@ function HomeScreen({ navigation }) {
         <Switch
           value={newTransaction.creditCard}
           onValueChange={toggleCreditCard}
+          disabled={newTransaction.isLoanPayment || newTransaction.isCashback}
         />
       </View>
       {newTransaction.creditCard && (
         <>
-          <RNPickerSelect
+          <Picker
+            selectedValue={newTransaction.creditCardId}
             onValueChange={handleCreditCardSelection}
-            items={creditCards.map(card => ({ label: card.name, value: card.id }))}
-            style={pickerSelectStyles}
-            value={newTransaction.creditCardId}
-            placeholder={{ label: "Select a credit card", value: null }}
-          />
+            style={styles.picker}
+          >
+            <Picker.Item label="Select a credit card" value="" />
+            {creditCards.map(card => (
+              <Picker.Item key={card.id} label={card.name} value={card.id} />
+            ))}
+          </Picker>
           <View style={styles.switchContainer}>
             <Text>Is Card Payment:</Text>
             <Switch
@@ -260,6 +311,34 @@ function HomeScreen({ navigation }) {
           </View>
         </>
       )}
+      <View style={styles.switchContainer}>
+        <Text>Loan Payment:</Text>
+        <Switch
+          value={newTransaction.isLoanPayment}
+          onValueChange={toggleIsLoanPayment}
+          disabled={newTransaction.creditCard || newTransaction.isCashback}
+        />
+      </View>
+      {newTransaction.isLoanPayment && (
+        <Picker
+          selectedValue={newTransaction.loanId}
+          onValueChange={handleLoanSelection}
+          style={styles.picker}
+        >
+          <Picker.Item label="Select a loan" value="" />
+          {loans.map(loan => (
+            <Picker.Item key={loan.id} label={loan.name} value={loan.id} />
+          ))}
+        </Picker>
+      )}
+      <View style={styles.switchContainer}>
+        <Text>Cashback/Rewards:</Text>
+        <Switch
+          value={newTransaction.isCashback}
+          onValueChange={toggleIsCashback}
+          disabled={newTransaction.creditCard || newTransaction.isLoanPayment}
+        />
+      </View>
       <TextInput
         style={styles.input}
         value={newTransaction.amount}
@@ -275,20 +354,21 @@ function HomeScreen({ navigation }) {
         placeholder="Description"
         placeholderTextColor="#999"
       />
-      <RNPickerSelect
+      <Picker
+        selectedValue={newTransaction.category}
         onValueChange={(value) => setNewTransaction(prev => ({...prev, category: value}))}
-        items={newTransaction.type === 'income' ? INCOME_CATEGORIES.map(cat => ({ label: cat, value: cat })) : EXPENSE_CATEGORIES.map(cat => ({ label: cat, value: cat }))}
-        style={pickerSelectStyles}
-        value={newTransaction.category}
-        placeholder={{ label: "Select a category", value: null }}
-      />
-      <View style={styles.dateContainer}>
-        <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-          <Text style={styles.dateButtonText}>
-            {new Date(newTransaction.date).toLocaleDateString()}
-          </Text>
-        </TouchableOpacity>
-      </View>
+        style={styles.picker}
+      >
+        <Picker.Item label="Select a category" value="" />
+        {(newTransaction.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(category => (
+          <Picker.Item key={category} label={category} value={category} />
+        ))}
+      </Picker>
+      <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
+        <Text style={styles.dateButtonText}>
+          {new Date(newTransaction.date).toLocaleDateString()}
+        </Text>
+      </TouchableOpacity>
       {showDatePicker && (
         <DateTimePicker
           value={new Date(newTransaction.date)}
@@ -326,7 +406,6 @@ function HomeScreen({ navigation }) {
           value={searchQuery}
           onChangeText={handleSearch}
           placeholder="Search transactions..."
-          placeholderTextColor="#999"
         />
         <View style={styles.transactionsContainer}>
           {editingTransaction && (
@@ -337,34 +416,27 @@ function HomeScreen({ navigation }) {
                 onChangeText={(text) => setEditingTransaction(prev => ({...prev, amount: text}))}
                 keyboardType="decimal-pad"
                 placeholder="Amount"
-                placeholderTextColor="#999"
               />
               <TextInput
                 style={styles.input}
                 value={editingTransaction.description}
                 onChangeText={(text) => setEditingTransaction(prev => ({...prev, description: text}))}
                 placeholder="Description"
-                placeholderTextColor="#999"
               />
-              {!editingTransaction.creditCard && (
-                <RNPickerSelect
-                  onValueChange={(value) => setEditingTransaction(prev => ({...prev, category: value}))}
-                  items={editingTransaction.type === 'income' ? INCOME_CATEGORIES.map(cat => ({ label: cat, value: cat })) : EXPENSE_CATEGORIES.map(cat => ({ label: cat, value: cat }))}
-                  style={pickerSelectStyles}
-                  value={editingTransaction.category}
-                  placeholder={{ label: "Select a category", value: null }}
-                />
-              )}
-              <View style={styles.dateContainer}>
-                <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-                  <Text style={styles.dateButtonText}>
-                    {new Date(editingTransaction.date).toLocaleDateString()}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.editDateButton} onPress={() => setShowDatePicker(true)}>
-                  <Text style={styles.editDateButtonText}>Edit Date</Text>
-                </TouchableOpacity>
-              </View>
+              <Picker
+                selectedValue={editingTransaction.category}
+                onValueChange={(value) => setEditingTransaction(prev => ({...prev, category: value}))}
+                style={styles.picker}
+              >
+                {(editingTransaction.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(category => (
+                  <Picker.Item key={category} label={category} value={category} />
+                ))}
+              </Picker>
+              <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
+                <Text style={styles.dateButtonText}>
+                  {new Date(editingTransaction.date).toLocaleDateString()}
+                </Text>
+              </TouchableOpacity>
               {showDatePicker && (
                 <DateTimePicker
                   value={new Date(editingTransaction.date)}
@@ -550,34 +622,29 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     opacity: .90
   },
-  dateContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
   dateButton: {
-    flex: 1,
     backgroundColor: '#f0f0f0',
     padding: 10,
     borderRadius: 5,
-    marginRight: 10,
+    marginBottom: 10,
   },
   dateButtonText: {
     fontSize: 16,
     color: '#333',
   },
-  editDateButton: {
-    backgroundColor: '#2196F3',
-    padding: 10,
-    borderRadius: 5,
-  },
-  editDateButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
   creditCardIndicator: {
     fontSize: 12,
     color: '#2196F3',
+    marginTop: 2,
+  },
+  loanIndicator: {
+    fontSize: 12,
+    color: '#FF9800',
+    marginTop: 2,
+  },
+  cashbackIndicator: {
+    fontSize: 12,
+    color: '#4CAF50',
     marginTop: 2,
   },
   addTransactionForm: {
@@ -592,32 +659,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
-});
-
-const pickerSelectStyles = StyleSheet.create({
-  inputIOS: {
-    fontSize: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    borderWidth: 1,
-    borderColor: 'gray',
-    borderRadius: 4,
-    color: 'black',
-    paddingRight: 30,
-    backgroundColor: '#fff',
-    marginBottom: 20,
-  },
-  inputAndroid: {
-    fontSize: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderWidth: 0.5,
-    borderColor: 'gray',
-    borderRadius: 8,
-    color: 'black',
-    paddingRight: 30,
-    backgroundColor: '#fff',
-    marginBottom: 20,
+  picker: {
+    height: 50,
+    width: '100%',
+    marginBottom: 10,
   },
 });
 

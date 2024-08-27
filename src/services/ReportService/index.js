@@ -1,4 +1,4 @@
-import { getTransactions, getBudgetGoals, getCreditCards } from '../FirebaseService';
+import { getTransactions, getBudgetGoals, getCreditCards, getLoans } from '../FirebaseService';
 import * as summaryReports from './summaryReports';
 import * as categoryReports from './categoryReports';
 import * as budgetReports from './budgetReports';
@@ -16,10 +16,11 @@ import { generateBalanceSheetReport } from './balanceSheetReport';
 
 export const generateReport = async (reportType, startDate, endDate) => {
   try {
-    console.log('Fetching transactions, budget goals, and credit cards');
+    console.log('Fetching transactions, budget goals, credit cards, and loans');
     const transactions = await getTransactions();
     const budgetGoals = await getBudgetGoals();
     const creditCards = await getCreditCards();
+    const loans = await getLoans();
 
     const filteredTransactions = transactions.filter(t => {
       const transactionDate = new Date(t.date);
@@ -62,6 +63,10 @@ export const generateReport = async (reportType, startDate, endDate) => {
         return generateCategoryCreditCardUsage(filteredTransactions);
       case 'balance-sheet':
         return generateBalanceSheetReport(filteredTransactions, endDate);
+      case 'loan-payment-summary':
+        return generateLoanPaymentSummary(filteredTransactions, loans);
+      case 'cashback-summary':
+        return generateCashbackSummary(filteredTransactions, creditCards);
       default:
         throw new Error('Invalid report type');
     }
@@ -69,6 +74,44 @@ export const generateReport = async (reportType, startDate, endDate) => {
     console.error('Error generating report:', error);
     throw error;
   }
+};
+
+const generateLoanPaymentSummary = (transactions, loans) => {
+  const loanPayments = transactions.filter(t => t.isLoanPayment);
+  const summary = loans.map(loan => {
+    const payments = loanPayments.filter(t => t.loanId === loan.id);
+    const totalPaid = payments.reduce((sum, t) => sum + Number(t.amount), 0);
+    return {
+      loanName: loan.name,
+      initialAmount: loan.initialAmount,
+      currentBalance: loan.currentBalance,
+      totalPaid: totalPaid,
+      remainingBalance: loan.currentBalance - totalPaid,
+      payments: payments.map(p => ({
+        date: p.date,
+        amount: p.amount
+      }))
+    };
+  });
+  return summary;
+};
+
+const generateCashbackSummary = (transactions, creditCards) => {
+  const cashbackTransactions = transactions.filter(t => t.isCashback);
+  const summary = creditCards.map(card => {
+    const cardCashback = cashbackTransactions.filter(t => t.creditCardId === card.id);
+    const totalCashback = cardCashback.reduce((sum, t) => sum + Number(t.amount), 0);
+    return {
+      cardName: card.name,
+      totalCashback: totalCashback,
+      transactions: cardCashback.map(c => ({
+        date: c.date,
+        amount: c.amount,
+        description: c.description
+      }))
+    };
+  });
+  return summary;
 };
 
 export { exportReportToCSV };
