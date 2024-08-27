@@ -136,7 +136,7 @@ const YearlyBudgetScreen = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="black" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Yearly Budget</Text>
+        <Text style={styles.headerTitle}>Back to Monthly</Text>
       </View>
       <ScrollView style={styles.scrollView}>
         <View style={styles.yearSelector}>
@@ -170,6 +170,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginRight: 10,
+    marginLeft: 10,
   },
   headerTitle: {
     fontSize: 20,
