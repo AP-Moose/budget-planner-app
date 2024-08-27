@@ -16,17 +16,22 @@ const YearlyBudgetScreen = ({ navigation }) => {
 
   const loadYearlyBudget = async () => {
     setIsLoading(true);
-    const yearBudget = {};
-    for (let month = 1; month <= 12; month++) {
-      const goals = await getBudgetGoals(selectedYear, month);
-      yearBudget[month] = EXPENSE_CATEGORIES.reduce((acc, category) => {
-        const goal = goals.find(g => g.category === category) || { amount: '0', isRecurring: false };
-        acc[category] = goal;
-        return acc;
-      }, {});
+    try {
+      const yearGoals = await getBudgetGoals(selectedYear);
+      const yearBudget = {};
+      for (let month = 1; month <= 12; month++) {
+        yearBudget[month] = EXPENSE_CATEGORIES.reduce((acc, category) => {
+          const goal = yearGoals.find(g => g.month === month && g.category === category) || { amount: '0', isRecurring: false };
+          acc[category] = goal;
+          return acc;
+        }, {});
+      }
+      setYearlyBudget(yearBudget);
+    } catch (error) {
+      console.error('Error loading yearly budget:', error);
+    } finally {
+      setIsLoading(false);
     }
-    setYearlyBudget(yearBudget);
-    setTimeout(() => setIsLoading(false), 3000); // Ensure loader shows for at least 3 seconds
   };
 
   const handleUpdateGoal = async (month, category, amount, isRecurring) => {
