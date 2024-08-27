@@ -1,11 +1,11 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, Platform } from 'react-native';
-import { SwipeListView } from 'react-native-swipe-list-view';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, Platform, FlatList } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getTransactions, deleteTransaction, updateTransaction } from '../services/FirebaseService';
 import { getCategoryName, INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../utils/categories';
 import RNPickerSelect from 'react-native-picker-select';
+import { Ionicons } from '@expo/vector-icons';
 
 function CategoryDetailScreen({ route, navigation }) {
   const { category, type } = route.params;
@@ -13,6 +13,7 @@ function CategoryDetailScreen({ route, navigation }) {
   const [totalAmount, setTotalAmount] = useState(0);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const loadCategoryTransactions = useCallback(async () => {
     try {
@@ -35,14 +36,27 @@ function CategoryDetailScreen({ route, navigation }) {
   );
 
   const handleDeleteTransaction = async (transactionId) => {
-    try {
-      await deleteTransaction(transactionId);
-      Alert.alert('Success', 'Transaction deleted successfully');
-      loadCategoryTransactions();
-    } catch (error) {
-      console.error('Error deleting transaction:', error);
-      Alert.alert('Error', 'Failed to delete transaction. Please try again.');
-    }
+    Alert.alert(
+      "Confirm Delete",
+      "Are you sure you want to delete this transaction?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteTransaction(transactionId);
+              Alert.alert('Success', 'Transaction deleted successfully');
+              loadCategoryTransactions();
+            } catch (error) {
+              console.error('Error deleting transaction:', error);
+              Alert.alert('Error', 'Failed to delete transaction. Please try again.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleUpdateTransaction = async () => {
@@ -65,48 +79,64 @@ function CategoryDetailScreen({ route, navigation }) {
     setEditingTransaction({ ...editingTransaction, date: currentDate });
   };
 
-  const renderItem = (data) => (
-    <TouchableOpacity
-      style={styles.rowFront}
-      onPress={() => setEditingTransaction(data.item)}
-    >
-      <View style={styles.transactionInfo}>
-        <Text style={styles.transactionDate}>
-          {new Date(data.item.date).toLocaleDateString()}
-        </Text>
-        <Text style={styles.transactionDescription}>{data.item.description}</Text>
-      </View>
-      <Text style={[styles.transactionAmount, type === 'income' ? styles.incomeAmount : styles.expenseAmount]}>
-        {type === 'income' ? '+' : '-'}${data.item.amount.toFixed(2)}
-      </Text>
-    </TouchableOpacity>
-  );
+  const toggleEditMode = () => {
+    setIsEditMode(!isEditMode);
+  };
 
-  const renderHiddenItem = (data) => (
-    <View style={styles.rowBack}>
-      <TouchableOpacity
-        style={[styles.backRightBtn, styles.backRightBtnRight]}
-        onPress={() => handleDeleteTransaction(data.item.id)}
-      >
-        <Text style={styles.backTextWhite}>Delete</Text>
-      </TouchableOpacity>
+  const handleEditTransaction = (transaction) => {
+    setEditingTransaction(transaction);
+  };
+
+  const formatCurrency = (amount) => {
+    return `$${Math.abs(parseFloat(amount)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const renderItem = ({ item }) => (
+    <View style={[styles.rowFront, isEditMode ? styles.editModeItem : styles.viewModeItem]}>
+      <View style={styles.transactionInfo}>
+        <Text style={styles.transactionDate}>{new Date(item.date).toLocaleDateString()}</Text>
+        <Text style={styles.transactionDescription}>{item.description}</Text>
+      </View>
+      <View style={styles.amountAndEditContainer}>
+        <Text style={[styles.transactionAmount, type === 'income' ? styles.incomeAmount : styles.expenseAmount]}>
+          {type === 'income' ? '+' : '-'}{formatCurrency(item.amount)}
+        </Text>
+        {isEditMode && (
+          <View style={styles.editDeleteContainer}>
+            <TouchableOpacity 
+              onPress={() => handleEditTransaction(item)}
+              style={styles.iconContainer}
+            >
+              <Ionicons name="pencil" size={24} color="#2196F3" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => handleDeleteTransaction(item.id)}
+              style={styles.iconContainer}
+            >
+              <Ionicons name="trash-outline" size={24} color="#F44336" />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
     </View>
   );
 
   return (
     <View style={styles.container}>
-      <Text style={styles.categoryName}>{getCategoryName(category)}</Text>
+      <View style={styles.header}>
+        <Text style={styles.categoryName}>{getCategoryName(category)}</Text>
+      </View>
       <Text style={[styles.totalAmount, type === 'income' ? styles.incomeAmount : styles.expenseAmount]}>
-        Total: {type === 'income' ? '+' : '-'}${totalAmount.toFixed(2)}
+        Total: {type === 'income' ? '+' : '-'}{formatCurrency(totalAmount)}
       </Text>
-      <SwipeListView
+      <View style={styles.editModeButtonContainer}>
+        <TouchableOpacity style={styles.editModeButton} onPress={toggleEditMode}>
+          <Text style={styles.editModeButtonText}>{isEditMode ? 'Exit Edit Mode' : 'Enter Edit Mode'}</Text>
+        </TouchableOpacity>
+      </View>
+      <FlatList
         data={transactions}
         renderItem={renderItem}
-        renderHiddenItem={renderHiddenItem}
-        rightOpenValue={-75}
-        previewRowKey={'0'}
-        previewOpenValue={-40}
-        previewOpenDelay={3000}
         keyExtractor={(item) => item.id}
       />
       {editingTransaction && (
@@ -161,11 +191,33 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginTop: 20,
+  },
   categoryName: {
     fontSize: 24,
     fontWeight: 'bold',
-    margin: 20,
     color: '#333',
+  },
+  editModeButtonContainer: {
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  editModeButton: {
+    backgroundColor: '#2196F3',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 5,
+  },
+  editModeButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   totalAmount: {
     fontSize: 18,
@@ -187,30 +239,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 15,
-    height: 80,
+    minHeight: 80,
   },
-  rowBack: {
-    alignItems: 'center',
-    backgroundColor: '#DDD',
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingLeft: 15,
+  editModeItem: {
+    opacity: 1,
   },
-  backRightBtn: {
-    alignItems: 'center',
-    bottom: 0,
-    justifyContent: 'center',
-    position: 'absolute',
-    top: 0,
-    width: 75,
-  },
-  backRightBtnRight: {
-    backgroundColor: 'red',
-    right: 0,
-  },
-  backTextWhite: {
-    color: '#FFF',
+  viewModeItem: {
+    opacity: 0.8,
   },
   transactionInfo: {
     flex: 1,
@@ -224,9 +259,21 @@ const styles = StyleSheet.create({
     color: '#333',
     marginTop: 5,
   },
+  amountAndEditContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   transactionAmount: {
     fontSize: 16,
     fontWeight: 'bold',
+    marginRight: 10,
+  },
+  editDeleteContainer: {
+    flexDirection: 'row',
+  },
+  iconContainer: {
+    padding: 10,
+    marginLeft: 5,
   },
   editContainer: {
     position: 'absolute',
