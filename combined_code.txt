@@ -1,6 +1,1372 @@
+File: app.js
+
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import AppNavigator from './src/AppNavigator';
+import { MonthProvider } from './src/context/MonthContext';
+import { LogBox } from 'react-native';
+import { initializeApp } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
+import { firebaseConfig } from './src/config';
+
+LogBox.ignoreLogs(['AsyncStorage has been extracted from react-native core']);
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app);
+
+export default function App() {
+  return (
+    <MonthProvider>
+      <NavigationContainer>
+        <AppNavigator />
+      </NavigationContainer>
+    </MonthProvider>
+  );
+}
+
+File: src\AppNavigator.js
+
+import React, { useState, useEffect } from 'react';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createStackNavigator } from '@react-navigation/stack';
+import HomeScreen from './screens/HomeScreen';
+import CategoryScreen from './screens/CategoryScreen';
+import CategoryDetailScreen from './screens/CategoryDetailScreen';
+import BudgetGoalsScreen from './screens/BudgetGoalsScreen';
+import YearlyBudgetScreen from './screens/YearlyBudgetScreen';
+import LoginScreen from './screens/LoginScreen';
+import Header from './components/Header';
+import { Ionicons } from '@expo/vector-icons';
+import { getCurrentUser } from './services/FirebaseService';
+import ReportsScreen from './screens/ReportsScreen';
+import CreditCardScreen from './screens/CreditCardScreen';
+import UserProfileScreen from './screens/UserProfileScreen';
+
+const Tab = createBottomTabNavigator();
+const Stack = createStackNavigator();
+
+function HomeStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={({ route }) => ({
+        header: ({ navigation, options }) => {
+          return <Header title={options.title || route.name} />;
+        },
+      })}
+    >
+      <Stack.Screen 
+        name="Home" 
+        component={HomeScreen} 
+        options={{ title: 'Budget Planner' }} 
+      />
+      <Stack.Screen 
+        name="CategoryDetail" 
+        component={CategoryDetailScreen} 
+        options={({ route }) => ({ title: route.params.category })}
+      />
+    </Stack.Navigator>
+  );
+}
+
+function CategoriesStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={({ route }) => ({
+        header: ({ navigation, options }) => {
+          return <Header title={options.title || route.name} />;
+        },
+      })}
+    >
+      <Stack.Screen 
+        name="Categories" 
+        component={CategoryScreen} 
+        options={{ title: 'Categories' }} 
+      />
+      <Stack.Screen 
+        name="CategoryDetail" 
+        component={CategoryDetailScreen} 
+        options={({ route }) => ({ title: route.params.category })}
+      />
+    </Stack.Navigator>
+  );
+}
+
+function BudgetStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={({ route }) => ({
+        header: ({ navigation, options }) => {
+          return <Header title={options.title || route.name} />;
+        },
+      })}
+    >
+      <Stack.Screen 
+        name="BudgetGoals" 
+        component={BudgetGoalsScreen} 
+        options={{ title: 'Budget Goals' }} 
+      />
+      <Stack.Screen 
+        name="YearlyBudget" 
+        component={YearlyBudgetScreen} 
+        options={{ title: 'Yearly Budget' }} 
+      />
+    </Stack.Navigator>
+  );
+}
+
+function ReportsStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={({ route }) => ({
+        header: ({ navigation, options }) => {
+          return <Header title={options.title || route.name} />;
+        },
+      })}
+    >
+      <Stack.Screen 
+        name="Reports" 
+        component={ReportsScreen} 
+        options={{ title: 'Financial Reports' }} 
+      />
+    </Stack.Navigator>
+  );
+}
+
+function CreditCardStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={({ route }) => ({
+        header: ({ navigation, options }) => {
+          return <Header title={options.title || route.name} />;
+        },
+      })}
+    >
+      <Stack.Screen 
+        name="CreditCards" 
+        component={CreditCardScreen} 
+        options={{ title: 'Credit Cards' }} 
+      />
+    </Stack.Navigator>
+  );
+}
+
+function UserProfileStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={({ route }) => ({
+        header: ({ navigation, options }) => {
+          return <Header title={options.title || route.name} />;
+        },
+      })}
+    >
+      <Stack.Screen 
+        name="UserProfile" 
+        component={UserProfileScreen} 
+        options={{ title: 'User Profile' }} 
+      />
+    </Stack.Navigator>
+  );
+}
+
+function MainTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+
+          if (route.name === 'HomeTab') {
+            iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'CategoriesTab') {
+            iconName = focused ? 'list' : 'list-outline';
+          } else if (route.name === 'BudgetGoalsTab') {
+            iconName = focused ? 'flag' : 'flag-outline';
+          } else if (route.name === 'ReportsTab') {
+            iconName = focused ? 'bar-chart' : 'bar-chart-outline';
+          } else if (route.name === 'CreditCardsTab') {
+            iconName = focused ? 'card' : 'card-outline';
+          } else if (route.name === 'ProfileTab') {
+            iconName = focused ? 'person' : 'person-outline';
+          }
+
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+      })}
+    >
+      <Tab.Screen 
+        name="HomeTab" 
+        component={HomeStack} 
+        options={{ headerShown: false, title: 'Home' }} 
+      />
+      <Tab.Screen 
+        name="CategoriesTab" 
+        component={CategoriesStack}
+        options={{ headerShown: false, title: 'Categories' }}
+      />
+      <Tab.Screen 
+        name="BudgetGoalsTab" 
+        component={BudgetStack}
+        options={{ headerShown: false, title: 'Goals' }}
+      />
+      <Tab.Screen
+        name="ReportsTab"
+        component={ReportsStack}
+        options={{ headerShown: false, title: 'Reports' }}
+      />
+      <Tab.Screen
+        name="CreditCardsTab"
+        component={CreditCardStack}
+        options={{ headerShown: false, title: 'Credit Cards' }}
+      />
+      <Tab.Screen
+        name="ProfileTab"
+        component={UserProfileStack}
+        options={{ headerShown: false, title: 'Profile' }}
+      />
+    </Tab.Navigator>
+  );
+}
+
+function AuthStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Login" component={LoginScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function AppNavigator() {
+  const [user, setUser] = useState(null);
+  const [initializing, setInitializing] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = getCurrentUser((user) => {
+      setUser(user);
+      if (initializing) setInitializing(false);
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  if (initializing) {
+    // You might want to show a loading screen here
+    return null;
+  }
+
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {user ? (
+        <Stack.Screen name="Main" component={MainTabs} />
+      ) : (
+        <Stack.Screen name="Auth" component={AuthStack} />
+      )}
+    </Stack.Navigator>
+  );
+}
+
+export default AppNavigator;
+
+File: src\components\BalanceSheetView.js
+
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+
+const BalanceSheetView = ({ reportData }) => {
+  const formatCurrency = (amount) => {
+    return `$${amount.toFixed(2)}`;
+  };
+
+  const renderAssetSection = () => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Assets</Text>
+      <View style={styles.row}>
+        <Text style={styles.label}>Cash:</Text>
+        <Text style={styles.value}>{formatCurrency(reportData.assets.cash)}</Text>
+      </View>
+      <Text style={styles.subSectionTitle}>Investments</Text>
+      {Object.entries(reportData.assets.investments).map(([name, value]) => (
+        <View key={name} style={styles.row}>
+          <Text style={styles.label}>{name}:</Text>
+          <Text style={styles.value}>{formatCurrency(value)}</Text>
+        </View>
+      ))}
+      <View style={[styles.row, styles.total]}>
+        <Text style={styles.label}>Total Assets:</Text>
+        <Text style={styles.value}>{formatCurrency(reportData.assets.total)}</Text>
+      </View>
+    </View>
+  );
+
+  const renderLiabilitySection = () => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Liabilities</Text>
+      <Text style={styles.subSectionTitle}>Credit Cards</Text>
+      {Object.entries(reportData.liabilities.creditCards).map(([name, balance]) => (
+        <View key={name} style={styles.row}>
+          <Text style={styles.label}>{name}:</Text>
+          <Text style={styles.value}>{formatCurrency(balance)}</Text>
+        </View>
+      ))}
+      <Text style={styles.subSectionTitle}>Loans</Text>
+      {Object.entries(reportData.liabilities.loans).map(([name, balance]) => (
+        <View key={name} style={styles.row}>
+          <Text style={styles.label}>{name}:</Text>
+          <Text style={styles.value}>{formatCurrency(balance)}</Text>
+        </View>
+      ))}
+      <View style={[styles.row, styles.total]}>
+        <Text style={styles.label}>Total Liabilities:</Text>
+        <Text style={styles.value}>{formatCurrency(reportData.liabilities.total)}</Text>
+      </View>
+    </View>
+  );
+
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>Balance Sheet</Text>
+      <Text style={styles.date}>As of: {new Date(reportData.asOfDate).toLocaleDateString()}</Text>
+      {renderAssetSection()}
+      {renderLiabilitySection()}
+      <View style={[styles.row, styles.netWorth]}>
+        <Text style={styles.label}>Net Worth:</Text>
+        <Text style={styles.value}>{formatCurrency(reportData.netWorth)}</Text>
+      </View>
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  date: {
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  subSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  label: {
+    fontSize: 16,
+  },
+  value: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  total: {
+    borderTopWidth: 1,
+    borderTopColor: '#ccc',
+    paddingTop: 8,
+    marginTop: 8,
+  },
+  netWorth: {
+    borderTopWidth: 2,
+    borderTopColor: '#000',
+    paddingTop: 16,
+    marginTop: 16,
+  },
+});
+
+export default BalanceSheetView;
+
+File: src\components\CategorySummary.js
+
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { EXPENSE_CATEGORIES, getCategoryName } from '../utils/categories';
+
+function CategorySummary({ transactions }) {
+  const categorySums = transactions.reduce((acc, transaction) => {
+    if (transaction.type === 'expense') {
+      acc[transaction.category] = (acc[transaction.category] || 0) + transaction.amount;
+    }
+    return acc;
+  }, {});
+
+  const totalExpenses = Object.values(categorySums).reduce((sum, amount) => sum + amount, 0);
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Category Summary</Text>
+      <Text style={styles.totalExpenses}>Total Expenses: ${totalExpenses.toFixed(2)}</Text>
+      {EXPENSE_CATEGORIES.map((category) => {
+        const amount = categorySums[category] || 0;
+        const percentage = totalExpenses > 0 ? (amount / totalExpenses) * 100 : 0;
+        return (
+          <View key={category} style={styles.categoryItem}>
+            <Text style={styles.categoryName}>{getCategoryName(category)}</Text>
+            <View style={styles.amountContainer}>
+              <Text style={styles.categoryAmount}>${amount.toFixed(2)}</Text>
+              <Text style={styles.categoryPercentage}>({percentage.toFixed(1)}%)</Text>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 15,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  totalExpenses: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 15,
+    color: '#F44336',
+  },
+  categoryItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  categoryName: {
+    fontSize: 14,
+    flex: 1,
+  },
+  amountContainer: {
+    alignItems: 'flex-end',
+  },
+  categoryAmount: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  categoryPercentage: {
+    fontSize: 12,
+    color: '#666',
+  },
+});
+
+export default CategorySummary;
+
+File: src\components\CSVUpload.js
+
+import React, { useState } from 'react';
+import { View, Text, Alert, StyleSheet, TextInput, Modal, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
+import Papa from 'papaparse';
+import { addTransaction, getTransactions, getCreditCards, addCreditCard } from '../services/FirebaseService';
+import { ALL_CATEGORIES } from '../utils/categories';
+
+const CSVUpload = ({ onTransactionsUpdate }) => {
+  const [importStatus, setImportStatus] = useState('');
+  const [csvText, setCsvText] = useState('');
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleManualImport = async () => {
+    console.log('Starting manual CSV import');
+    setIsLoading(true);
+    try {
+      await processCSVData(csvText);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const processCSVData = (data) => {
+    console.log('Processing CSV data');
+    return new Promise((resolve, reject) => {
+      Papa.parse(data, {
+        header: true,
+        skipEmptyLines: 'greedy',
+        complete: async (results) => {
+          console.log('CSV Parsing complete:', results);
+          try {
+            const validData = await validateAndPrepareCSVData(results.data);
+            console.log('Valid data:', validData);
+            if (validData.length > 0) {
+              await importTransactions(validData);
+              setImportStatus('Import successful!');
+              setCsvText('');  // Clear the input after successful import
+              onTransactionsUpdate();
+              Alert.alert('Success', `Successfully imported ${validData.length} transactions.`);
+            } else {
+              setImportStatus('No valid data to import.');
+              Alert.alert('Import Failed', 'No valid data found in the CSV. Please check the file format.');
+            }
+            resolve();
+          } catch (error) {
+            console.error('Error processing CSV data:', error);
+            setImportStatus('Error processing CSV data.');
+            Alert.alert('Error', `Failed to process CSV data: ${error.message}`);
+            reject(error);
+          }
+        },
+        error: (error) => {
+          console.error('CSV Parsing Error:', error);
+          setImportStatus('Error parsing CSV file.');
+          Alert.alert('Error', 'Failed to parse CSV file. Please check the file format.');
+          reject(error);
+        }
+      });
+    });
+  };
+
+  const validateAndPrepareCSVData = async (data) => {
+    console.log('Validating and preparing CSV data');
+    const creditCards = await getCreditCards();
+    const creditCardMap = new Map(creditCards.map(card => [card.name.toLowerCase(), card.id]));
+
+    const validatedData = [];
+    for (let index = 0; index < data.length; index++) {
+      const row = data[index];
+      console.log(`Processing row ${index}:`, row);
+      if (
+        row.amount && !isNaN(parseFloat(row.amount)) &&
+        row.category && ALL_CATEGORIES.includes(row.category) &&
+        row.date && /^\d{4}-\d{2}-\d{2}$/.test(row.date) &&
+        row.description &&
+        row.type && ['expense', 'income'].includes(row.type.toLowerCase())
+      ) {
+        let creditCard = row.creditCard?.toLowerCase() === 'yes';
+        let creditCardId = null;
+        let isCardPayment = row.isCardPayment?.toLowerCase() === 'yes';
+
+        if (creditCard && row.creditCardName) {
+          const cardName = row.creditCardName.toLowerCase();
+          if (creditCardMap.has(cardName)) {
+            creditCardId = creditCardMap.get(cardName);
+          } else {
+            try {
+              const newCardId = await addCreditCard({
+                name: row.creditCardName,
+                limit: 0,  // Default values, update as needed
+                startingBalance: 0
+              });
+              creditCardMap.set(cardName, newCardId);
+              creditCardId = newCardId;
+            } catch (error) {
+              console.error(`Error adding new credit card ${row.creditCardName}:`, error);
+              throw new Error(`Failed to add new credit card ${row.creditCardName}: ${error.message}`);
+            }
+          }
+        }
+
+        // Create a Date object set to 8pm UTC-4 (midnight UTC) on the given date
+        const [year, month, day] = row.date.split('-').map(Number);
+        const adjustedDate = new Date(Date.UTC(year, month - 1, day, 4, 0, 0));
+
+        console.log(`Row ${index} - Original date: ${row.date}, Adjusted date: ${adjustedDate.toISOString()}`);
+
+        validatedData.push({
+          amount: parseFloat(row.amount),
+          category: row.category,
+          date: adjustedDate,
+          description: row.description,
+          type: row.type.toLowerCase(),
+          creditCard,
+          creditCardId,
+          isCardPayment
+        });
+      } else {
+        console.log(`Invalid row ${index}:`, row);
+      }
+    }
+
+    return validatedData;
+  };
+
+  const importTransactions = async (transactions) => {
+    console.log('Importing transactions');
+    try {
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const transaction of transactions) {
+        try {
+          console.log('Attempting to add transaction:', JSON.stringify(transaction));
+          await addTransaction(transaction);
+          console.log('Transaction added successfully');
+          successCount++;
+        } catch (error) {
+          console.error('Error adding transaction:', error);
+          console.error('Transaction that failed:', JSON.stringify(transaction));
+          failCount++;
+        }
+      }
+
+      console.log(`Import complete. ${successCount} added, ${failCount} failed.`);
+      setImportStatus(`Import complete. ${successCount} added, ${failCount} failed.`);
+      onTransactionsUpdate();
+    } catch (error) {
+      console.error('Error importing transactions:', error);
+      setImportStatus('Error importing transactions. Please try again.');
+      Alert.alert('Error', `Failed to import transactions: ${error.message}`);
+    }
+  };
+  
+  const exportTransactions = async () => {
+    try {
+      const transactions = await getTransactions();
+      const csv = Papa.unparse(transactions);
+      const csvUri = FileSystem.documentDirectory + 'transactions.csv';
+      await FileSystem.writeAsStringAsync(csvUri, csv);
+      await Sharing.shareAsync(csvUri);
+    } catch (error) {
+      console.error('Error exporting transactions:', error);
+      Alert.alert('Error', 'Failed to export transactions. Please try again.');
+    }
+  };
+
+  const exportSampleCSV = async () => {
+    const sampleData = [
+      { amount: '1000', category: 'Salary', date: '2024-08-01', description: 'Monthly salary', type: 'income', creditCard: 'No', creditCardName: '', isCardPayment: 'No' },
+      { amount: '50', category: 'Groceries', date: '2024-08-02', description: 'Weekly groceries', type: 'expense', creditCard: 'Yes', creditCardName: 'Apple Card', isCardPayment: 'No' },
+      { amount: '30', category: 'Dining Out/Takeaway', date: '2024-08-03', description: 'Lunch with colleagues', type: 'expense', creditCard: 'No', creditCardName: '', isCardPayment: 'No' },
+      { amount: '500', category: 'Debt Payment', date: '2024-08-05', description: 'Credit card payment', type: 'expense', creditCard: 'Yes', creditCardName: 'Apple Card', isCardPayment: 'Yes' },
+    ];
+
+    const csv = Papa.unparse(sampleData);
+    const csvUri = FileSystem.documentDirectory + 'sample_transactions.csv';
+
+    try {
+      await FileSystem.writeAsStringAsync(csvUri, csv);
+      await Sharing.shareAsync(csvUri);
+    } catch (error) {
+      console.error('Error exporting sample CSV:', error);
+      Alert.alert('Error', 'Failed to export sample CSV. Please try again.');
+    }
+  };
+
+  const handleImportExport = () => {
+    Alert.alert(
+      "Import/Export",
+      "Choose an action",
+      [
+        {
+          text: "Import",
+          onPress: () => setIsModalVisible(true)
+        },
+        {
+          text: "Export",
+          onPress: exportTransactions
+        },
+        {
+          text: "Cancel",
+          style: "cancel"
+        }
+      ]
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <TouchableOpacity style={styles.button} onPress={handleImportExport}>
+        <Text style={styles.buttonText}>Import/Export</Text>
+      </TouchableOpacity>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isModalVisible}
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        <View style={styles.modalView}>
+          <ScrollView style={styles.modalScrollView}>
+            <Text style={styles.modalTitle}>Import CSV</Text>
+            <TextInput
+              style={styles.input}
+              multiline
+              numberOfLines={6}
+              onChangeText={setCsvText}
+              value={csvText}
+              placeholder="Paste CSV here..."
+              placeholderTextColor="#999"
+              editable={!isLoading}
+            />
+            <TouchableOpacity 
+              style={[styles.button, isLoading && styles.disabledButton]} 
+              onPress={handleManualImport}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text style={styles.buttonText}>Import</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={exportSampleCSV}>
+              <Text style={styles.buttonText}>Export Sample CSV</Text>
+            </TouchableOpacity>
+            <Text style={styles.instructionsTitle}>Instructions:</Text>
+            <Text style={styles.instructions}>
+              1. Ensure your CSV file has these columns:{'\n'}
+                 amount, category, date, description, type, creditCard, creditCardName, isCardPayment{'\n\n'}
+              2. Valid categories are:{'\n'}
+                 {ALL_CATEGORIES.join(', ')}{'\n\n'}
+              3. Date should be in YYYY-MM-DD format{'\n\n'}
+              4. Type should be either 'income' or 'expense'{'\n\n'}
+              5. Credit Card should be 'Yes' or 'No' (or left blank for 'No'){'\n\n'}
+              6. CreditCardName should be the name of the credit card (if Credit Card is 'Yes'){'\n\n'}
+              7. IsCardPayment should be 'Yes' for credit card payments, 'No' otherwise{'\n\n'}
+              8. Avoid using commas in description{'\n\n'}
+              9. Export a sample CSV to see the correct format
+            </Text>
+            <TouchableOpacity style={styles.closeButton} onPress={() => setIsModalVisible(false)}>
+              <Text style={styles.buttonText}>Close</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    marginVertical: 5,
+  },
+  button: {
+    backgroundColor: '#4CAF50',
+    padding: 10,
+    borderRadius: 5,
+  },
+  buttonText: {
+    color: '#fff',
+    textAlign: 'center',
+  },
+  modalView: {
+    flex: 1,
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 35,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5
+  },
+  modalScrollView: {
+    flex: 1,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  input: {
+    height: 120,
+    borderColor: 'gray',
+    borderWidth: 1,
+    marginTop: 10,
+    marginBottom: 10,
+    padding: 10,
+    width: '100%',
+    textAlignVertical: 'top',
+  },
+  instructionsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  instructions: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'left',
+  },
+  closeButton: {
+    backgroundColor: '#f44336',
+    padding: 10,
+    borderRadius: 5,
+    marginTop: 20,
+  },
+  disabledButton: {
+    backgroundColor: '#A9A9A9',
+  },
+});
+
+export default CSVUpload;
+
+File: src\components\Dashboards\HomeDashboard.js
+
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { getTransactions } from '../../services/FirebaseService';
+import { useMonth } from '../../context/MonthContext';
+import { categorizeTransactions, calculateTotals } from '../../utils/reportUtils';
+
+const HomeDashboard = () => {
+  const { currentMonth } = useMonth();
+  const [dashboardData, setDashboardData] = useState({
+    totalIncome: 0,
+    totalExpenses: 0,
+    totalCashOutflow: 0,
+    netCashFlow: 0,
+    creditCardPurchases: 0,
+    creditCardPayments: 0,
+  });
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [currentMonth]);
+
+  const loadDashboardData = async () => {
+    try {
+      const transactions = await getTransactions();
+      const currentMonthTransactions = transactions.filter(t => {
+        const transactionDate = new Date(t.date);
+        return (
+          transactionDate.getMonth() === currentMonth.getMonth() &&
+          transactionDate.getFullYear() === currentMonth.getFullYear()
+        );
+      });
+
+      const categorizedTransactions = categorizeTransactions(currentMonthTransactions);
+      const totals = calculateTotals(categorizedTransactions);
+
+      const totalIncome = totals.totalRegularIncome + totals.totalCreditCardIncome;
+      const totalExpenses = totals.totalRegularExpenses + totals.totalCreditCardPurchases;
+      const totalCashOutflow = totals.totalRegularExpenses + totals.totalCreditCardPayments;
+
+      const netCashFlow = totalIncome - totalCashOutflow;
+
+      setDashboardData({
+        totalIncome,
+        totalExpenses,
+        totalCashOutflow,
+        netCashFlow,
+        creditCardPurchases: totals.totalCreditCardPurchases,
+        creditCardPayments: totals.totalCreditCardPayments,
+      });
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    }
+  };
+
+  const formatCurrency = (amount) => {
+    return `$${Math.abs(amount).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
+
+  const getCashFlowColor = (amount) => {
+    if (amount > 0) return 'green';
+    if (amount < 0) return 'red';
+    return 'gray';
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.box}>
+        <Text style={styles.boxTitle}>Monthly Financial Overview</Text>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Total Income:</Text>
+          <Text style={styles.value}>{formatCurrency(dashboardData.totalIncome)}</Text>
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Total Expenses:</Text>
+          <Text style={styles.value}>{formatCurrency(dashboardData.totalExpenses)}</Text>
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Total Cash Outflow:</Text>
+          <Text style={styles.value}>{formatCurrency(dashboardData.totalCashOutflow)}</Text>
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Credit Card Purchases:</Text>
+          <Text style={styles.value}>{formatCurrency(dashboardData.creditCardPurchases)}</Text>
+        </View>
+
+        <View style={styles.row}>
+          <Text style={styles.label}>Credit Card Payments:</Text>
+          <Text style={styles.value}>{formatCurrency(dashboardData.creditCardPayments)}</Text>
+        </View>
+
+        <Text
+          style={[
+            styles.cashFlowMessage,
+            { color: getCashFlowColor(dashboardData.netCashFlow) },
+          ]}
+        >
+          {dashboardData.netCashFlow > 0
+            ? `Positive cash flow: ${formatCurrency(dashboardData.netCashFlow)}`
+            : `Negative cash flow: ${formatCurrency(dashboardData.netCashFlow)}`}
+        </Text>
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#f0f0f0',
+    padding: 10,
+    borderRadius: 10,
+    margin: 10,
+  },
+  box: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  boxTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 10,
+    color: '#333',
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    paddingBottom: 5,
+  },
+  label: {
+    fontSize: 16,
+    color: '#555',
+  },
+  value: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  cashFlowMessage: {
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 15,
+    color: '#777',
+  },
+});
+
+export default HomeDashboard;
 
 
-// File: D:\Coding Projects\budget-planner-app\src\screens\BudgetGoalsScreen.js
+File: src\components\Header.js
+
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+
+function Header({ title }) {
+  return (
+    <View style={styles.header}>
+      <Text style={styles.headerText}>{title}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  header: {
+    backgroundColor: '#f8f8f8',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    alignItems: 'center',
+  },
+  headerText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+});
+
+export default Header;
+
+File: src\components\MonthNavigator.js
+
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Picker } from '@react-native-picker/picker';
+
+function MonthNavigator({ currentMonth, setCurrentMonth }) {
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth.getMonth());
+  const [selectedYear, setSelectedYear] = useState(currentMonth.getFullYear());
+
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const navigateMonth = (direction) => {
+    const newDate = new Date(currentMonth);
+    newDate.setMonth(newDate.getMonth() + direction);
+    setCurrentMonth(newDate);
+  };
+
+  const handleSelectMonth = () => {
+    const newDate = new Date(selectedYear, selectedMonth);
+    setCurrentMonth(newDate);
+    setIsModalVisible(false);
+  };
+
+  const isCurrentMonth = currentMonth.getMonth() === new Date().getMonth() && currentMonth.getFullYear() === new Date().getFullYear();
+
+  return (
+    <View style={styles.container}>
+      <TouchableOpacity onPress={() => navigateMonth(-1)}>
+        <Ionicons name="chevron-back" size={24} color="black" />
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => setIsModalVisible(true)}>
+        <Text style={styles.currentMonth}>
+          {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => navigateMonth(1)}>
+        <Ionicons name="chevron-forward" size={24} color="black" />
+      </TouchableOpacity>
+
+      {!isCurrentMonth && (
+        <TouchableOpacity style={styles.currentMonthButton} onPress={() => setCurrentMonth(new Date())}>
+          <Text style={styles.buttonText}>Return to {new Date().toLocaleString('default', { month: 'long' })}</Text>
+        </TouchableOpacity>
+      )}
+
+      <Modal visible={isModalVisible} transparent={true} animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Month and Year</Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={selectedMonth}
+                onValueChange={(itemValue) => setSelectedMonth(itemValue)}
+                style={[styles.picker, { flex: 1 }]}
+              >
+                {months.map((month, index) => (
+                  <Picker.Item label={month} value={index} key={index} />
+                ))}
+              </Picker>
+              <Picker
+                selectedValue={selectedYear}
+                onValueChange={(itemValue) => setSelectedYear(itemValue)}
+                style={[styles.picker, { flex: 1 }]}
+              >
+                {[...Array(20)].map((_, index) => {
+                  const year = new Date().getFullYear() - 10 + index;
+                  return <Picker.Item label={year.toString()} value={year} key={index} />;
+                })}
+              </Picker>
+            </View>
+            <View style={styles.buttonRow}>
+              <TouchableOpacity style={[styles.modalButton, styles.doneButton]} onPress={handleSelectMonth}>
+                <Text style={styles.modalButtonText}>Done</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setIsModalVisible(false)}>
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#e0e0e0',
+    marginTop: 10,
+  },
+  currentMonth: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  currentMonthButton: {
+    backgroundColor: '#4CAF50',
+    padding: 5,
+    borderRadius: 5,
+    marginLeft: 10,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    width: 300,
+    padding: 20,
+    backgroundColor: 'white',
+    borderRadius: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  pickerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  picker: {
+    width: '100%',
+    height: 150,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 5,
+  },
+  doneButton: {
+    backgroundColor: '#4CAF50',
+  },
+  cancelButton: {
+    backgroundColor: '#F44336',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+});
+
+export default MonthNavigator;
+
+
+File: src\components\SearchBar.js
+
+import React from 'react';
+import { View, TextInput, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
+const SearchBar = ({ value, onChangeText, placeholder }) => {
+  return (
+    <View style={styles.container}>
+      <Ionicons name="search" size={20} color="#888" style={styles.icon} />
+      <TextInput
+        style={styles.input}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor="#888"
+      />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    marginHorizontal: 15,
+    marginVertical: 10,
+  },
+  icon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    height: 40,
+    fontSize: 16,
+  },
+});
+
+export default SearchBar;
+
+File: src\components\TransactionList.js
+
+import React from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import { getCategoryName } from '../utils/categories';
+
+function TransactionList({ transactions, onTransactionPress }) {
+  const renderItem = ({ item }) => (
+    <TouchableOpacity 
+      style={styles.transactionItem} 
+      onPress={() => onTransactionPress(item)}
+    >
+      <View style={styles.transactionInfo}>
+        <Text style={styles.description}>{item.description}</Text>
+        <Text style={styles.category}>{getCategoryName(item.category)}</Text>
+      </View>
+      <View style={styles.amountContainer}>
+        <Text style={[styles.amount, item.type === 'income' ? styles.income : styles.expense]}>
+          ${item.amount.toFixed(2)}
+        </Text>
+        <Text style={styles.date}>{new Date(item.date).toLocaleDateString()}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  return (
+    <View style={styles.container}>
+      {transactions.length === 0 ? (
+        <Text style={styles.noTransactions}>No transactions to display.</Text>
+      ) : (
+        <FlatList
+          data={transactions}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+        />
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    marginLeft: 15,
+    color: '#333',
+  },
+  listContent: {
+    paddingHorizontal: 15,
+  },
+  transactionItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.22,
+    shadowRadius: 2.22,
+  },
+  transactionInfo: {
+    flex: 1,
+  },
+  description: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+    marginBottom: 4,
+  },
+  category: {
+    fontSize: 14,
+    color: '#666',
+  },
+  amountContainer: {
+    alignItems: 'flex-end',
+  },
+  amount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  income: {
+    color: '#4CAF50',
+  },
+  expense: {
+    color: '#F44336',
+  },
+  date: {
+    fontSize: 12,
+    color: '#888',
+  },
+  noTransactions: {
+    textAlign: 'center',
+    marginTop: 20,
+    fontSize: 16,
+    color: '#666',
+  },
+});
+
+export default TransactionList;
+
+File: src\config.js
+
+// Your web app's Firebase configuration
+export const firebaseConfig = {
+  apiKey: "AIzaSyDwm8smy8I5qC5MbIVBO2_jfMq9TluT_SM",
+  authDomain: "budget-planner-app-ef6f8.firebaseapp.com",
+  projectId: "budget-planner-app-ef6f8",
+  storageBucket: "budget-planner-app-ef6f8.appspot.com",
+  messagingSenderId: "194347746415",
+  appId: "1:194347746415:web:537dcb441d442cb6eff99a",
+  measurementId: "G-LW09PSZD4N"
+};
+
+File: src\context\MonthContext.js
+
+import React, { createContext, useState, useContext } from 'react';
+
+const MonthContext = createContext();
+
+export const MonthProvider = ({ children }) => {
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  return (
+    <MonthContext.Provider value={{ currentMonth, setCurrentMonth }}>
+      {children}
+    </MonthContext.Provider>
+  );
+};
+
+export const useMonth = () => useContext(MonthContext);
+
+File: src\screens\BudgetGoalsScreen.js
+
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, Switch, Modal, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -455,15 +1821,16 @@ const styles = StyleSheet.create({
 export default BudgetGoalsScreen;
 
 
-// File: D:\Coding Projects\budget-planner-app\src\screens\CategoryDetailScreen.js
+File: src\screens\CategoryDetailScreen.js
+
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, Platform } from 'react-native';
-import { SwipeListView } from 'react-native-swipe-list-view';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, Platform, FlatList } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getTransactions, deleteTransaction, updateTransaction } from '../services/FirebaseService';
 import { getCategoryName, INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../utils/categories';
 import RNPickerSelect from 'react-native-picker-select';
+import { Ionicons } from '@expo/vector-icons';
 
 function CategoryDetailScreen({ route, navigation }) {
   const { category, type } = route.params;
@@ -471,6 +1838,7 @@ function CategoryDetailScreen({ route, navigation }) {
   const [totalAmount, setTotalAmount] = useState(0);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const loadCategoryTransactions = useCallback(async () => {
     try {
@@ -493,14 +1861,27 @@ function CategoryDetailScreen({ route, navigation }) {
   );
 
   const handleDeleteTransaction = async (transactionId) => {
-    try {
-      await deleteTransaction(transactionId);
-      Alert.alert('Success', 'Transaction deleted successfully');
-      loadCategoryTransactions();
-    } catch (error) {
-      console.error('Error deleting transaction:', error);
-      Alert.alert('Error', 'Failed to delete transaction. Please try again.');
-    }
+    Alert.alert(
+      "Confirm Delete",
+      "Are you sure you want to delete this transaction?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteTransaction(transactionId);
+              Alert.alert('Success', 'Transaction deleted successfully');
+              loadCategoryTransactions();
+            } catch (error) {
+              console.error('Error deleting transaction:', error);
+              Alert.alert('Error', 'Failed to delete transaction. Please try again.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleUpdateTransaction = async () => {
@@ -523,48 +1904,64 @@ function CategoryDetailScreen({ route, navigation }) {
     setEditingTransaction({ ...editingTransaction, date: currentDate });
   };
 
-  const renderItem = (data) => (
-    <TouchableOpacity
-      style={styles.rowFront}
-      onPress={() => setEditingTransaction(data.item)}
-    >
-      <View style={styles.transactionInfo}>
-        <Text style={styles.transactionDate}>
-          {new Date(data.item.date).toLocaleDateString()}
-        </Text>
-        <Text style={styles.transactionDescription}>{data.item.description}</Text>
-      </View>
-      <Text style={[styles.transactionAmount, type === 'income' ? styles.incomeAmount : styles.expenseAmount]}>
-        {type === 'income' ? '+' : '-'}${data.item.amount.toFixed(2)}
-      </Text>
-    </TouchableOpacity>
-  );
+  const toggleEditMode = () => {
+    setIsEditMode(!isEditMode);
+  };
 
-  const renderHiddenItem = (data) => (
-    <View style={styles.rowBack}>
-      <TouchableOpacity
-        style={[styles.backRightBtn, styles.backRightBtnRight]}
-        onPress={() => handleDeleteTransaction(data.item.id)}
-      >
-        <Text style={styles.backTextWhite}>Delete</Text>
-      </TouchableOpacity>
+  const handleEditTransaction = (transaction) => {
+    setEditingTransaction(transaction);
+  };
+
+  const formatCurrency = (amount) => {
+    return `$${Math.abs(parseFloat(amount)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const renderItem = ({ item }) => (
+    <View style={[styles.rowFront, isEditMode ? styles.editModeItem : styles.viewModeItem]}>
+      <View style={styles.transactionInfo}>
+        <Text style={styles.transactionDate}>{new Date(item.date).toLocaleDateString()}</Text>
+        <Text style={styles.transactionDescription}>{item.description}</Text>
+      </View>
+      <View style={styles.amountAndEditContainer}>
+        <Text style={[styles.transactionAmount, type === 'income' ? styles.incomeAmount : styles.expenseAmount]}>
+          {type === 'income' ? '+' : '-'}{formatCurrency(item.amount)}
+        </Text>
+        {isEditMode && (
+          <View style={styles.editDeleteContainer}>
+            <TouchableOpacity 
+              onPress={() => handleEditTransaction(item)}
+              style={styles.iconContainer}
+            >
+              <Ionicons name="pencil" size={24} color="#2196F3" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => handleDeleteTransaction(item.id)}
+              style={styles.iconContainer}
+            >
+              <Ionicons name="trash-outline" size={24} color="#F44336" />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
     </View>
   );
 
   return (
     <View style={styles.container}>
-      <Text style={styles.categoryName}>{getCategoryName(category)}</Text>
+      <View style={styles.header}>
+        <Text style={styles.categoryName}>{getCategoryName(category)}</Text>
+      </View>
       <Text style={[styles.totalAmount, type === 'income' ? styles.incomeAmount : styles.expenseAmount]}>
-        Total: {type === 'income' ? '+' : '-'}${totalAmount.toFixed(2)}
+        Total: {type === 'income' ? '+' : '-'}{formatCurrency(totalAmount)}
       </Text>
-      <SwipeListView
+      <View style={styles.editModeButtonContainer}>
+        <TouchableOpacity style={styles.editModeButton} onPress={toggleEditMode}>
+          <Text style={styles.editModeButtonText}>{isEditMode ? 'Exit Edit Mode' : 'Enter Edit Mode'}</Text>
+        </TouchableOpacity>
+      </View>
+      <FlatList
         data={transactions}
         renderItem={renderItem}
-        renderHiddenItem={renderHiddenItem}
-        rightOpenValue={-75}
-        previewRowKey={'0'}
-        previewOpenValue={-40}
-        previewOpenDelay={3000}
         keyExtractor={(item) => item.id}
       />
       {editingTransaction && (
@@ -619,11 +2016,33 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginTop: 20,
+  },
   categoryName: {
     fontSize: 24,
     fontWeight: 'bold',
-    margin: 20,
     color: '#333',
+  },
+  editModeButtonContainer: {
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  editModeButton: {
+    backgroundColor: '#2196F3',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 5,
+  },
+  editModeButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   totalAmount: {
     fontSize: 18,
@@ -645,30 +2064,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 15,
-    height: 80,
+    minHeight: 80,
   },
-  rowBack: {
-    alignItems: 'center',
-    backgroundColor: '#DDD',
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingLeft: 15,
+  editModeItem: {
+    opacity: 1,
   },
-  backRightBtn: {
-    alignItems: 'center',
-    bottom: 0,
-    justifyContent: 'center',
-    position: 'absolute',
-    top: 0,
-    width: 75,
-  },
-  backRightBtnRight: {
-    backgroundColor: 'red',
-    right: 0,
-  },
-  backTextWhite: {
-    color: '#FFF',
+  viewModeItem: {
+    opacity: 0.8,
   },
   transactionInfo: {
     flex: 1,
@@ -682,9 +2084,21 @@ const styles = StyleSheet.create({
     color: '#333',
     marginTop: 5,
   },
+  amountAndEditContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   transactionAmount: {
     fontSize: 16,
     fontWeight: 'bold',
+    marginRight: 10,
+  },
+  editDeleteContainer: {
+    flexDirection: 'row',
+  },
+  iconContainer: {
+    padding: 10,
+    marginLeft: 5,
   },
   editContainer: {
     position: 'absolute',
@@ -762,16 +2176,17 @@ const pickerSelectStyles = StyleSheet.create({
 
 export default CategoryDetailScreen;
 
-// File: D:\Coding Projects\budget-planner-app\src\screens\CategoryScreen.js
-import React, { useCallback, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+File: src\screens\CategoryScreen.js
+
+import React, { useCallback, useState, useEffect } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Dimensions, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getTransactions } from '../services/FirebaseService';
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCategoryName } from '../utils/categories';
+import { getCategoryName } from '../utils/categories';
 import { PieChart } from 'react-native-svg-charts';
 import { useMonth } from '../context/MonthContext';
-import { Ionicons } from '@expo/vector-icons';
-import MonthNavigator from '../components/MonthNavigator';  // Import the new component
+import MonthNavigator from '../components/MonthNavigator';
+import { categorizeTransactions, calculateTotals } from '../utils/reportUtils';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -782,35 +2197,35 @@ function CategoryScreen({ navigation }) {
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [totalIncome, setTotalIncome] = useState(0);
   const [activeTab, setActiveTab] = useState('expense');
+  const [pieChartData, setPieChartData] = useState([]);
 
   const loadTransactions = useCallback(async () => {
     try {
       const transactions = await getTransactions();
-      const filteredTransactions = transactions.filter(transaction => {
-        const transactionDate = new Date(transaction.date);
-        return transactionDate.getMonth() === currentMonth.getMonth() &&
-               transactionDate.getFullYear() === currentMonth.getFullYear();
-      });
-      
-      const expenseSums = {};
-      const incomeSums = {};
-      let expenseTotal = 0;
-      let incomeTotal = 0;
-
-      filteredTransactions.forEach(transaction => {
-        if (transaction.type === 'expense') {
-          expenseSums[transaction.category] = (expenseSums[transaction.category] || 0) + transaction.amount;
-          expenseTotal += transaction.amount;
-        } else if (transaction.type === 'income') {
-          incomeSums[transaction.category] = (incomeSums[transaction.category] || 0) + transaction.amount;
-          incomeTotal += transaction.amount;
-        }
+      const currentMonthTransactions = transactions.filter(t => {
+        const transactionDate = new Date(t.date);
+        return (
+          transactionDate.getMonth() === currentMonth.getMonth() &&
+          transactionDate.getFullYear() === currentMonth.getFullYear()
+        );
       });
 
-      setExpenseCategories(expenseSums);
-      setIncomeCategories(incomeSums);
-      setTotalExpenses(expenseTotal);
-      setTotalIncome(incomeTotal);
+      const categorizedTransactions = categorizeTransactions(currentMonthTransactions);
+      const totals = calculateTotals(categorizedTransactions);
+
+      const totalIncome = totals.totalRegularIncome + totals.totalCreditCardIncome;
+      const totalExpenses = totals.totalRegularExpenses + totals.totalCreditCardPurchases;
+
+      setExpenseCategories(categorizedTransactions.regularExpenses.reduce((acc, transaction) => {
+        acc[transaction.category] = (acc[transaction.category] || 0) + transaction.amount;
+        return acc;
+      }, {}));
+      setIncomeCategories(categorizedTransactions.regularIncome.reduce((acc, transaction) => {
+        acc[transaction.category] = (acc[transaction.category] || 0) + transaction.amount;
+        return acc;
+      }, {}));
+      setTotalExpenses(totalExpenses);
+      setTotalIncome(totalIncome);
     } catch (error) {
       console.error('Error loading transactions:', error);
     }
@@ -822,53 +2237,43 @@ function CategoryScreen({ navigation }) {
     }, [loadTransactions])
   );
 
-  const handleCategoryPress = (category, amount, type) => {
-    navigation.navigate('CategoryDetail', { category, amount, type });
-  };
+  useEffect(() => {
+    updatePieChartData();
+  }, [expenseCategories, incomeCategories, activeTab]);
 
-  const renderCategoryItem = (item, total, type) => {
-    const [categoryId, amount] = item;
-    const percentage = total > 0 ? (amount / total) * 100 : 0;
-    return (
-      <TouchableOpacity 
-        style={styles.categoryItem}
-        onPress={() => handleCategoryPress(categoryId, amount, type)}
-      >
-        <Text style={styles.categoryName}>{getCategoryName(categoryId)}</Text>
-        <View style={styles.amountContainer}>
-          <Text style={styles.categoryAmount}>${amount.toFixed(2)}</Text>
-          <Text style={styles.categoryPercentage}>({percentage.toFixed(1)}%)</Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  const renderCategories = () => {
-    const categories = activeTab === 'expense' ? expenseCategories : incomeCategories;
-    const total = activeTab === 'expense' ? totalExpenses : totalIncome;
-
-    return Object.entries(categories).map((category) => 
-      renderCategoryItem(category, total, activeTab)
-    );
-  };
-
-  const getChartData = () => {
+  const updatePieChartData = () => {
     const categories = activeTab === 'expense' ? expenseCategories : incomeCategories;
     const total = activeTab === 'expense' ? totalExpenses : totalIncome;
     const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'];
     
-    return Object.entries(categories).map(([categoryId, amount], index) => ({
-      key: categoryId,
+    const data = Object.entries(categories).map(([category, amount], index) => ({
+      key: category,
       value: amount,
       svg: { fill: colors[index % colors.length] },
       arc: { outerRadius: '100%', padAngle: 0.02 },
-      name: getCategoryName(categoryId),
+      name: getCategoryName(category),
       percentage: ((amount / total) * 100).toFixed(1)
     }));
+
+    setPieChartData(data);
   };
 
+  const renderCategoryItem = ({ item }) => (
+    <TouchableOpacity 
+      style={styles.categoryItem}
+      onPress={() => navigation.navigate('CategoryDetail', { category: item.key, amount: item.value, type: activeTab })}
+    >
+      <View style={[styles.categoryColor, { backgroundColor: item.svg.fill }]} />
+      <Text style={styles.categoryName}>{item.name}</Text>
+      <View style={styles.amountContainer}>
+        <Text style={styles.categoryAmount}>${item.value.toFixed(2)}</Text>
+        <Text style={styles.categoryPercentage}>({item.percentage}%)</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       <MonthNavigator currentMonth={currentMonth} setCurrentMonth={setCurrentMonth} />
       
       <View style={styles.tabContainer}>
@@ -895,25 +2300,19 @@ function CategoryScreen({ navigation }) {
       <View style={styles.chartContainer}>
         <PieChart
           style={{ height: 200, width: 200 }}
-          data={getChartData()}
+          data={pieChartData}
           innerRadius="50%"
           outerRadius="100%"
         />
       </View>
-      <View style={styles.legendContainer}>
-        {getChartData().map((item, index) => (
-          <View key={index} style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: item.svg.fill }]} />
-            <Text style={styles.legendText}>{item.name}</Text>
-          </View>
-        ))}
-      </View>
+
       <FlatList
-        data={renderCategories()}
-        renderItem={({ item }) => item}
-        keyExtractor={(item, index) => index.toString()}
+        data={pieChartData}
+        renderItem={renderCategoryItem}
+        keyExtractor={(item) => item.key}
+        scrollEnabled={false}
       />
-    </View>
+    </ScrollView>
   );
 }
 
@@ -954,21 +2353,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginVertical: 10,
   },
+  chartContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 20,
+  },
   categoryItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 8,
     padding: 15,
     marginHorizontal: 20,
-    marginVertical: 10,
+    marginVertical: 5,
+  },
+  categoryColor: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    marginRight: 10,
   },
   categoryName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
     flex: 1,
+    fontSize: 16,
+    color: '#333',
   },
   amountContainer: {
     alignItems: 'flex-end',
@@ -976,44 +2384,18 @@ const styles = StyleSheet.create({
   categoryAmount: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#F44336',
+    color: '#333',
   },
   categoryPercentage: {
     fontSize: 14,
     color: '#666',
   },
-  chartContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 20,
-  },
-  legendContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 10,
-    marginBottom: 5,
-  },
-  legendColor: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 5,
-  },
-  legendText: {
-    fontSize: 12,
-  },
 });
 
 export default CategoryScreen;
 
+File: src\screens\CreditCardScreen.js
 
-// File: D:\Coding Projects\budget-planner-app\src\screens\CreditCardScreen.js
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -1372,7 +2754,8 @@ const styles = StyleSheet.create({
 
 export default CreditCardScreen;
 
-// File: D:\Coding Projects\budget-planner-app\src\screens\HomeScreen.js
+File: src\screens\HomeScreen.js
+
 import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, KeyboardAvoidingView, Platform, ScrollView, Keyboard, Switch, FlatList } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -1998,7 +3381,8 @@ const pickerSelectStyles = StyleSheet.create({
 
 export default HomeScreen;
 
-// File: D:\Coding Projects\budget-planner-app\src\screens\LoginScreen.js
+File: src\screens\LoginScreen.js
+
 import React, { useState } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, Alert, Image, Text, KeyboardAvoidingView, Platform } from 'react-native';
 import { signIn, signUp, resetPassword } from '../services/FirebaseService';
@@ -2151,7 +3535,8 @@ const styles = StyleSheet.create({
 
 export default LoginScreen;
 
-// File: D:\Coding Projects\budget-planner-app\src\screens\ReportsScreen.js
+File: src\screens\ReportsScreen.js
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Modal } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -2178,6 +3563,7 @@ const ReportsScreen = () => {
         { label: 'Monthly Income vs Expense Summary', value: 'monthly-summary' },
         { label: 'Year-to-Date Financial Summary', value: 'ytd-summary' },
         { label: 'Custom Date Range Report', value: 'custom-range' },
+        { label: 'Balance Sheet', value: 'balance-sheet' },
       ]
     },
     {
@@ -2369,6 +3755,7 @@ const ReportsScreen = () => {
       'payment-history': withErrorHandling(renderPaymentHistory),
       'debt-reduction-projection': withErrorHandling(renderDebtReductionProjection),
       'category-credit-card-usage': withErrorHandling(renderCategoryCreditCardUsage),
+      'balance-sheet': withErrorHandling(renderBalanceSheet),
     };
 
     const renderFunction = renderFunctions[reportType];
@@ -2744,6 +4131,69 @@ const renderCategoryCreditCardUsage = (data) => (
   </View>
 );
 
+const renderBalanceSheet = (data) => (
+  <View style={styles.reportContainer}>
+    <Text style={styles.reportTitle}>Balance Sheet</Text>
+    <Text style={styles.reportSubtitle}>As of: {formatDate(data.asOfDate)}</Text>
+    
+    <Text style={styles.sectionTitle}>Assets</Text>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Cash:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.assets.cash)}</Text>
+    </View>
+    <Text style={styles.subSectionTitle}>Investments</Text>
+    {Object.entries(data.assets.investments).map(([name, value]) => (
+      <View key={name} style={styles.reportRow}>
+        <Text style={styles.reportLabel}>{name}:</Text>
+        <Text style={styles.reportValue}>{formatCurrency(value)}</Text>
+      </View>
+    ))}
+    <Text style={styles.subSectionTitle}>Other Assets</Text>
+    {Object.entries(data.assets.otherAssets).map(([name, value]) => (
+      <View key={name} style={styles.reportRow}>
+        <Text style={styles.reportLabel}>{name}:</Text>
+        <Text style={styles.reportValue}>{formatCurrency(value)}</Text>
+      </View>
+    ))}
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Total Assets:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.assets.total)}</Text>
+    </View>
+
+    <Text style={styles.sectionTitle}>Liabilities</Text>
+    <Text style={styles.subSectionTitle}>Credit Cards</Text>
+    {Object.entries(data.liabilities.creditCards).map(([name, value]) => (
+      <View key={name} style={styles.reportRow}>
+        <Text style={styles.reportLabel}>{name}:</Text>
+        <Text style={styles.reportValue}>{formatCurrency(value)}</Text>
+      </View>
+    ))}
+    <Text style={styles.subSectionTitle}>Loans</Text>
+    {Object.entries(data.liabilities.loans).map(([name, value]) => (
+      <View key={name} style={styles.reportRow}>
+        <Text style={styles.reportLabel}>{name}:</Text>
+        <Text style={styles.reportValue}>{formatCurrency(value)}</Text>
+      </View>
+    ))}
+    <Text style={styles.subSectionTitle}>Other Liabilities</Text>
+    {Object.entries(data.liabilities.otherLiabilities).map(([name, value]) => (
+      <View key={name} style={styles.reportRow}>
+        <Text style={styles.reportLabel}>{name}:</Text>
+        <Text style={styles.reportValue}>{formatCurrency(value)}</Text>
+      </View>
+    ))}
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Total Liabilities:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.liabilities.total)}</Text>
+    </View>
+
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Net Worth:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.netWorth)}</Text>
+    </View>
+  </View>
+);
+
 const renderReportTypeModal = () => (
   <Modal
     visible={showReportTypeModal}
@@ -2790,7 +4240,7 @@ return (
       </TouchableOpacity>
     </View>
 
-    {reportType !== 'ytd-summary' && (
+    {reportType !== 'ytd-summary' && reportType !== 'balance-sheet' && (
       <TouchableOpacity 
         style={styles.ytdButton} 
         onPress={() => setIsYTD(!isYTD)}
@@ -2814,289 +4264,304 @@ return (
 
     {showEndDatePicker && (
       <DateTimePicker
-      value={endDate}
-      mode="date"
-      display="default"
-      onChange={(event, selectedDate) => {
-        setShowEndDatePicker(false);
-        if (selectedDate) setEndDate(selectedDate);
-      }}
-    />
-  )}
+        value={endDate}
+        mode="date"
+        display="default"
+        onChange={(event, selectedDate) => {
+          setShowEndDatePicker(false);
+          if (selectedDate) setEndDate(selectedDate);
+        }}
+      />
+    )}
 
-  <TouchableOpacity style={styles.generateButton} onPress={handleGenerateReport} disabled={isLoading || !reportType}>
-    <Text style={styles.buttonText}>{isLoading ? 'Generating...' : 'Generate Report'}</Text>
-  </TouchableOpacity>
+    <TouchableOpacity style={styles.generateButton} onPress={handleGenerateReport} disabled={isLoading || !reportType}>
+      <Text style={styles.buttonText}>{isLoading ? 'Generating...' : 'Generate Report'}</Text>
+    </TouchableOpacity>
 
-  <TouchableOpacity style={styles.exportButton} onPress={handleExportReport} disabled={!reportData || isLoading}>
-    <Text style={styles.buttonText}>Export to CSV</Text>
-  </TouchableOpacity>
+    <TouchableOpacity style={styles.exportButton} onPress={handleExportReport} disabled={!reportData || isLoading}>
+      <Text style={styles.buttonText}>Export to CSV</Text>
+    </TouchableOpacity>
 
-  {isLoading && <ActivityIndicator size="large" color="#0000ff" />}
+    {isLoading && <ActivityIndicator size="large" color="#0000ff" />}
 
-  <View style={styles.reportContainer}>
-    {reportData && renderReportData()}
-  </View>
+    <View style={styles.reportContainer}>
+      {reportData && renderReportData()}
+    </View>
 
-  {renderReportTypeModal()}
-</ScrollView>
+    {renderReportTypeModal()}
+  </ScrollView>
 );
 };
 
 const styles = StyleSheet.create({
-container: {
-flex: 1,
-padding: 20,
-backgroundColor: '#f5f5f5',
-},
-title: {
-fontSize: 24,
-fontWeight: 'bold',
-marginBottom: 20,
-color: '#333',
-},
-reportTypeContainer: {
-borderWidth: 1,
-borderColor: '#ccc',
-borderRadius: 5,
-marginBottom: 20,
-backgroundColor: '#fff',
-},
-reportTypeButton: {
-padding: 15,
-},
-reportTypeText: {
-color: '#333',
-},
-reportTypePlaceholder: {
-color: '#999',
-},
-dateContainer: {
-flexDirection: 'row',
-justifyContent: 'space-between',
-marginBottom: 20,
-},
-dateButton: {
-padding: 10,
-borderWidth: 1,
-borderColor: '#ccc',
-borderRadius: 5,
-flex: 1,
-marginHorizontal: 5,
-backgroundColor: '#fff',
-},
-generateButton: {
-backgroundColor: '#4CAF50',
-padding: 15,
-borderRadius: 5,
-alignItems: 'center',
-marginBottom: 10,
-},
-exportButton: {
-backgroundColor: '#2196F3',
-padding: 15,
-borderRadius: 5,
-alignItems: 'center',
-marginBottom: 20,
-},
-buttonText: {
-color: 'white',
-fontWeight: 'bold',
-},
-reportContainer: {
-marginTop: 20,
-borderWidth: 1,
-borderColor: '#ccc',
-borderRadius: 5,
-padding: 15,
-backgroundColor: '#fff',
-},
-reportTitle: {
-fontSize: 20,
-fontWeight: 'bold',
-marginBottom: 15,
-color: '#333',
-},
-reportSubtitle: {
-fontSize: 16,
-fontWeight: 'bold',
-marginTop: 10,
-marginBottom: 10,
-color: '#444',
-},
-reportSection: {
-marginBottom: 15,
-},
-reportRow: {
-flexDirection: 'row',
-justifyContent: 'space-between',
-marginBottom: 5,
-},
-reportLabel: {
-flex: 1,
-fontSize: 16,
-color: '#555',
-},
-reportValue: {
-fontSize: 16,
-fontWeight: 'bold',
-color: '#333',
-},
-positiveValue: {
-color: 'green',
-},
-negativeValue: {
-color: 'red',
-},
-modalContainer: {
-flex: 1,
-justifyContent: 'center',
-alignItems: 'center',
-backgroundColor: 'rgba(0, 0, 0, 0.5)',
-},
-modalContent: {
-backgroundColor: 'white',
-padding: 20,
-borderRadius: 10,
-width: '80%',
-maxHeight: '80%',
-},
-categoryHeader: {
-fontSize: 18,
-fontWeight: 'bold',
-marginTop: 15,
-marginBottom: 10,
-color: '#333',
-},
-modalItem: {
-padding: 15,
-borderBottomWidth: 1,
-borderBottomColor: '#ccc',
-},
-categorySection: {
-marginBottom: 20,
-},
-tableHeader: {
-flexDirection: 'row',
-borderBottomWidth: 1,
-borderBottomColor: '#ccc',
-paddingBottom: 10,
-marginBottom: 5,
-},
-tableRow: {
-flexDirection: 'row',
-paddingVertical: 4,
-borderBottomWidth: 1,
-borderBottomColor: '#eee',
-},
-dateHeader: {
-flex: 2,
-fontWeight: 'bold',
-paddingRight: 5,
-},
-amountHeader: {
-flex: 2,
-fontWeight: 'bold',
-textAlign: 'left',
-paddingRight: 5,
-},
-descriptionHeader: {
-flex: 3,
-fontWeight: 'bold',
-textAlign: 'left',
-},
-creditCardHeader: {
-flex: 1.5,
-fontWeight: 'bold',
-textAlign: 'left',
-},
-dateCell: {
-flex: 2,
-paddingRight: 5,
-fontSize: 10,
-},
-amountCell: {
-flex: 2,
-textAlign: 'left',
-paddingRight: 5,
-fontSize: 10,
-},
-descriptionCell: {
-flex: 3,
-fontSize: 10,
-},
-creditCardCell: {
-flex: 1,
-textAlign: 'left',
-fontSize: 10,
-},
-ytdButton: {
-backgroundColor: '#4CAF50',
-padding: 10,
-borderRadius: 5,
-alignItems: 'center',
-marginBottom: 10,
-},
-creditCardSection: {
-marginBottom: 20,
-borderWidth: 1,
-borderColor: '#ccc',
-borderRadius: 5,
-padding: 10,
-},
-transactionTitle: {
-fontSize: 16,
-fontWeight: 'bold',
-marginTop: 10,
-marginBottom: 5,
-color: '#444',
-},
-transactionRow: {
-flexDirection: 'row',
-justifyContent: 'space-between',
-marginBottom: 5,
-},
-transactionDate: {
-flex: 2.7,
-color: '#555',
-marginRight: 5,
-paddingRight: 5,
-},
-transactionDescription: {
-flex: 4,
-color: '#333',
-},
-transactionAmount: {
-flex: 2,
-textAlign: 'right',
-color: '#333',
-},
-paymentRow: {
-flexDirection: 'row',
-justifyContent: 'space-between',
-marginBottom: 10,
-borderBottomWidth: 1,
-borderBottomColor: '#ccc',
-paddingBottom: 5,
-},
-paymentDate: {
-flex: 1,
-color: '#555',
-},
-paymentCardName: {
-flex: 2,
-color: '#333',
-},
-paymentAmount: {
-flex: 1,
-textAlign: 'right',
-color: '#333',
-},
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: '#f5f5f5',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    color: '#333',
+  },
+  reportTypeContainer: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    marginBottom: 20,
+    backgroundColor: '#fff',
+  },
+  reportTypeButton: {
+    padding: 15,
+  },
+  reportTypeText: {
+    color: '#333',
+  },
+  reportTypePlaceholder: {
+    color: '#999',
+  },
+  dateContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  dateButton: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    flex: 1,
+    marginHorizontal: 5,
+    backgroundColor: '#fff',
+  },
+  generateButton: {
+    backgroundColor: '#4CAF50',
+    padding: 15,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  exportButton: {
+    backgroundColor: '#2196F3',
+    padding: 15,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  reportContainer: {
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 15,
+    backgroundColor: '#fff',
+  },
+  reportTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    color: '#333',
+  },
+  reportSubtitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 10,
+    marginBottom: 10,
+    color: '#444',
+  },
+  reportSection: {
+    marginBottom: 15,
+  },
+  reportRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  reportLabel: {
+    flex: 1,
+    fontSize: 16,
+    color: '#555',
+  },
+  reportValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  positiveValue: {
+    color: 'green',
+  },
+  negativeValue: {
+    color: 'red',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 10,
+    width: '80%',
+    maxHeight: '80%',
+  },
+  categoryHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 15,
+    marginBottom: 10,
+    color: '#333',
+  },
+  modalItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  categorySection: {
+    marginBottom: 20,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    paddingBottom: 10,
+    marginBottom: 5,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  dateHeader: {
+    flex: 2,
+    fontWeight: 'bold',
+    paddingRight: 5,
+  },
+  amountHeader: {
+    flex: 2,
+    fontWeight: 'bold',
+    textAlign: 'left',
+    paddingRight: 5,
+  },
+  descriptionHeader: {
+    flex: 3,
+    fontWeight: 'bold',
+    textAlign: 'left',
+  },
+  creditCardHeader: {
+    flex: 1.5,
+    fontWeight: 'bold',
+    textAlign: 'left',
+  },
+  dateCell: {
+    flex: 2,
+    paddingRight: 5,
+    fontSize: 10,
+  },
+  amountCell: {
+    flex: 2,
+    textAlign: 'left',
+    paddingRight: 5,
+    fontSize: 10,
+  },
+  descriptionCell: {
+    flex: 3,
+    fontSize: 10,
+  },
+  creditCardCell: {
+    flex: 1,
+    textAlign: 'left',
+    fontSize: 10,
+  },
+  ytdButton: {
+    backgroundColor: '#4CAF50',
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  creditCardSection: {
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 10,
+  },
+  transactionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 10,
+    marginBottom: 5,
+    color: '#444',
+  },
+  transactionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  transactionDate: {
+    flex: 2.7,
+    color: '#555',
+    marginRight: 5,
+    paddingRight: 5,
+  },
+  transactionDescription: {
+    flex: 4,
+    color: '#333',
+  },
+  transactionAmount: {
+    flex: 2,
+    textAlign: 'right',
+    color: '#333',
+  },
+  paymentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    paddingBottom: 5,
+  },
+  paymentDate: {
+    flex: 1,
+    color: '#555',
+  },
+  paymentCardName: {
+    flex: 2,
+    color: '#333',
+  },
+  paymentAmount: {
+    flex: 1,
+    textAlign: 'right',
+    color: '#333',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 15,
+    marginBottom: 10,
+    color: '#333',
+  },
+  subSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 10,
+    marginBottom: 5,
+    color: '#555',
+  },
 });
 
 export default ReportsScreen;
 
-// File: D:\Coding Projects\budget-planner-app\src\screens\UserProfileScreen.js
+File: src\screens\UserProfileScreen.js
+
 import React, { useState, useEffect } from 'react';
 import { 
   View, 
@@ -3110,21 +4575,32 @@ import {
   Platform
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { getUserProfile, updateUserProfile, getInvestments, updateInvestment, getLoanInformation, updateLoanInformation } from '../services/FirebaseService';
+import { 
+  getUserProfile, 
+  updateUserProfile, 
+  getBalanceSheetItems,
+  updateBalanceSheetItem,
+  deleteBalanceSheetItem,
+  getCreditCards
+} from '../services/FirebaseService';
 
 const UserProfileScreen = ({ navigation }) => {
   const [initialCashBalance, setInitialCashBalance] = useState('');
-  const [investments, setInvestments] = useState([]);
-  const [loans, setLoans] = useState([]);
-  const [newInvestment, setNewInvestment] = useState({ name: '', amount: '', startDate: new Date() });
-  const [newLoan, setNewLoan] = useState({ name: '', amount: '', interestRate: '', startDate: new Date() });
-  const [showInvestmentDatePicker, setShowInvestmentDatePicker] = useState(false);
-  const [showLoanDatePicker, setShowLoanDatePicker] = useState(false);
+  const [balanceSheetItems, setBalanceSheetItems] = useState([]);
+  const [creditCards, setCreditCards] = useState([]);
+  const [newItem, setNewItem] = useState({ 
+    type: 'Asset', 
+    category: 'Investment', 
+    name: '', 
+    amount: '', 
+    date: new Date() 
+  });
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
     loadUserProfile();
-    loadInvestments();
-    loadLoans();
+    loadBalanceSheetItems();
+    loadCreditCards();
   }, []);
 
   const loadUserProfile = async () => {
@@ -3137,23 +4613,23 @@ const UserProfileScreen = ({ navigation }) => {
     }
   };
 
-  const loadInvestments = async () => {
+  const loadBalanceSheetItems = async () => {
     try {
-      const fetchedInvestments = await getInvestments();
-      setInvestments(fetchedInvestments);
+      const items = await getBalanceSheetItems();
+      setBalanceSheetItems(items);
     } catch (error) {
-      console.error('Error loading investments:', error);
-      Alert.alert('Error', 'Failed to load investments. Please try again.');
+      console.error('Error loading balance sheet items:', error);
+      Alert.alert('Error', 'Failed to load balance sheet items. Please try again.');
     }
   };
 
-  const loadLoans = async () => {
+  const loadCreditCards = async () => {
     try {
-      const fetchedLoans = await getLoanInformation();
-      setLoans(fetchedLoans);
+      const cards = await getCreditCards();
+      setCreditCards(cards);
     } catch (error) {
-      console.error('Error loading loans:', error);
-      Alert.alert('Error', 'Failed to load loans. Please try again.');
+      console.error('Error loading credit cards:', error);
+      Alert.alert('Error', 'Failed to load credit cards. Please try again.');
     }
   };
 
@@ -3167,57 +4643,93 @@ const UserProfileScreen = ({ navigation }) => {
     }
   };
 
-  const handleAddInvestment = async () => {
-    if (!newInvestment.name || !newInvestment.amount) {
-      Alert.alert('Error', 'Please enter both name and amount for the investment.');
+  const handleAddItem = async () => {
+    if (!newItem.name || !newItem.amount) {
+      Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
     try {
-      await updateInvestment({ 
-        ...newInvestment, 
-        amount: parseFloat(newInvestment.amount),
-        startDate: newInvestment.startDate.toISOString()
+      await updateBalanceSheetItem({
+        ...newItem,
+        amount: parseFloat(newItem.amount),
+        date: newItem.date.toISOString()
       });
-      setNewInvestment({ name: '', amount: '', startDate: new Date() });
-      loadInvestments();
-      Alert.alert('Success', 'Investment added successfully');
+      setNewItem({ 
+        type: 'Asset', 
+        category: 'Investment', 
+        name: '', 
+        amount: '', 
+        date: new Date() 
+      });
+      loadBalanceSheetItems();
+      Alert.alert('Success', 'Item added successfully');
     } catch (error) {
-      console.error('Error adding investment:', error);
-      Alert.alert('Error', 'Failed to add investment. Please try again.');
+      console.error('Error adding item:', error);
+      Alert.alert('Error', 'Failed to add item. Please try again.');
     }
   };
 
-  const handleAddLoan = async () => {
-    if (!newLoan.name || !newLoan.amount || !newLoan.interestRate) {
-      Alert.alert('Error', 'Please enter name, amount, and interest rate for the loan.');
-      return;
-    }
+  const handleDeleteItem = async (itemId) => {
     try {
-      await updateLoanInformation({ 
-        ...newLoan, 
-        amount: parseFloat(newLoan.amount),
-        interestRate: parseFloat(newLoan.interestRate),
-        startDate: newLoan.startDate.toISOString()
-      });
-      setNewLoan({ name: '', amount: '', interestRate: '', startDate: new Date() });
-      loadLoans();
-      Alert.alert('Success', 'Loan added successfully');
+      await deleteBalanceSheetItem(itemId);
+      loadBalanceSheetItems();
+      Alert.alert('Success', 'Item deleted successfully');
     } catch (error) {
-      console.error('Error adding loan:', error);
-      Alert.alert('Error', 'Failed to add loan. Please try again.');
+      console.error('Error deleting item:', error);
+      Alert.alert('Error', 'Failed to delete item. Please try again.');
     }
   };
 
-  const onChangeInvestmentDate = (event, selectedDate) => {
-    const currentDate = selectedDate || newInvestment.startDate;
-    setShowInvestmentDatePicker(Platform.OS === 'ios');
-    setNewInvestment({...newInvestment, startDate: currentDate});
+  const onChangeDate = (event, selectedDate) => {
+    const currentDate = selectedDate || newItem.date;
+    setShowDatePicker(Platform.OS === 'ios');
+    setNewItem({...newItem, date: currentDate});
   };
 
-  const onChangeLoanDate = (event, selectedDate) => {
-    const currentDate = selectedDate || newLoan.startDate;
-    setShowLoanDatePicker(Platform.OS === 'ios');
-    setNewLoan({...newLoan, startDate: currentDate});
+  const renderBalanceSheetItems = () => {
+    const assets = balanceSheetItems.filter(item => item.type === 'Asset');
+    const liabilities = balanceSheetItems.filter(item => item.type === 'Liability');
+
+    return (
+      <View>
+        <Text style={styles.sectionTitle}>Assets</Text>
+        {assets.map((item, index) => (
+          <View key={index} style={styles.item}>
+            <Text>{item.name}: ${parseFloat(item.amount).toFixed(2)}</Text>
+            <Text>Category: {item.category}</Text>
+            <Text>Date: {new Date(item.date).toLocaleDateString()}</Text>
+            <TouchableOpacity onPress={() => handleDeleteItem(item.id)}>
+              <Text style={styles.deleteButton}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+
+        <Text style={styles.sectionTitle}>Liabilities</Text>
+        {liabilities.map((item, index) => (
+          <View key={index} style={styles.item}>
+            <Text>{item.name}: ${parseFloat(item.amount).toFixed(2)}</Text>
+            <Text>Category: {item.category}</Text>
+            <Text>Date: {new Date(item.date).toLocaleDateString()}</Text>
+            <TouchableOpacity onPress={() => handleDeleteItem(item.id)}>
+              <Text style={styles.deleteButton}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
+    );
+  };
+
+  const renderCreditCardLiabilities = () => {
+    return (
+      <View>
+        <Text style={styles.sectionTitle}>Credit Card Liabilities</Text>
+        {creditCards.map((card, index) => (
+          <View key={index} style={styles.item}>
+            <Text>{card.name}: ${card.balance.toFixed(2)}</Text>
+          </View>
+        ))}
+      </View>
+    );
   };
 
   return (
@@ -3243,85 +4755,74 @@ const UserProfileScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Investments</Text>
-          {investments.map((investment, index) => (
-            <View key={index} style={styles.item}>
-              <Text>{investment.name}: ${investment.amount.toFixed(2)}</Text>
-              <Text>Start Date: {new Date(investment.startDate).toLocaleDateString()}</Text>
-            </View>
-          ))}
-          <TextInput
-            style={styles.input}
-            value={newInvestment.name}
-            onChangeText={(text) => setNewInvestment({...newInvestment, name: text})}
-            placeholder="Investment Name"
-          />
-          <TextInput
-            style={styles.input}
-            value={newInvestment.amount}
-            onChangeText={(text) => setNewInvestment({...newInvestment, amount: text})}
-            keyboardType="numeric"
-            placeholder="Investment Amount"
-          />
-          <TouchableOpacity style={styles.input} onPress={() => setShowInvestmentDatePicker(true)}>
-            <Text>{newInvestment.startDate.toLocaleDateString()}</Text>
-          </TouchableOpacity>
-          {showInvestmentDatePicker && (
-            <DateTimePicker
-              testID="investmentDatePicker"
-              value={newInvestment.startDate}
-              mode="date"
-              display="default"
-              onChange={onChangeInvestmentDate}
-            />
-          )}
-          <TouchableOpacity style={styles.button} onPress={handleAddInvestment}>
-            <Text style={styles.buttonText}>Add Investment</Text>
-          </TouchableOpacity>
+          <Text style={styles.sectionTitle}>Balance Sheet Items</Text>
+          {renderBalanceSheetItems()}
+          {renderCreditCardLiabilities()}
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Loans</Text>
-          {loans.map((loan, index) => (
-            <View key={index} style={styles.item}>
-              <Text>{loan.name}: ${loan.amount.toFixed(2)} at {loan.interestRate}% interest</Text>
-              <Text>Start Date: {new Date(loan.startDate).toLocaleDateString()}</Text>
-            </View>
-          ))}
+          <Text style={styles.sectionTitle}>Add New Item</Text>
           <TextInput
             style={styles.input}
-            value={newLoan.name}
-            onChangeText={(text) => setNewLoan({...newLoan, name: text})}
-            placeholder="Loan Name"
+            value={newItem.name}
+            onChangeText={(text) => setNewItem({...newItem, name: text})}
+            placeholder="Name"
           />
           <TextInput
             style={styles.input}
-            value={newLoan.amount}
-            onChangeText={(text) => setNewLoan({...newLoan, amount: text})}
+            value={newItem.amount}
+            onChangeText={(text) => setNewItem({...newItem, amount: text})}
             keyboardType="numeric"
-            placeholder="Loan Amount"
+            placeholder="Amount"
           />
-          <TextInput
-            style={styles.input}
-            value={newLoan.interestRate}
-            onChangeText={(text) => setNewLoan({...newLoan, interestRate: text})}
-            keyboardType="numeric"
-            placeholder="Interest Rate (%)"
-          />
-          <TouchableOpacity style={styles.input} onPress={() => setShowLoanDatePicker(true)}>
-            <Text>{newLoan.startDate.toLocaleDateString()}</Text>
+          <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
+            <Text>{newItem.date.toLocaleDateString()}</Text>
           </TouchableOpacity>
-          {showLoanDatePicker && (
+          {showDatePicker && (
             <DateTimePicker
-              testID="loanDatePicker"
-              value={newLoan.startDate}
+              testID="dateTimePicker"
+              value={newItem.date}
               mode="date"
               display="default"
-              onChange={onChangeLoanDate}
+              onChange={onChangeDate}
             />
           )}
-          <TouchableOpacity style={styles.button} onPress={handleAddLoan}>
-            <Text style={styles.buttonText}>Add Loan</Text>
+          <View style={styles.pickerContainer}>
+            <TouchableOpacity
+              style={[styles.pickerButton, newItem.type === 'Asset' && styles.selectedButton]}
+              onPress={() => setNewItem({...newItem, type: 'Asset'})}
+            >
+              <Text style={styles.pickerButtonText}>Asset</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.pickerButton, newItem.type === 'Liability' && styles.selectedButton]}
+              onPress={() => setNewItem({...newItem, type: 'Liability'})}
+            >
+              <Text style={styles.pickerButtonText}>Liability</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.pickerContainer}>
+            <TouchableOpacity
+              style={[styles.pickerButton, newItem.category === 'Investment' && styles.selectedButton]}
+              onPress={() => setNewItem({...newItem, category: 'Investment'})}
+            >
+              <Text style={styles.pickerButtonText}>Investment</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.pickerButton, newItem.category === 'Loan' && styles.selectedButton]}
+              onPress={() => setNewItem({...newItem, category: 'Loan'})}
+            >
+              <Text style={styles.pickerButtonText}>Loan</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.pickerButton, newItem.category === 'Other' && styles.selectedButton]}
+              onPress={() => setNewItem({...newItem, category: 'Other'})}
+            >
+              <Text style={styles.pickerButtonText}>Other</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity style={styles.button} onPress={handleAddItem}>
+            <Text style={styles.buttonText}>Add Item</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -3374,11 +4875,36 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginBottom: 5,
   },
+  deleteButton: {
+    color: 'red',
+    marginTop: 5,
+  },
+  pickerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  pickerButton: {
+    flex: 1,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    alignItems: 'center',
+    marginHorizontal: 2,
+  },
+  selectedButton: {
+    backgroundColor: '#4CAF50',
+  },
+  pickerButtonText: {
+    fontWeight: 'bold',
+  },
 });
 
 export default UserProfileScreen;
 
-// File: D:\Coding Projects\budget-planner-app\src\screens\YearlyBudgetScreen.js
+File: src\screens\YearlyBudgetScreen.js
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { getBudgetGoals, updateBudgetGoal } from '../services/FirebaseService';
@@ -3397,17 +4923,22 @@ const YearlyBudgetScreen = ({ navigation }) => {
 
   const loadYearlyBudget = async () => {
     setIsLoading(true);
-    const yearBudget = {};
-    for (let month = 1; month <= 12; month++) {
-      const goals = await getBudgetGoals(selectedYear, month);
-      yearBudget[month] = EXPENSE_CATEGORIES.reduce((acc, category) => {
-        const goal = goals.find(g => g.category === category) || { amount: '0', isRecurring: false };
-        acc[category] = goal;
-        return acc;
-      }, {});
+    try {
+      const yearGoals = await getBudgetGoals(selectedYear);
+      const yearBudget = {};
+      for (let month = 1; month <= 12; month++) {
+        yearBudget[month] = EXPENSE_CATEGORIES.reduce((acc, category) => {
+          const goal = yearGoals.find(g => g.month === month && g.category === category) || { amount: '0', isRecurring: false };
+          acc[category] = goal;
+          return acc;
+        }, {});
+      }
+      setYearlyBudget(yearBudget);
+    } catch (error) {
+      console.error('Error loading yearly budget:', error);
+    } finally {
+      setIsLoading(false);
     }
-    setYearlyBudget(yearBudget);
-    setTimeout(() => setIsLoading(false), 3000); // Ensure loader shows for at least 3 seconds
   };
 
   const handleUpdateGoal = async (month, category, amount, isRecurring) => {
@@ -3512,7 +5043,7 @@ const YearlyBudgetScreen = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="black" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Yearly Budget</Text>
+        <Text style={styles.headerTitle}>Back to Monthly</Text>
       </View>
       <ScrollView style={styles.scrollView}>
         <View style={styles.yearSelector}>
@@ -3546,6 +5077,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginRight: 10,
+    marginLeft: 10,
   },
   headerTitle: {
     fontSize: 20,
@@ -3634,9 +5166,26 @@ const styles = StyleSheet.create({
 
 export default YearlyBudgetScreen;
 
-// File: D:\Coding Projects\budget-planner-app\src\services\FirebaseService.js
+File: src\services\FirebaseService.js
+
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, updateDoc, deleteDoc, doc, where, setDoc, getDoc, onSnapshot, Timestamp } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  getDocs, 
+  query, 
+  orderBy, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  where, 
+  setDoc, 
+  getDoc, 
+  onSnapshot, 
+  Timestamp,
+  serverTimestamp
+} from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
 import { firebaseConfig } from '../config';
 import { getCategoryType } from '../utils/categories';
@@ -3894,31 +5443,18 @@ export const addCreditCard = async (cardData) => {
 export const getCreditCards = async () => {
   try {
     const user = auth.currentUser;
-    if (!user) {
-      throw new Error('No user logged in');
-    }
+    if (!user) throw new Error('No user logged in');
 
-    const q = query(
-      collection(db, 'creditCards'),
-      where('userId', '==', user.uid)
-    );
-    
+    const creditCardsRef = collection(db, 'creditCards');
+    const q = query(creditCardsRef, where('userId', '==', user.uid));
     const snapshot = await getDocs(q);
-    const transactions = await getTransactions();
-    
-    const creditCards = snapshot.docs.map(doc => {
-      const data = doc.data();
-      const card = {
-        id: doc.id,
-        ...data,
-        limit: Number(data.limit) || 0,
-        startingBalance: Number(data.startingBalance) || 0,
-        startDate: data.startDate ? data.startDate.toDate() : new Date(),
-      };
-      card.balance = calculateCreditCardBalance(card, transactions);
-      return card;
-    });
-    return creditCards;
+
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      name: doc.data().name,
+      balance: doc.data().balance,
+      // Include other relevant fields
+    }));
   } catch (error) {
     console.error('Error getting credit cards:', error);
     throw error;
@@ -4056,8 +5592,17 @@ export const updateInvestment = async (investmentData) => {
     const user = auth.currentUser;
     if (!user) throw new Error('No user logged in');
 
-    const investmentRef = doc(db, 'investments', investmentData.id || uuidv4());
-    await setDoc(investmentRef, { ...investmentData, userId: user.uid }, { merge: true });
+    const investmentRef = investmentData.id 
+      ? doc(db, 'investments', investmentData.id)
+      : doc(collection(db, 'investments'));
+    
+    await setDoc(investmentRef, { 
+      ...investmentData, 
+      userId: user.uid,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    
+    return investmentRef.id;
   } catch (error) {
     console.error('Error updating investment:', error);
     throw error;
@@ -4085,10 +5630,177 @@ export const updateLoanInformation = async (loanData) => {
     const user = auth.currentUser;
     if (!user) throw new Error('No user logged in');
 
-    const loanRef = doc(db, 'loans', loanData.id || uuidv4());
-    await setDoc(loanRef, { ...loanData, userId: user.uid }, { merge: true });
+    const loanRef = loanData.id 
+      ? doc(db, 'loans', loanData.id)
+      : doc(collection(db, 'loans'));
+    
+    await setDoc(loanRef, { 
+      ...loanData, 
+      userId: user.uid,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    
+    return loanRef.id;
   } catch (error) {
     console.error('Error updating loan information:', error);
+    throw error;
+  }
+};
+
+export const getOtherAssets = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const assetsRef = collection(db, 'otherAssets');
+    const q = query(assetsRef, where('userId', '==', user.uid));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error getting other assets:', error);
+    throw error;
+  }
+};
+
+export const updateOtherAsset = async (assetData) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const assetRef = assetData.id 
+      ? doc(db, 'otherAssets', assetData.id)
+      : doc(collection(db, 'otherAssets'));
+    
+    await setDoc(assetRef, { 
+      ...assetData, 
+      userId: user.uid,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    
+    return assetRef.id;
+  } catch (error) {
+    console.error('Error updating other asset:', error);
+    throw error;
+  }
+};
+
+export const getOtherLiabilities = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const liabilitiesRef = collection(db, 'otherLiabilities');
+    const q = query(liabilitiesRef, where('userId', '==', user.uid));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error getting other liabilities:', error);
+    throw error;
+  }
+};
+
+export const updateOtherLiability = async (liabilityData) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const liabilityRef = liabilityData.id 
+      ? doc(db, 'otherLiabilities', liabilityData.id)
+      : doc(collection(db, 'otherLiabilities'));
+    
+    await setDoc(liabilityRef, { 
+      ...liabilityData, 
+      userId: user.uid,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    
+    return liabilityRef.id;
+  } catch (error) {
+    console.error('Error updating other liability:', error);
+    throw error;
+  }
+};
+
+export const getUserProfile = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const userProfileRef = doc(db, 'users', user.uid);
+    const userProfileDoc = await getDoc(userProfileRef);
+
+    if (userProfileDoc.exists()) {
+      return userProfileDoc.data();
+    } else {
+      return { initialCashBalance: 0 };
+    }
+  } catch (error) {
+    console.error('Error getting user profile:', error);
+    throw error;
+  }
+};
+
+export const updateUserProfile = async (profileData) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const userProfileRef = doc(db, 'users', user.uid);
+    await setDoc(userProfileRef, profileData, { merge: true });
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    throw error;
+  }
+};
+
+export const getBalanceSheetItems = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const balanceSheetRef = collection(db, 'balanceSheet');
+    const q = query(balanceSheetRef, where('userId', '==', user.uid));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error getting balance sheet items:', error);
+    throw error;
+  }
+};
+
+export const updateBalanceSheetItem = async (itemData) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const itemRef = itemData.id 
+      ? doc(db, 'balanceSheet', itemData.id)
+      : doc(collection(db, 'balanceSheet'));
+    
+    await setDoc(itemRef, { 
+      ...itemData, 
+      userId: user.uid,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    
+    return itemRef.id;
+  } catch (error) {
+    console.error('Error updating balance sheet item:', error);
+    throw error;
+  }
+};
+
+export const deleteBalanceSheetItem = async (itemId) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    await deleteDoc(doc(db, 'balanceSheet', itemId));
+  } catch (error) {
+    console.error('Error deleting balance sheet item:', error);
     throw error;
   }
 };
@@ -4115,22 +5827,32 @@ export default {
   updateInvestment,
   getLoanInformation,
   updateLoanInformation,
+  getOtherAssets,
+  updateOtherAsset,
+  getOtherLiabilities,
+  updateOtherLiability,
+  getUserProfile,
+  updateUserProfile,
+  getBalanceSheetItems,
+  updateBalanceSheetItem,
+  deleteBalanceSheetItem,
 };
 
-// File: D:\Coding Projects\budget-planner-app\src\services\ReportService\balanceSheetReport.js
-import { getCreditCards, getInvestments, getLoans, getUserProfile } from '../FirebaseService';
+File: src\services\ReportService\balanceSheetReport.js
+
+import { getCreditCards, getBalanceSheetItems, getUserProfile } from '../FirebaseService';
+import { calculateTotalAssets, calculateTotalLiabilities, calculateNetWorth } from '../../utils/financialCalculations';
 
 export const generateBalanceSheetReport = async (transactions, asOfDate) => {
   console.log('Generating balance sheet report');
   try {
     const creditCards = await getCreditCards();
-    const investments = await getInvestments();
-    const loans = await getLoans();
+    const balanceSheetItems = await getBalanceSheetItems();
     const userProfile = await getUserProfile();
 
     // Calculate cash balance
     let cashBalance = userProfile?.initialCashBalance || 0;
-    const cashTransactions = transactions.filter(t => !t.creditCard);
+    const cashTransactions = transactions.filter(t => !t.creditCard && new Date(t.date) <= asOfDate);
     cashBalance += cashTransactions.reduce((sum, t) => {
       return t.type === 'income' ? sum + Number(t.amount) : sum - Number(t.amount);
     }, 0);
@@ -4143,60 +5865,67 @@ export const generateBalanceSheetReport = async (transactions, asOfDate) => {
 
     // Update credit card balances based on transactions
     transactions.forEach(t => {
-      if (t.creditCard && t.creditCardId) {
-        if (t.isCardPayment) {
-          creditCardBalances[t.creditCardId] = (creditCardBalances[t.creditCardId] || 0) - Number(t.amount);
-        } else if (t.type === 'expense') {
-          creditCardBalances[t.creditCardId] = (creditCardBalances[t.creditCardId] || 0) + Number(t.amount);
+      if (t.creditCard && t.creditCardId && new Date(t.date) <= asOfDate) {
+        const card = creditCards.find(c => c.id === t.creditCardId);
+        if (card) {
+          if (t.isCardPayment) {
+            creditCardBalances[card.name] = (creditCardBalances[card.name] || 0) - Number(t.amount);
+          } else if (t.type === 'expense') {
+            creditCardBalances[card.name] = (creditCardBalances[card.name] || 0) + Number(t.amount);
+          }
         }
       }
     });
 
-    // Calculate investment values
-    const investmentValues = investments.reduce((acc, investment) => {
-      acc[investment.id] = investment.amount;
-      return acc;
-    }, {});
+    // Categorize balance sheet items
+    const assets = {investments: {}, otherAssets: {}};
+    const liabilities = {loans: {}, otherLiabilities: {}};
 
-    // Calculate loan balances
-    const loanBalances = loans.reduce((acc, loan) => {
-      acc[loan.id] = loan.amount;
-      return acc;
-    }, {});
+    balanceSheetItems.forEach(item => {
+      if (item.type === 'Asset') {
+        if (item.category === 'Investment') {
+          assets.investments[item.name] = Number(item.amount);
+        } else {
+          assets.otherAssets[item.name] = Number(item.amount);
+        }
+      } else if (item.type === 'Liability') {
+        if (item.category === 'Loan') {
+          liabilities.loans[item.name] = Number(item.amount);
+        } else {
+          liabilities.otherLiabilities[item.name] = Number(item.amount);
+        }
+      }
+    });
 
     // Calculate totals
-    const totalAssets = cashBalance + Object.values(investmentValues).reduce((sum, value) => sum + value, 0);
-    const totalLiabilities = Object.values(creditCardBalances).reduce((sum, balance) => sum + balance, 0) +
-                             Object.values(loanBalances).reduce((sum, balance) => sum + balance, 0);
-    const netWorth = totalAssets - totalLiabilities;
+    const totalAssets = calculateTotalAssets(cashBalance, assets.investments, assets.otherAssets);
+    const totalLiabilities = calculateTotalLiabilities(creditCardBalances, liabilities.loans, liabilities.otherLiabilities);
+    const netWorth = calculateNetWorth(totalAssets, totalLiabilities);
 
     return {
       asOfDate: asOfDate.toISOString(),
       assets: {
         cash: cashBalance,
-        investments: investmentValues,
+        investments: assets.investments,
+        otherAssets: assets.otherAssets,
         total: totalAssets
       },
       liabilities: {
         creditCards: creditCardBalances,
-        loans: loanBalances,
+        loans: liabilities.loans,
+        otherLiabilities: liabilities.otherLiabilities,
         total: totalLiabilities
       },
       netWorth: netWorth
     };
   } catch (error) {
     console.error('Error in generateBalanceSheetReport:', error);
-    // Return a default structure even if there's an error
-    return {
-      asOfDate: asOfDate.toISOString(),
-      assets: { cash: 0, investments: {}, total: 0 },
-      liabilities: { creditCards: {}, loans: {}, total: 0 },
-      netWorth: 0
-    };
+    throw error;
   }
 };
 
-// File: D:\Coding Projects\budget-planner-app\src\services\ReportService\budgetReports.js
+File: src\services\ReportService\budgetReports.js
+
 import { EXPENSE_CATEGORIES } from '../../utils/categories';
 import { categorizeTransactions, calculateTotals } from '../../utils/reportUtils';
 import { getBudgetGoals } from '../FirebaseService';
@@ -4240,7 +5969,8 @@ export default {
   generateBudgetVsActual,
 };
 
-// File: D:\Coding Projects\budget-planner-app\src\services\ReportService\cashFlowReports.js
+File: src\services\ReportService\cashFlowReports.js
+
 import { categorizeTransactions, calculateTotals } from '../../utils/reportUtils';
 
 export const generateCashFlowStatement = (transactions) => {
@@ -4308,7 +6038,8 @@ export const generateDetailedCashFlowStatement = (transactions) => {
   }
 };
 
-// File: D:\Coding Projects\budget-planner-app\src\services\ReportService\categoryCreditCardUsage.js
+File: src\services\ReportService\categoryCreditCardUsage.js
+
 import { EXPENSE_CATEGORIES } from '../../utils/categories';
 
 export const generateCategoryCreditCardUsage = (transactions) => {
@@ -4344,7 +6075,8 @@ export const generateCategoryCreditCardUsage = (transactions) => {
   }
 };
 
-// File: D:\Coding Projects\budget-planner-app\src\services\ReportService\categoryReports.js
+File: src\services\ReportService\categoryReports.js
+
 import { ALL_CATEGORIES, EXPENSE_CATEGORIES, getCategoryType } from '../../utils/categories';
 import { categorizeTransactions } from '../../utils/reportUtils';
 
@@ -4401,7 +6133,8 @@ export const generateCategoryTransactionDetail = (transactions) => {
   }
 };
 
-// File: D:\Coding Projects\budget-planner-app\src\services\ReportService\creditCardReports.js
+File: src\services\ReportService\creditCardReports.js
+
 import { categorizeTransactions } from '../../utils/reportUtils';
 import { calculateCreditCardBalance } from '../../utils/creditCardUtils';
 
@@ -4455,7 +6188,8 @@ export default {
   generateCreditCardStatement
 };
 
-// File: D:\Coding Projects\budget-planner-app\src\services\ReportService\creditUtilizationReport.js
+File: src\services\ReportService\creditUtilizationReport.js
+
 import { getCreditCards } from '../FirebaseService';
 import { calculateCreditCardBalance } from '../../utils/creditCardUtils';
 
@@ -4484,7 +6218,8 @@ export const generateCreditUtilizationReport = async (transactions) => {
   }
 };
 
-// File: D:\Coding Projects\budget-planner-app\src\services\ReportService\csvExport.js
+File: src\services\ReportService\csvExport.js
+
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
@@ -4567,7 +6302,8 @@ export const exportReportToCSV = async (reportData, reportType) => {
   }
 };
 
-// File: D:\Coding Projects\budget-planner-app\src\services\ReportService\debtReductionProjection.js
+File: src\services\ReportService\debtReductionProjection.js
+
 import { getCreditCards } from '../FirebaseService';
 import { calculateCreditCardBalance } from '../../utils/creditCardUtils';
 
@@ -4623,7 +6359,8 @@ export const generateDebtReductionProjection = async (transactions) => {
   }
 };
 
-// File: D:\Coding Projects\budget-planner-app\src\services\ReportService\incomeReports.js
+File: src\services\ReportService\incomeReports.js
+
 import { INCOME_CATEGORIES } from '../../utils/categories';
 import { categorizeTransactions } from '../../utils/reportUtils';
 
@@ -4650,7 +6387,8 @@ export const generateIncomeSourcesAnalysis = (transactions) => {
   }
 };
 
-// File: D:\Coding Projects\budget-planner-app\src\services\ReportService\index.js
+File: src\services\ReportService\index.js
+
 import { getTransactions, getBudgetGoals, getCreditCards } from '../FirebaseService';
 import * as summaryReports from './summaryReports';
 import * as categoryReports from './categoryReports';
@@ -4673,7 +6411,7 @@ export const generateReport = async (reportType, startDate, endDate) => {
     const transactions = await getTransactions();
     const budgetGoals = await getBudgetGoals();
     const creditCards = await getCreditCards();
-    
+
     const filteredTransactions = transactions.filter(t => {
       const transactionDate = new Date(t.date);
       return transactionDate >= startDate && transactionDate <= endDate;
@@ -4726,7 +6464,8 @@ export const generateReport = async (reportType, startDate, endDate) => {
 
 export { exportReportToCSV };
 
-// File: D:\Coding Projects\budget-planner-app\src\services\ReportService\paymentHistoryReport.js
+File: src\services\ReportService\paymentHistoryReport.js
+
 import { getCreditCards } from '../FirebaseService';
 
 export const generatePaymentHistoryReport = async (transactions) => {
@@ -4754,7 +6493,8 @@ export const generatePaymentHistoryReport = async (transactions) => {
   }
 };
 
-// File: D:\Coding Projects\budget-planner-app\src\services\ReportService\savingsReports.js
+File: src\services\ReportService\savingsReports.js
+
 import { categorizeTransactions, calculateTotals } from '../../utils/reportUtils';
 
 export const generateSavingsRateReport = (transactions) => {
@@ -4782,7 +6522,8 @@ export const generateSavingsRateReport = (transactions) => {
   }
 };
 
-// File: D:\Coding Projects\budget-planner-app\src\services\ReportService\summaryReports.js
+File: src\services\ReportService\summaryReports.js
+
 import { categorizeTransactions, calculateTotals } from '../../utils/reportUtils';
 import { EXPENSE_CATEGORIES } from '../../utils/categories';
 
@@ -4843,7 +6584,8 @@ export const generateCustomRangeReport = (transactions) => {
   }
 };
 
-// File: D:\Coding Projects\budget-planner-app\src\services\ReportService\trendReports.js
+File: src\services\ReportService\trendReports.js
+
 import { categorizeTransactions, calculateTotals } from '../../utils/reportUtils';
 
 export const generateExpenseTrendAnalysis = (transactions) => {
@@ -4882,7 +6624,8 @@ export const generateExpenseTrendAnalysis = (transactions) => {
   }
 };
 
-// File: D:\Coding Projects\budget-planner-app\src\utils\categories.js
+File: src\utils\categories.js
+
 export const INCOME_CATEGORIES = [
   'Salary',
   'Freelance/Contract Work',
@@ -4917,7 +6660,8 @@ export function getCategoryName(category) {
   return ALL_CATEGORIES.find(cat => cat === category) || 'Unknown Category';
 }
 
-// File: D:\Coding Projects\budget-planner-app\src\utils\creditCardUtils.js
+File: src\utils\creditCardUtils.js
+
 export const calculateCreditCardBalance = (card, transactions) => {
     let balance = Number(card.startingBalance);
     const startDate = new Date(card.startDate);
@@ -4938,35 +6682,47 @@ export const calculateCreditCardBalance = (card, transactions) => {
     return balance;
   };
 
-// File: D:\Coding Projects\budget-planner-app\src\utils\financialCalculations.js
-export const calculateTotalAssets = (cashBalance, investments) => {
-    const investmentTotal = Object.values(investments).reduce((sum, value) => sum + value, 0);
-    return cashBalance + investmentTotal;
-  };
-  
-  export const calculateTotalLiabilities = (creditCardBalances, loans) => {
-    const creditCardTotal = Object.values(creditCardBalances).reduce((sum, balance) => sum + balance, 0);
-    const loanTotal = Object.values(loans).reduce((sum, balance) => sum + balance, 0);
-    return creditCardTotal + loanTotal;
-  };
-  
-  export const calculateNetWorth = (totalAssets, totalLiabilities) => {
-    return totalAssets - totalLiabilities;
-  };
-  
-  export const calculateCreditUtilization = (creditCardBalances, creditCards) => {
-    let totalBalance = 0;
-    let totalLimit = 0;
-  
-    creditCards.forEach(card => {
-      totalBalance += creditCardBalances[card.id] || 0;
-      totalLimit += card.limit;
-    });
-  
-    return totalLimit > 0 ? (totalBalance / totalLimit) * 100 : 0;
-  };
+File: src\utils\financialCalculations.js
 
-// File: D:\Coding Projects\budget-planner-app\src\utils\helpers.js
+export const calculateTotalAssets = (cashBalance, investments, otherAssets) => {
+  const investmentTotal = Object.values(investments).reduce((sum, value) => sum + value, 0);
+  const otherAssetsTotal = Object.values(otherAssets).reduce((sum, value) => sum + value, 0);
+  return cashBalance + investmentTotal + otherAssetsTotal;
+};
+
+export const calculateTotalLiabilities = (creditCardBalances, loans, otherLiabilities) => {
+  const creditCardTotal = Object.values(creditCardBalances).reduce((sum, balance) => sum + balance, 0);
+  const loanTotal = Object.values(loans).reduce((sum, balance) => sum + balance, 0);
+  const otherLiabilitiesTotal = Object.values(otherLiabilities).reduce((sum, balance) => sum + balance, 0);
+  return creditCardTotal + loanTotal + otherLiabilitiesTotal;
+};
+
+export const calculateNetWorth = (totalAssets, totalLiabilities) => {
+  return totalAssets - totalLiabilities;
+};
+
+export const calculateCreditUtilization = (creditCardBalances, creditCards) => {
+  let totalBalance = 0;
+  let totalLimit = 0;
+
+  creditCards.forEach(card => {
+    totalBalance += creditCardBalances[card.id] || 0;
+    totalLimit += card.limit;
+  });
+
+  return totalLimit > 0 ? (totalBalance / totalLimit) * 100 : 0;
+};
+
+export const calculateDebtToIncomeRatio = (totalMonthlyDebtPayments, monthlyIncome) => {
+  return monthlyIncome > 0 ? (totalMonthlyDebtPayments / monthlyIncome) * 100 : 0;
+};
+
+export const calculateLiquidityRatio = (cashAndCashEquivalents, currentLiabilities) => {
+  return currentLiabilities > 0 ? cashAndCashEquivalents / currentLiabilities : 0;
+};
+
+File: src\utils\helpers.js
+
 export const calculateTotalIncome = (transactions) => {
     return transactions
       .filter(t => t.amount > 0)
@@ -4984,7 +6740,8 @@ export const calculateTotalIncome = (transactions) => {
   };
   
 
-// File: D:\Coding Projects\budget-planner-app\src\utils\reportUtils.js
+File: src\utils\reportUtils.js
+
 export const categorizeTransactions = (transactions) => {
   return {
     regularIncome: transactions.filter(t => t.type === 'income' && !t.creditCard),
@@ -5007,7 +6764,8 @@ export const calculateTotals = (categorizedTransactions) => {
   };
 };
 
-// File: D:\Coding Projects\budget-planner-app\src\utils\validation.js
+File: src\utils\validation.js
+
 export const validateEmail = (email) => {
     const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     return re.test(String(email).toLowerCase());
@@ -5035,3 +6793,4 @@ export const validateEmail = (email) => {
   export const validateCategory = (category, validCategories) => {
     return validCategories.includes(category);
   };
+
