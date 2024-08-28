@@ -15,6 +15,7 @@ import {
   getUserProfile, 
   updateUserProfile, 
   getBalanceSheetItems,
+  onBalanceSheetUpdate,
   updateBalanceSheetItem,
   deleteBalanceSheetItem,
   getCreditCards,
@@ -41,6 +42,16 @@ const UserProfileScreen = ({ navigation }) => {
     loadBalanceSheetItems();
     loadCreditCards();
     loadLoans();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onBalanceSheetUpdate((items) => {
+      setBalanceSheetItems(items);
+      const fetchedLoans = items.filter(item => item.category === 'Loan' && item.type === 'Liability');
+      setLoans(fetchedLoans);
+    });
+  
+    return () => unsubscribe();
   }, []);
 
   const loadUserProfile = async () => {
@@ -201,7 +212,7 @@ const UserProfileScreen = ({ navigation }) => {
           <View key={index} style={styles.item}>
             <Text>{loan.name}</Text>
             <Text>Initial Amount: ${parseFloat(loan.initialAmount).toFixed(2)}</Text>
-            <Text>Current Balance: ${parseFloat(loan.amount).toFixed(2)}</Text>
+            <Text>Current Balance: ${parseFloat(loan.currentBalance).toFixed(2)}</Text>
             {loan.interestRate && <Text>Interest Rate: {loan.interestRate}%</Text>}
             <TouchableOpacity onPress={() => handleDeleteItem(loan.id)}>
               <Text style={styles.deleteButton}>Delete</Text>
@@ -211,7 +222,6 @@ const UserProfileScreen = ({ navigation }) => {
       </View>
     );
   };
-
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === "ios" ? "padding" : "height"}

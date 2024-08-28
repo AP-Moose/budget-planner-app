@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,9 @@ import {
   ScrollView,
   Switch,
   FlatList,
-  Modal
+  Modal,
+  TouchableWithoutFeedback,
+  Keyboard
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -23,7 +25,6 @@ import CSVUpload from '../components/CSVUpload';
 import { Ionicons } from '@expo/vector-icons';
 import { useMonth } from '../context/MonthContext';
 import MonthNavigator from '../components/MonthNavigator';
-
 
 const SelectModal = ({ visible, onClose, options, onSelect, title }) => {
   return (
@@ -84,8 +85,7 @@ function HomeScreen({ navigation }) {
   const [creditCards, setCreditCards] = useState([]);
   const [loans, setLoans] = useState([]);
   const [isEditMode, setIsEditMode] = useState(false);
-
-  // New state for SelectModal
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showCreditCardModal, setShowCreditCardModal] = useState(false);
@@ -124,7 +124,6 @@ function HomeScreen({ navigation }) {
   const loadLoans = useCallback(async () => {
     try {
       const fetchedLoans = await getLoans();
-      console.log('Fetched loans:', fetchedLoans); // Add this line for debugging
       setLoans(fetchedLoans);
     } catch (error) {
       console.error('Error loading loans:', error);
@@ -174,12 +173,18 @@ function HomeScreen({ navigation }) {
     );
   }, [loadTransactions]);
 
+  const handleEditTransaction = (transaction) => {
+    setEditingTransaction(transaction);
+    setShowEditModal(true);
+  };
+
   const handleUpdateTransaction = async () => {
     if (!editingTransaction) return;
 
     try {
       await updateTransaction(editingTransaction.id, editingTransaction);
       setEditingTransaction(null);
+      setShowEditModal(false);
       Alert.alert('Success', 'Transaction updated successfully');
       loadTransactions();
     } catch (error) {
@@ -255,7 +260,7 @@ function HomeScreen({ navigation }) {
       ...prev,
       isCashback: !prev.isCashback,
       type: 'income',
-      creditCard: true, // Set creditCard to true when toggling cashback
+      creditCard: true,
       isLoanPayment: false
     }));
   };
@@ -266,10 +271,6 @@ function HomeScreen({ navigation }) {
 
   const toggleEditMode = () => {
     setIsEditMode(!isEditMode);
-  };
-
-  const handleEditTransaction = (transaction) => {
-    setEditingTransaction(transaction);
   };
 
   const renderItem = useCallback(({ item }) => {
@@ -411,7 +412,6 @@ function HomeScreen({ navigation }) {
           {new Date(newTransaction.date).toLocaleDateString()}
         </Text>
       </TouchableOpacity>
-
       {showDatePicker && (
         <DateTimePicker
           value={new Date(newTransaction.date)}
@@ -428,43 +428,151 @@ function HomeScreen({ navigation }) {
       <TouchableOpacity style={styles.cancelButton} onPress={() => setIsAddingTransaction(false)}>
         <Text style={styles.buttonText}>Cancel</Text>
       </TouchableOpacity>
-
-      <SelectModal
-        visible={showTypeModal}
-        onClose={() => setShowTypeModal(false)}
-        options={[
-          { label: 'Expense', value: 'expense' },
-          { label: 'Income', value: 'income' }
-        ]}
-        onSelect={(option) => setNewTransaction(prev => ({ ...prev, type: option.value }))}
-        title="Select Transaction Type"
-      />
-
-      <SelectModal
-        visible={showCategoryModal}
-        onClose={() => setShowCategoryModal(false)}
-        options={newTransaction.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES}
-        onSelect={(category) => setNewTransaction(prev => ({ ...prev, category }))}
-        title="Select Category"
-      />
-
-      <SelectModal
-        visible={showCreditCardModal}
-        onClose={() => setShowCreditCardModal(false)}
-        options={creditCards.map(card => ({ label: card.name, value: card.id }))}
-        onSelect={(option) => setNewTransaction(prev => ({ ...prev, creditCardId: option.value }))}
-        title="Select Credit Card"
-      />
-
-      <SelectModal
-        visible={showLoanModal}
-        onClose={() => setShowLoanModal(false)}
-        options={loans.map(loan => ({ label: loan.name, value: loan.id }))}
-        onSelect={(option) => setNewTransaction(prev => ({ ...prev, loanId: option.value }))}
-        title="Select Loan"
-      />
     </ScrollView>
   );
+
+  const renderEditModal = () => {
+    const dismissKeyboard = () => {
+      Keyboard.dismiss();
+    };
+  
+    return (
+      <Modal
+        visible={showEditModal}
+        transparent={true}
+        animationType="slide"
+      >
+        <TouchableWithoutFeedback onPress={dismissKeyboard}>
+          <View style={styles.modalOverlay}>
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              style={styles.modalContent}
+            >
+              <ScrollView>
+                <Text style={styles.modalTitle}>Edit Transaction</Text>
+                <TextInput
+                  style={styles.input}
+                  value={editingTransaction?.amount.toString()}
+                  onChangeText={(text) => setEditingTransaction(prev => ({...prev, amount: text}))}
+                  keyboardType="decimal-pad"
+                  placeholder="Amount"
+                  returnKeyType="done"
+                  onSubmitEditing={dismissKeyboard}
+                />
+                <TextInput
+                  style={styles.input}
+                  value={editingTransaction?.description}
+                  onChangeText={(text) => setEditingTransaction(prev => ({...prev, description: text}))}
+                  placeholder="Description"
+                  returnKeyType="done"
+                  onSubmitEditing={dismissKeyboard}
+                />
+                <TouchableOpacity 
+                  style={styles.selectButton} 
+                  onPress={() => {
+                    setShowEditModal(false);
+                    setShowCategoryModal(true);
+                  }}
+                >
+                  <Text style={styles.selectButtonText}>
+                    {editingTransaction?.category || 'Select Category'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.dateButton} 
+                  onPress={() => {
+                    setShowDatePicker(true);
+                  }}
+                >
+                  <Text style={styles.dateButtonText}>
+                    {editingTransaction ? new Date(editingTransaction.date).toLocaleDateString() : 'Select Date'}
+                  </Text>
+                </TouchableOpacity>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={new Date(editingTransaction?.date || new Date())}
+                    mode="date"
+                    display="default"
+                    onChange={(event, selectedDate) => {
+                      setShowDatePicker(false);
+                      if (selectedDate) {
+                        setEditingTransaction(prev => ({...prev, date: selectedDate}));
+                      }
+                    }}
+                  />
+                )}
+                <View style={styles.switchContainer}>
+                  <Text>Credit Card Transaction:</Text>
+                  <Switch
+                    value={editingTransaction?.creditCard}
+                    onValueChange={(value) => setEditingTransaction(prev => ({...prev, creditCard: value}))}
+                  />
+                </View>
+                {editingTransaction?.creditCard && (
+                  <>
+                    <TouchableOpacity 
+                      style={styles.selectButton} 
+                      onPress={() => {
+                        setShowEditModal(false);
+                        setShowCreditCardModal(true);
+                      }}
+                    >
+                      <Text style={styles.selectButtonText}>
+                        {editingTransaction.creditCardId ? creditCards.find(card => card.id === editingTransaction.creditCardId)?.name : 'Select Credit Card'}
+                      </Text>
+                    </TouchableOpacity>
+                    <View style={styles.switchContainer}>
+                      <Text>Is Card Payment:</Text>
+                      <Switch
+                        value={editingTransaction?.isCardPayment}
+                        onValueChange={(value) => setEditingTransaction(prev => ({...prev, isCardPayment: value}))}
+                      />
+                    </View>
+                  </>
+                )}
+                <View style={styles.switchContainer}>
+                  <Text>Loan Payment:</Text>
+                  <Switch
+                    value={editingTransaction?.isLoanPayment}
+                    onValueChange={(value) => setEditingTransaction(prev => ({...prev, isLoanPayment: value}))}
+                  />
+                </View>
+                {editingTransaction?.isLoanPayment && (
+                  <TouchableOpacity 
+                    style={styles.selectButton} 
+                    onPress={() => {
+                      setShowEditModal(false);
+                      setShowLoanModal(true);
+                    }}
+                  >
+                    <Text style={styles.selectButtonText}>
+                      {editingTransaction.loanId ? loans.find(loan => loan.id === editingTransaction.loanId)?.name : 'Select Loan'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <View style={styles.switchContainer}>
+                  <Text>Cashback/Rewards:</Text>
+                  <Switch
+                    value={editingTransaction?.isCashback}
+                    onValueChange={(value) => setEditingTransaction(prev => ({...prev, isCashback: value, type: value ? 'income' : prev.type}))}
+                  />
+                </View>
+                <TouchableOpacity style={styles.addButton} onPress={handleUpdateTransaction}>
+                  <Text style={styles.buttonText}>Update Transaction</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.cancelButton} onPress={() => {
+                  setEditingTransaction(null);
+                  setShowEditModal(false);
+                }}>
+                  <Text style={styles.buttonText}>Cancel</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </KeyboardAvoidingView>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+    );
+  };
 
   return (
     <KeyboardAvoidingView 
@@ -508,6 +616,59 @@ function HomeScreen({ navigation }) {
           <Ionicons name="add" size={24} color="white" />
         </TouchableOpacity>
       )}
+      {renderEditModal()}
+      <SelectModal
+        visible={showTypeModal}
+        onClose={() => setShowTypeModal(false)}
+        options={[
+          { label: 'Expense', value: 'expense' },
+          { label: 'Income', value: 'income' }
+        ]}
+        onSelect={(option) => setNewTransaction(prev => ({ ...prev, type: option.value }))}
+        title="Select Transaction Type"
+      />
+      <SelectModal
+        visible={showCategoryModal}
+        onClose={() => setShowCategoryModal(false)}
+        options={editingTransaction ? 
+          (editingTransaction.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES) :
+          (newTransaction.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES)
+        }
+        onSelect={(category) => {
+          if (editingTransaction) {
+            setEditingTransaction(prev => ({ ...prev, category }));
+          } else {
+            setNewTransaction(prev => ({ ...prev, category }));
+          }
+        }}
+        title="Select Category"
+      />
+      <SelectModal
+        visible={showCreditCardModal}
+        onClose={() => setShowCreditCardModal(false)}
+        options={creditCards.map(card => ({ label: card.name, value: card.id }))}
+        onSelect={(option) => {
+          if (editingTransaction) {
+            setEditingTransaction(prev => ({ ...prev, creditCardId: option.value }));
+          } else {
+            setNewTransaction(prev => ({ ...prev, creditCardId: option.value }));
+          }
+        }}
+        title="Select Credit Card"
+      />
+      <SelectModal
+        visible={showLoanModal}
+        onClose={() => setShowLoanModal(false)}
+        options={loans.map(loan => ({ label: loan.name, value: loan.id }))}
+        onSelect={(option) => {
+          if (editingTransaction) {
+            setEditingTransaction(prev => ({ ...prev, loanId: option.value }));
+          } else {
+            setNewTransaction(prev => ({ ...prev, loanId: option.value }));
+          }
+        }}
+        title="Select Loan"
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -708,8 +869,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 10,
     padding: 20,
-    width: '80%',
-    maxHeight: '80%',
+    width: '90%',
+    maxHeight: '90%',
   },
   modalTitle: {
     fontSize: 18,
@@ -717,24 +878,11 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     textAlign: 'center',
   },
-  modalOption: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  modalOptionText: {
-    fontSize: 16,
-  },
-  modalCloseButton: {
-    marginTop: 20,
-    padding: 10,
-    backgroundColor: '#ddd',
-    borderRadius: 5,
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  modalCloseButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    marginBottom: 15,
   },
 });
 

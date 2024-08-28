@@ -163,11 +163,13 @@ export const updateTransaction = async (id, updatedData) => {
   try {
     const user = auth.currentUser;
     if (!user) {
-      console.error('No user logged in');
       throw new Error('No user logged in');
     }
 
     const transactionRef = doc(db, 'transactions', id);
+    const oldTransactionDoc = await getDoc(transactionRef);
+    const oldTransactionData = oldTransactionDoc.data();
+
     if (updatedData.category) {
       updatedData.type = getCategoryType(updatedData.category);
     }
@@ -177,7 +179,29 @@ export const updateTransaction = async (id, updatedData) => {
     if (updatedData.isCardPayment !== undefined) {
       updatedData.isCardPayment = Boolean(updatedData.isCardPayment);
     }
+
+    // Update the transaction
     await updateDoc(transactionRef, updatedData);
+
+    // If this is a loan payment, update the loan balance
+    if (updatedData.isLoanPayment && updatedData.loanId) {
+      const loanRef = doc(db, 'balanceSheet', updatedData.loanId);
+      const loanDoc = await getDoc(loanRef);
+      
+      if (loanDoc.exists()) {
+        const loanData = loanDoc.data();
+        const oldPaymentAmount = parseFloat(oldTransactionData.amount) || 0;
+        const newPaymentAmount = parseFloat(updatedData.amount) || 0;
+        const balanceChange = newPaymentAmount - oldPaymentAmount;
+        const newBalance = parseFloat(loanData.amount) - balanceChange;
+
+        await updateDoc(loanRef, { 
+          amount: newBalance,
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+
     console.log('Transaction updated successfully:', id);
   } catch (error) {
     console.error('Error updating transaction:', error);
@@ -189,13 +213,25 @@ export const deleteTransaction = async (id) => {
   try {
     const user = auth.currentUser;
     if (!user) {
-      console.error('No user logged in');
       throw new Error('No user logged in');
     }
 
     const transactionRef = doc(db, 'transactions', id);
-    await deleteDoc(transactionRef);
-    console.log('Transaction deleted successfully:', id);
+    const transactionDoc = await getDoc(transactionRef);
+    
+    if (transactionDoc.exists()) {
+      const transactionData = transactionDoc.data();
+      
+      // If it's a loan payment, update the loan balance
+      if (transactionData.isLoanPayment && transactionData.loanId) {
+        await updateLoanBalance(transactionData.loanId, -transactionData.amount); // Add back the payment amount
+      }
+
+      await deleteDoc(transactionRef);
+      console.log('Transaction deleted successfully:', id);
+    } else {
+      throw new Error('Transaction not found');
+    }
   } catch (error) {
     console.error('Error deleting transaction:', error);
     throw error;
@@ -654,26 +690,42 @@ export const deleteBalanceSheetItem = async (itemId) => {
   }
 };
 
-export const updateLoanBalance = async (loanId, amount) => {
-  try {
-    const user = auth.currentUser;
-    if (!user) throw new Error('User not authenticated');
+export const onBalanceSheetUpdate = (callback) => {
+  const user = auth.currentUser;
+  if (!user) {
+    console.error('No user logged in');
+    return () => {};
+  }
 
+  const q = query(
+    collection(db, 'balanceSheet'),
+    where('userId', '==', user.uid)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const balanceSheetItems = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    callback(balanceSheetItems);
+  });
+};
+
+export const updateLoanBalance = async (loanId, paymentAmount) => {
+  try {
     const loanRef = doc(db, 'balanceSheet', loanId);
     const loanDoc = await getDoc(loanRef);
     
     if (loanDoc.exists()) {
       const loanData = loanDoc.data();
-      if (loanData.userId !== user.uid) throw new Error('User does not have permission to update this loan');
-
-      const currentAmount = loanData.amount || 0;
-      const newAmount = currentAmount - parseFloat(paymentAmount);
+      const currentBalance = parseFloat(loanData.amount);
+      const newBalance = currentBalance - parseFloat(paymentAmount);
 
       await updateDoc(loanRef, { 
-        amount: newAmount, //Update amount instead of currentBalance
+        amount: newBalance,
         updatedAt: serverTimestamp()
       });
-      console.log('Loan balance updated:', loanId, 'New amount:', newAmount);
+      console.log('Loan balance updated:', loanId, 'New balance:', newBalance);
     } else {
       console.error('Loan not found:', loanId);
     }
@@ -696,17 +748,30 @@ export const getLoans = async () => {
     );
 
     const loansSnapshot = await getDocs(loansQuery);
-
     const loans = loansSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      initialAmount: doc.data().initialAmount || doc.data().amount,
-      currentBalance: doc.data().amaount || doc.data().amount,
-      interestRate: doc.data().interestRate || null
     }));
 
-    console.log('Fetched loans:', loans);
-    return loans;
+    // Fetch all transactions
+    const transactionsQuery = query(
+      collection(db, 'transactions'),
+      where('userId', '==', user.uid),
+      where('isLoanPayment', '==', true)
+    );
+    const transactionsSnapshot = await getDocs(transactionsQuery);
+    const transactions = transactionsSnapshot.docs.map(doc => doc.data());
+
+    // Calculate current balance for each loan
+    const loansWithBalance = loans.map(loan => {
+      const loanPayments = transactions.filter(t => t.loanId === loan.id);
+      const totalPayments = loanPayments.reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      const currentBalance = parseFloat(loan.initialAmount) - totalPayments;
+      return {...loan, currentBalance};
+    });
+
+    console.log('Fetched loans with calculated balances:', loansWithBalance);
+    return loansWithBalance;
   } catch (error) {
     console.error('Error fetching loans:', error);
     throw error;
@@ -746,4 +811,5 @@ export default {
   deleteBalanceSheetItem,
   getLoans,
   updateLoanBalance,
+  onBalanceSheetUpdate,
 };
