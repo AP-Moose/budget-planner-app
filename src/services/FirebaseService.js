@@ -644,18 +644,24 @@ export const deleteBalanceSheetItem = async (itemId) => {
 
 export const updateLoanBalance = async (loanId, amount) => {
   try {
-    const loanRef = doc(db, 'loans', loanId);
+    const user = auth.currentUser;
+    if (!user) throw new Error('User not authenticated');
+
+    const loanRef = doc(db, 'balanceSheet', loanId);
     const loanDoc = await getDoc(loanRef);
     
     if (loanDoc.exists()) {
-      const currentBalance = loanDoc.data().currentBalance;
-      const newBalance = currentBalance - amount;
+      const loanData = loanDoc.data();
+      if (loanData.userId !== user.uid) throw new Error('User does not have permission to update this loan');
+
+      const currentAmount = loanData.amount || 0;
+      const newAmount = currentAmount - amount;
 
       await updateDoc(loanRef, { 
-        currentBalance: newBalance,
-        lastUpdated: Timestamp.fromDate(new Date())
+        amount: newAmount,
+        updatedAt: serverTimestamp()
       });
-      console.log('Loan balance updated:', loanId, 'New balance:', newBalance);
+      console.log('Loan balance updated:', loanId, 'New amount:', newAmount);
     } else {
       console.error('Loan not found:', loanId);
     }
@@ -670,16 +676,24 @@ export const getLoans = async () => {
     const user = auth.currentUser;
     if (!user) throw new Error('No user logged in');
 
-    const loansRef = collection(db, 'loans');
-    const q = query(loansRef, where('userId', '==', user.uid));
-    const snapshot = await getDocs(q);
+    const loansQuery = query(
+      collection(db, 'balanceSheet'),
+      where('userId', '==', user.uid),
+      where('type', '==', 'Liability'),
+      where('category', '==', 'Loan')
+    );
 
-    return snapshot.docs.map(doc => ({
+    const loansSnapshot = await getDocs(loansQuery);
+
+    const loans = loansSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
+
+    console.log('Fetched loans:', loans); // Add this line for debugging
+    return loans;
   } catch (error) {
-    console.error('Error getting loans:', error);
+    console.error('Error fetching loans:', error);
     throw error;
   }
 };

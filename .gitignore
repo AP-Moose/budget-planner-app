@@ -10,6 +10,10 @@ npm-debug.log
 yarn-debug.log
 yarn-error.log
 
+consolidate.js
+combine_code.js
+combined_code.txt
+
 # Expo
 .expo/
 dist/

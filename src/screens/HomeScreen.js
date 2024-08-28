@@ -1,8 +1,20 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ScrollView, Keyboard, Switch, FlatList } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Switch,
+  FlatList,
+  Modal
+} from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Picker } from '@react-native-picker/picker';
 import { getTransactions, deleteTransaction, addTransaction, updateTransaction, getCreditCards, getLoans } from '../services/FirebaseService';
 import { getCategoryName, INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../utils/categories';
 import SearchBar from '../components/SearchBar';
@@ -12,6 +24,41 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMonth } from '../context/MonthContext';
 import MonthNavigator from '../components/MonthNavigator';
 
+
+const SelectModal = ({ visible, onClose, options, onSelect, title }) => {
+  return (
+    <Modal
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+      animationType="slide"
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>{title}</Text>
+          <ScrollView>
+            {options.map((option, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.modalOption}
+                onPress={() => {
+                  onSelect(option);
+                  onClose();
+                }}
+              >
+                <Text style={styles.modalOptionText}>{option.label || option}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          <TouchableOpacity style={styles.modalCloseButton} onPress={onClose}>
+            <Text style={styles.modalCloseButtonText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 function HomeScreen({ navigation }) {
   const { currentMonth, setCurrentMonth } = useMonth();
   const [transactions, setTransactions] = useState([]);
@@ -19,12 +66,12 @@ function HomeScreen({ navigation }) {
   const [balance, setBalance] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingTransaction, setEditingTransaction] = useState(null);
-  const [newTransaction, setNewTransaction] = useState({ 
-    type: 'expense', 
-    amount: '', 
-    description: '', 
-    category: '', 
-    date: new Date(), 
+  const [newTransaction, setNewTransaction] = useState({
+    type: 'expense',
+    amount: '',
+    description: '',
+    category: '',
+    date: new Date(),
     creditCard: false,
     creditCardId: null,
     isCardPayment: false,
@@ -36,8 +83,13 @@ function HomeScreen({ navigation }) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [creditCards, setCreditCards] = useState([]);
   const [loans, setLoans] = useState([]);
-  const listRef = useRef(null);
   const [isEditMode, setIsEditMode] = useState(false);
+
+  // New state for SelectModal
+  const [showTypeModal, setShowTypeModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showCreditCardModal, setShowCreditCardModal] = useState(false);
+  const [showLoanModal, setShowLoanModal] = useState(false);
 
   const loadTransactions = useCallback(async () => {
     try {
@@ -72,6 +124,7 @@ function HomeScreen({ navigation }) {
   const loadLoans = useCallback(async () => {
     try {
       const fetchedLoans = await getLoans();
+      console.log('Fetched loans:', fetchedLoans); // Add this line for debugging
       setLoans(fetchedLoans);
     } catch (error) {
       console.error('Error loading loans:', error);
@@ -86,10 +139,6 @@ function HomeScreen({ navigation }) {
       loadLoans();
     }, [loadTransactions, loadCreditCards, loadLoans])
   );
-
-  useEffect(() => {
-    console.log('Loans:', loans);
-  }, [loans]);
 
   const handleSearch = useCallback((query) => {
     setSearchQuery(query);
@@ -107,8 +156,8 @@ function HomeScreen({ navigation }) {
       "Are you sure you want to delete this transaction?",
       [
         { text: "Cancel", style: "cancel" },
-        { 
-          text: "Delete", 
+        {
+          text: "Delete",
           style: "destructive",
           onPress: async () => {
             try {
@@ -147,12 +196,12 @@ function HomeScreen({ navigation }) {
 
     try {
       await addTransaction(newTransaction);
-      setNewTransaction({ 
-        type: 'expense', 
-        amount: '', 
-        description: '', 
-        category: '', 
-        date: new Date(currentMonth), 
+      setNewTransaction({
+        type: 'expense',
+        amount: '',
+        description: '',
+        category: '',
+        date: new Date(currentMonth),
         creditCard: false,
         creditCardId: null,
         isCardPayment: false,
@@ -171,6 +220,7 @@ function HomeScreen({ navigation }) {
 
   const onChangeDate = (event, selectedDate) => {
     const currentDate = selectedDate || (editingTransaction ? editingTransaction.date : newTransaction.date);
+    setShowDatePicker(false);
     if (editingTransaction) {
       setEditingTransaction({ ...editingTransaction, date: currentDate });
     } else {
@@ -179,16 +229,12 @@ function HomeScreen({ navigation }) {
   };
 
   const toggleCreditCard = () => {
-    setNewTransaction(prev => ({ 
-      ...prev, 
+    setNewTransaction(prev => ({
+      ...prev,
       creditCard: !prev.creditCard,
       isLoanPayment: false,
-      isCashback: false 
+      isCashback: false
     }));
-  };
-
-  const handleCreditCardSelection = (creditCardId) => {
-    setNewTransaction(prev => ({ ...prev, creditCardId }));
   };
 
   const toggleIsCardPayment = () => {
@@ -196,25 +242,21 @@ function HomeScreen({ navigation }) {
   };
 
   const toggleIsLoanPayment = () => {
-    setNewTransaction(prev => ({ 
-      ...prev, 
-      isLoanPayment: !prev.isLoanPayment, 
+    setNewTransaction(prev => ({
+      ...prev,
+      isLoanPayment: !prev.isLoanPayment,
       creditCard: false,
-      isCashback: false 
+      isCashback: false
     }));
   };
 
-  const handleLoanSelection = (loanId) => {
-    setNewTransaction(prev => ({ ...prev, loanId }));
-  };
-
   const toggleIsCashback = () => {
-    setNewTransaction(prev => ({ 
-      ...prev, 
-      isCashback: !prev.isCashback, 
+    setNewTransaction(prev => ({
+      ...prev,
+      isCashback: !prev.isCashback,
       type: 'income',
-      creditCard: false,
-      isLoanPayment: false 
+      creditCard: true, // Set creditCard to true when toggling cashback
+      isLoanPayment: false
     }));
   };
 
@@ -281,64 +323,66 @@ function HomeScreen({ navigation }) {
   }, [creditCards, isEditMode, handleDeleteTransaction, handleEditTransaction]);
 
   const renderAddTransactionForm = () => (
-    <View style={styles.addTransactionForm}>
-      <View style={styles.switchContainer}>
-        <Text>Credit Card Transaction:</Text>
+    <ScrollView style={styles.addTransactionForm}>
+      <TouchableOpacity style={styles.selectButton} onPress={() => setShowTypeModal(true)}>
+        <Text style={styles.selectButtonText}>
+          {newTransaction.type ? newTransaction.type.charAt(0).toUpperCase() + newTransaction.type.slice(1) : 'Select Transaction Type'}
+        </Text>
+      </TouchableOpacity>
+
+      <View style={styles.formRow}>
+        <Text style={styles.label}>Credit Card Transaction:</Text>
         <Switch
           value={newTransaction.creditCard}
           onValueChange={toggleCreditCard}
           disabled={newTransaction.isLoanPayment || newTransaction.isCashback}
         />
       </View>
-      {newTransaction.creditCard && (
-        <>
-          <Picker
-            selectedValue={newTransaction.creditCardId}
-            onValueChange={handleCreditCardSelection}
-            style={styles.picker}
-          >
-            <Picker.Item label="Select a credit card" value="" />
-            {creditCards.map(card => (
-              <Picker.Item key={card.id} label={card.name} value={card.id} />
-            ))}
-          </Picker>
-          <View style={styles.switchContainer}>
-            <Text>Is Card Payment:</Text>
-            <Switch
-              value={newTransaction.isCardPayment}
-              onValueChange={toggleIsCardPayment}
-            />
-          </View>
-        </>
+
+      {(newTransaction.creditCard || newTransaction.isCashback) && (
+        <TouchableOpacity style={styles.selectButton} onPress={() => setShowCreditCardModal(true)}>
+          <Text style={styles.selectButtonText}>
+            {newTransaction.creditCardId ? creditCards.find(card => card.id === newTransaction.creditCardId)?.name : 'Select Credit Card'}
+          </Text>
+        </TouchableOpacity>
       )}
-      <View style={styles.switchContainer}>
-        <Text>Loan Payment:</Text>
+
+      {newTransaction.creditCard && !newTransaction.isCashback && (
+        <View style={styles.formRow}>
+          <Text style={styles.label}>Is Card Payment:</Text>
+          <Switch
+            value={newTransaction.isCardPayment}
+            onValueChange={toggleIsCardPayment}
+          />
+        </View>
+      )}
+
+      <View style={styles.formRow}>
+        <Text style={styles.label}>Loan Payment:</Text>
         <Switch
           value={newTransaction.isLoanPayment}
           onValueChange={toggleIsLoanPayment}
           disabled={newTransaction.creditCard || newTransaction.isCashback}
         />
       </View>
+
       {newTransaction.isLoanPayment && (
-        <Picker
-          selectedValue={newTransaction.loanId}
-          onValueChange={handleLoanSelection}
-          style={styles.picker}
-        >
-          <Picker.Item label="Select a loan" value="" />
-          {loans.map(loan => (
-            <Picker.Item key={loan.id} label={loan.name} value={loan.id} />
-          ))}
-        </Picker>
+        <TouchableOpacity style={styles.selectButton} onPress={() => setShowLoanModal(true)}>
+          <Text style={styles.selectButtonText}>
+            {newTransaction.loanId ? loans.find(loan => loan.id === newTransaction.loanId)?.name : 'Select Loan'}
+          </Text>
+        </TouchableOpacity>
       )}
-      <View style={styles.switchContainer}>
-        <Text>Cashback/Rewards:</Text>
+
+      <View style={styles.formRow}>
+        <Text style={styles.label}>Cashback/Rewards:</Text>
         <Switch
           value={newTransaction.isCashback}
           onValueChange={toggleIsCashback}
-          disabled={newTransaction.creditCard || newTransaction.isLoanPayment}
+          disabled={newTransaction.isLoanPayment}
         />
       </View>
+
       <TextInput
         style={styles.input}
         value={newTransaction.amount}
@@ -347,6 +391,7 @@ function HomeScreen({ navigation }) {
         placeholder="Amount"
         placeholderTextColor="#999"
       />
+
       <TextInput
         style={styles.input}
         value={newTransaction.description}
@@ -354,21 +399,19 @@ function HomeScreen({ navigation }) {
         placeholder="Description"
         placeholderTextColor="#999"
       />
-      <Picker
-        selectedValue={newTransaction.category}
-        onValueChange={(value) => setNewTransaction(prev => ({...prev, category: value}))}
-        style={styles.picker}
-      >
-        <Picker.Item label="Select a category" value="" />
-        {(newTransaction.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(category => (
-          <Picker.Item key={category} label={category} value={category} />
-        ))}
-      </Picker>
+
+      <TouchableOpacity style={styles.selectButton} onPress={() => setShowCategoryModal(true)}>
+        <Text style={styles.selectButtonText}>
+          {newTransaction.category || 'Select Category'}
+        </Text>
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
         <Text style={styles.dateButtonText}>
           {new Date(newTransaction.date).toLocaleDateString()}
         </Text>
       </TouchableOpacity>
+
       {showDatePicker && (
         <DateTimePicker
           value={new Date(newTransaction.date)}
@@ -377,13 +420,50 @@ function HomeScreen({ navigation }) {
           onChange={onChangeDate}
         />
       )}
+
       <TouchableOpacity style={styles.addButton} onPress={handleAddTransaction}>
         <Text style={styles.buttonText}>Add Transaction</Text>
       </TouchableOpacity>
+
       <TouchableOpacity style={styles.cancelButton} onPress={() => setIsAddingTransaction(false)}>
         <Text style={styles.buttonText}>Cancel</Text>
       </TouchableOpacity>
-    </View>
+
+      <SelectModal
+        visible={showTypeModal}
+        onClose={() => setShowTypeModal(false)}
+        options={[
+          { label: 'Expense', value: 'expense' },
+          { label: 'Income', value: 'income' }
+        ]}
+        onSelect={(option) => setNewTransaction(prev => ({ ...prev, type: option.value }))}
+        title="Select Transaction Type"
+      />
+
+      <SelectModal
+        visible={showCategoryModal}
+        onClose={() => setShowCategoryModal(false)}
+        options={newTransaction.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES}
+        onSelect={(category) => setNewTransaction(prev => ({ ...prev, category }))}
+        title="Select Category"
+      />
+
+      <SelectModal
+        visible={showCreditCardModal}
+        onClose={() => setShowCreditCardModal(false)}
+        options={creditCards.map(card => ({ label: card.name, value: card.id }))}
+        onSelect={(option) => setNewTransaction(prev => ({ ...prev, creditCardId: option.value }))}
+        title="Select Credit Card"
+      />
+
+      <SelectModal
+        visible={showLoanModal}
+        onClose={() => setShowLoanModal(false)}
+        options={loans.map(loan => ({ label: loan.name, value: loan.id }))}
+        onSelect={(option) => setNewTransaction(prev => ({ ...prev, loanId: option.value }))}
+        title="Select Loan"
+      />
+    </ScrollView>
   );
 
   return (
@@ -408,51 +488,6 @@ function HomeScreen({ navigation }) {
           placeholder="Search transactions..."
         />
         <View style={styles.transactionsContainer}>
-          {editingTransaction && (
-            <View style={styles.editContainer}>
-              <TextInput
-                style={styles.input}
-                value={editingTransaction.amount.toString()}
-                onChangeText={(text) => setEditingTransaction(prev => ({...prev, amount: text}))}
-                keyboardType="decimal-pad"
-                placeholder="Amount"
-              />
-              <TextInput
-                style={styles.input}
-                value={editingTransaction.description}
-                onChangeText={(text) => setEditingTransaction(prev => ({...prev, description: text}))}
-                placeholder="Description"
-              />
-              <Picker
-                selectedValue={editingTransaction.category}
-                onValueChange={(value) => setEditingTransaction(prev => ({...prev, category: value}))}
-                style={styles.picker}
-              >
-                {(editingTransaction.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map(category => (
-                  <Picker.Item key={category} label={category} value={category} />
-                ))}
-              </Picker>
-              <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
-                <Text style={styles.dateButtonText}>
-                  {new Date(editingTransaction.date).toLocaleDateString()}
-                </Text>
-              </TouchableOpacity>
-              {showDatePicker && (
-                <DateTimePicker
-                  value={new Date(editingTransaction.date)}
-                  mode="date"
-                  display="default"
-                  onChange={onChangeDate}
-                />
-              )}
-              <TouchableOpacity style={styles.updateButton} onPress={handleUpdateTransaction}>
-                <Text style={styles.buttonText}>Update Transaction</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setEditingTransaction(null)}>
-                <Text style={styles.buttonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          )}
           <FlatList
             data={filteredTransactions}
             renderItem={renderItem}
@@ -566,30 +601,56 @@ const styles = StyleSheet.create({
     padding: 10,
     marginLeft: 5,
   },
-  editContainer: {
+  addTransactionForm: {
     backgroundColor: '#fff',
     padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-    marginBottom: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+    maxHeight: '80%',
+  },
+  formRow: {
+    marginBottom: 15,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 5,
   },
   input: {
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#f0f0f0',
     borderWidth: 1,
     borderColor: '#ddd',
     padding: 10,
-    marginBottom: 10,
+    marginBottom: 15,
     borderRadius: 5,
+    fontSize: 16,
+  },
+  selectButton: {
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 10,
+    marginBottom: 15,
+    borderRadius: 5,
+  },
+  selectButtonText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  dateButton: {
+    backgroundColor: '#f0f0f0',
+    padding: 15,
+    borderRadius: 5,
+    marginBottom: 15,
+  },
+  dateButtonText: {
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
   },
   addButton: {
     backgroundColor: '#4CAF50',
-    padding: 15,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginVertical: 10,
-  },
-  updateButton: {
-    backgroundColor: '#2196F3',
     padding: 15,
     borderRadius: 5,
     alignItems: 'center',
@@ -604,33 +665,23 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
+    fontSize: 16,
   },
   floatingAddButton: {
     position: 'absolute',
-    width: 70,
-    height: 70,
+    width: 60,
+    height: 60,
     alignItems: 'center',
     justifyContent: 'center',
     right: 20,
     bottom: 20,
-    backgroundColor: 'green',
-    borderRadius: 28,
+    backgroundColor: '#4CAF50',
+    borderRadius: 30,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    opacity: .90
-  },
-  dateButton: {
-    backgroundColor: '#f0f0f0',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 10,
-  },
-  dateButtonText: {
-    fontSize: 16,
-    color: '#333',
   },
   creditCardIndicator: {
     fontSize: 12,
@@ -647,22 +698,43 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     marginTop: 2,
   },
-  addTransactionForm: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#ddd',
-  },
-  switchContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  picker: {
-    height: 50,
-    width: '100%',
-    marginBottom: 10,
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    width: '80%',
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  modalOption: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalOptionText: {
+    fontSize: 16,
+  },
+  modalCloseButton: {
+    marginTop: 20,
+    padding: 10,
+    backgroundColor: '#ddd',
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  modalCloseButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 
