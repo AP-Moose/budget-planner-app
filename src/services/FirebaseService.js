@@ -617,12 +617,24 @@ export const updateBalanceSheetItem = async (itemData) => {
       ? doc(db, 'balanceSheet', itemData.id)
       : doc(collection(db, 'balanceSheet'));
     
-    await setDoc(itemRef, { 
+    let dataToSave = { 
       ...itemData, 
       userId: user.uid,
       updatedAt: serverTimestamp()
-    }, { merge: true });
+    };
+
+    // If it's a new loan or updating a loan
+    if (itemData.category === 'Loan' && itemData.type === 'Liability') {
+      dataToSave = {
+        ...dataToSave,
+        initialAmount: itemData.id ? itemData.initialAmount : itemData.amount, // Keep initial amount for existing loans
+        interestRate: itemData.interestRate || null
+      };
+    }
+
+    await setDoc(itemRef, dataToSave, { merge: true });
     
+    console.log('Balance sheet item updated:', itemRef.id);
     return itemRef.id;
   } catch (error) {
     console.error('Error updating balance sheet item:', error);
@@ -655,10 +667,10 @@ export const updateLoanBalance = async (loanId, amount) => {
       if (loanData.userId !== user.uid) throw new Error('User does not have permission to update this loan');
 
       const currentAmount = loanData.amount || 0;
-      const newAmount = currentAmount - amount;
+      const newAmount = currentAmount - parseFloat(paymentAmount);
 
       await updateDoc(loanRef, { 
-        amount: newAmount,
+        amount: newAmount, //Update amount instead of currentBalance
         updatedAt: serverTimestamp()
       });
       console.log('Loan balance updated:', loanId, 'New amount:', newAmount);
@@ -687,10 +699,13 @@ export const getLoans = async () => {
 
     const loans = loansSnapshot.docs.map(doc => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data(),
+      initialAmount: doc.data().initialAmount || doc.data().amount,
+      currentBalance: doc.data().amaount || doc.data().amount,
+      interestRate: doc.data().interestRate || null
     }));
 
-    console.log('Fetched loans:', loans); // Add this line for debugging
+    console.log('Fetched loans:', loans);
     return loans;
   } catch (error) {
     console.error('Error fetching loans:', error);

@@ -17,19 +17,22 @@ import {
   getBalanceSheetItems,
   updateBalanceSheetItem,
   deleteBalanceSheetItem,
-  getCreditCards
+  getCreditCards,
+  getLoans
 } from '../services/FirebaseService';
 
 const UserProfileScreen = ({ navigation }) => {
   const [initialCashBalance, setInitialCashBalance] = useState('');
   const [balanceSheetItems, setBalanceSheetItems] = useState([]);
   const [creditCards, setCreditCards] = useState([]);
+  const [loans, setLoans] = useState([]);
   const [newItem, setNewItem] = useState({ 
     type: 'Asset', 
     category: 'Investment', 
     name: '', 
     amount: '', 
-    date: new Date() 
+    date: new Date(),
+    interestRate: ''
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -37,6 +40,7 @@ const UserProfileScreen = ({ navigation }) => {
     loadUserProfile();
     loadBalanceSheetItems();
     loadCreditCards();
+    loadLoans();
   }, []);
 
   const loadUserProfile = async () => {
@@ -69,6 +73,16 @@ const UserProfileScreen = ({ navigation }) => {
     }
   };
 
+  const loadLoans = async () => {
+    try {
+      const fetchedLoans = await getLoans();
+      setLoans(fetchedLoans);
+    } catch (error) {
+      console.error('Error loading loans:', error);
+      Alert.alert('Error', 'Failed to load loans. Please try again.');
+    }
+  };
+
   const handleSave = async () => {
     try {
       await updateUserProfile({ initialCashBalance: parseFloat(initialCashBalance) || 0 });
@@ -85,19 +99,29 @@ const UserProfileScreen = ({ navigation }) => {
       return;
     }
     try {
-      await updateBalanceSheetItem({
+      const itemToAdd = {
         ...newItem,
         amount: parseFloat(newItem.amount),
         date: newItem.date.toISOString()
-      });
+      };
+
+      if (newItem.category === 'Loan') {
+        itemToAdd.interestRate = parseFloat(newItem.interestRate) || null;
+        itemToAdd.initialAmount = parseFloat(newItem.amount);
+        itemToAdd.currentBalance = parseFloat(newItem.amount);
+      }
+
+      await updateBalanceSheetItem(itemToAdd);
       setNewItem({ 
         type: 'Asset', 
         category: 'Investment', 
         name: '', 
         amount: '', 
-        date: new Date() 
+        date: new Date(),
+        interestRate: ''
       });
       loadBalanceSheetItems();
+      loadLoans();
       Alert.alert('Success', 'Item added successfully');
     } catch (error) {
       console.error('Error adding item:', error);
@@ -109,6 +133,7 @@ const UserProfileScreen = ({ navigation }) => {
     try {
       await deleteBalanceSheetItem(itemId);
       loadBalanceSheetItems();
+      loadLoans();
       Alert.alert('Success', 'Item deleted successfully');
     } catch (error) {
       console.error('Error deleting item:', error);
@@ -124,7 +149,7 @@ const UserProfileScreen = ({ navigation }) => {
 
   const renderBalanceSheetItems = () => {
     const assets = balanceSheetItems.filter(item => item.type === 'Asset');
-    const liabilities = balanceSheetItems.filter(item => item.type === 'Liability');
+    const liabilities = balanceSheetItems.filter(item => item.type === 'Liability' && item.category !== 'Loan');
 
     return (
       <View>
@@ -168,6 +193,25 @@ const UserProfileScreen = ({ navigation }) => {
     );
   };
 
+  const renderLoans = () => {
+    return (
+      <View>
+        <Text style={styles.sectionTitle}>Loan Liabilities</Text>
+        {loans.map((loan, index) => (
+          <View key={index} style={styles.item}>
+            <Text>{loan.name}</Text>
+            <Text>Initial Amount: ${parseFloat(loan.initialAmount).toFixed(2)}</Text>
+            <Text>Current Balance: ${parseFloat(loan.amount).toFixed(2)}</Text>
+            {loan.interestRate && <Text>Interest Rate: {loan.interestRate}%</Text>}
+            <TouchableOpacity onPress={() => handleDeleteItem(loan.id)}>
+              <Text style={styles.deleteButton}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
+    );
+  };
+
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -194,6 +238,7 @@ const UserProfileScreen = ({ navigation }) => {
           <Text style={styles.sectionTitle}>Balance Sheet Items</Text>
           {renderBalanceSheetItems()}
           {renderCreditCardLiabilities()}
+          {renderLoans()}
         </View>
 
         <View style={styles.section}>
@@ -211,6 +256,15 @@ const UserProfileScreen = ({ navigation }) => {
             keyboardType="numeric"
             placeholder="Amount"
           />
+          {newItem.category === 'Loan' && (
+            <TextInput
+              style={styles.input}
+              value={newItem.interestRate}
+              onChangeText={(text) => setNewItem({...newItem, interestRate: text})}
+              keyboardType="numeric"
+              placeholder="Interest Rate (%)"
+            />
+          )}
           <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
             <Text>{newItem.date.toLocaleDateString()}</Text>
           </TouchableOpacity>
@@ -246,7 +300,7 @@ const UserProfileScreen = ({ navigation }) => {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.pickerButton, newItem.category === 'Loan' && styles.selectedButton]}
-              onPress={() => setNewItem({...newItem, category: 'Loan'})}
+              onPress={() => setNewItem({...newItem, category: 'Loan', type: 'Liability'})}
             >
               <Text style={styles.pickerButtonText}>Loan</Text>
             </TouchableOpacity>
