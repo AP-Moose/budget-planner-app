@@ -139,6 +139,16 @@ function HomeScreen({ navigation }) {
     }, [loadTransactions, loadCreditCards, loadLoans])
   );
 
+  const handleCategorySelection = (category) => {
+    if (editingTransaction) {
+      setEditingTransaction(prev => ({ ...prev, category }));
+      setShowEditModal(true);
+    } else {
+      setNewTransaction(prev => ({ ...prev, category }));
+    }
+    setShowCategoryModal(false);
+  };
+  
   const handleSearch = useCallback((query) => {
     setSearchQuery(query);
     const filtered = transactions.filter(
@@ -475,7 +485,7 @@ function HomeScreen({ navigation }) {
                   }}
                 >
                   <Text style={styles.selectButtonText}>
-                    {editingTransaction?.category || 'Select Category'}
+                  {editingTransaction?.category ? getCategoryName(editingTransaction.category) : 'Select Category'}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
@@ -634,13 +644,7 @@ function HomeScreen({ navigation }) {
           (editingTransaction.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES) :
           (newTransaction.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES)
         }
-        onSelect={(category) => {
-          if (editingTransaction) {
-            setEditingTransaction(prev => ({ ...prev, category }));
-          } else {
-            setNewTransaction(prev => ({ ...prev, category }));
-          }
-        }}
+        onSelect={handleCategorySelection}
         title="Select Category"
       />
       <SelectModal
