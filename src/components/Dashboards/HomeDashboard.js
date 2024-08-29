@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { getTransactions } from '../../services/FirebaseService';
+import { getFirestore, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { useMonth } from '../../context/MonthContext';
 import { categorizeTransactions, calculateTotals } from '../../utils/reportUtils';
+import { getAuth } from 'firebase/auth';
 
 const HomeDashboard = () => {
   const { currentMonth } = useMonth();
@@ -16,44 +17,59 @@ const HomeDashboard = () => {
   });
 
   useEffect(() => {
-    loadDashboardData();
+    const unsubscribe = loadDashboardData();
+    return () => unsubscribe && unsubscribe();
   }, [currentMonth]);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = () => {
     try {
-      const transactions = await getTransactions();
-      const currentMonthTransactions = transactions.filter(t => {
-        const transactionDate = new Date(t.date);
-        return (
-          transactionDate.getMonth() === currentMonth.getMonth() &&
-          transactionDate.getFullYear() === currentMonth.getFullYear()
-        );
+      const auth = getAuth();
+      const user = auth.currentUser;
+      const db = getFirestore();
+
+      if (!user) {
+        throw new Error('No user logged in');
+      }
+
+      const transactionsRef = collection(db, 'transactions');
+      const q = query(
+        transactionsRef,
+        where('userId', '==', user.uid),
+        where('date', '>=', new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)),
+        where('date', '<=', new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)),
+        orderBy('date', 'desc')
+      );
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const transactions = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        const categorizedTransactions = categorizeTransactions(transactions);
+        const totals = calculateTotals(categorizedTransactions);
+
+        const totalIncome = totals.totalRegularIncome + totals.totalCreditCardIncome;
+        const totalExpenses = totals.totalRegularExpenses + totals.totalCreditCardPurchases;
+        const totalCashOutflow = totals.totalRegularExpenses + totals.totalCreditCardPayments + totals.totalLoanPayments;
+
+        const netCashFlow = totalIncome - totalCashOutflow;
+
+        setDashboardData({
+          totalIncome,
+          totalExpenses,
+          totalCashOutflow,
+          netCashFlow,
+          creditCardPurchases: totals.totalCreditCardPurchases,
+          creditCardPayments: totals.totalCreditCardPayments,
+        });
       });
-  
-      const categorizedTransactions = categorizeTransactions(currentMonthTransactions);
-      const totals = calculateTotals(categorizedTransactions);
-  
-      const totalIncome = totals.totalRegularIncome + totals.totalCreditCardIncome;
-      const totalExpenses = totals.totalRegularExpenses + totals.totalCreditCardPurchases;
-  
-      // Update the totalCashOutflow calculation to include loan payments
-      const totalCashOutflow = totals.totalRegularExpenses + totals.totalCreditCardPayments + totals.totalLoanPayments;
-  
-      const netCashFlow = totalIncome - totalCashOutflow;
-  
-      setDashboardData({
-        totalIncome,
-        totalExpenses,
-        totalCashOutflow,
-        netCashFlow,
-        creditCardPurchases: totals.totalCreditCardPurchases,
-        creditCardPayments: totals.totalCreditCardPayments,
-      });
+
+      return unsubscribe; // Unsubscribe from updates when the component unmounts
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     }
   };
-  
 
   const formatCurrency = (amount) => {
     return `$${Math.abs(amount).toLocaleString('en-US', {
