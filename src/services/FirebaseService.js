@@ -104,7 +104,7 @@ export const addTransaction = async (transaction) => {
     }
 
     if (transactionToSave.isLoanPayment && transactionToSave.loanId) {
-      await updateLoanBalance(transactionToSave.loanId, transactionToSave.amount);
+      await updateLoanBalanceInDatabase(transactionToSave.loanId);
     }
 
     return docRef.id;
@@ -185,21 +185,14 @@ export const updateTransaction = async (id, updatedData) => {
 
     // If this is a loan payment, update the loan balance
     if (updatedData.isLoanPayment && updatedData.loanId) {
-      const loanRef = doc(db, 'balanceSheet', updatedData.loanId);
-      const loanDoc = await getDoc(loanRef);
-      
-      if (loanDoc.exists()) {
-        const loanData = loanDoc.data();
-        const oldPaymentAmount = parseFloat(oldTransactionData.amount) || 0;
-        const newPaymentAmount = parseFloat(updatedData.amount) || 0;
-        const balanceChange = newPaymentAmount - oldPaymentAmount;
-        const newBalance = parseFloat(loanData.amount) - balanceChange;
+      await updateLoanBalanceInDatabase(updatedData.loanId);
+    }
 
-        await updateDoc(loanRef, { 
-          amount: newBalance,
-          updatedAt: serverTimestamp()
-        });
-      }
+    // If the old transaction was a loan payment but the updated one isn't,
+    // or if the loan ID has changed, update the old loan's balance as well
+    if (oldTransactionData.isLoanPayment && oldTransactionData.loanId &&
+        (!updatedData.isLoanPayment || updatedData.loanId !== oldTransactionData.loanId)) {
+      await updateLoanBalanceInDatabase(oldTransactionData.loanId);
     }
 
     console.log('Transaction updated successfully:', id);
@@ -224,10 +217,12 @@ export const deleteTransaction = async (id) => {
       
       // If it's a loan payment, update the loan balance
       if (transactionData.isLoanPayment && transactionData.loanId) {
-        await updateLoanBalance(transactionData.loanId, -transactionData.amount); // Add back the payment amount
+        await deleteDoc(transactionRef);
+        await updateLoanBalanceInDatabase(transactionData.loanId);
+      } else {
+        await deleteDoc(transactionRef);
       }
 
-      await deleteDoc(transactionRef);
       console.log('Transaction deleted successfully:', id);
     } else {
       throw new Error('Transaction not found');
@@ -711,7 +706,7 @@ export const onBalanceSheetUpdate = (callback) => {
   });
 };
 
-export const updateLoanBalance = async (loanId, paymentAmount) => {
+export const updateLoanBalance = async (loanId, amount) => {
   try {
     const loanRef = doc(db, 'balanceSheet', loanId);
     const loanDoc = await getDoc(loanRef);
@@ -719,7 +714,7 @@ export const updateLoanBalance = async (loanId, paymentAmount) => {
     if (loanDoc.exists()) {
       const loanData = loanDoc.data();
       const currentBalance = parseFloat(loanData.amount);
-      const newBalance = currentBalance - parseFloat(paymentAmount);
+      const newBalance = currentBalance - parseFloat(amount);
 
       await updateDoc(loanRef, { 
         amount: newBalance,
@@ -731,6 +726,47 @@ export const updateLoanBalance = async (loanId, paymentAmount) => {
     }
   } catch (error) {
     console.error('Error updating loan balance:', error);
+    throw error;
+  }
+};
+
+export const updateLoanBalanceInDatabase = async (loanId) => {
+  try {
+    const loanRef = doc(db, 'balanceSheet', loanId);
+    const loanDoc = await getDoc(loanRef);
+    
+    if (loanDoc.exists()) {
+      const loanData = loanDoc.data();
+      const initialAmount = parseFloat(loanData.initialAmount);
+
+      // Get all loan payment transactions for this loan
+      const transactionsQuery = query(
+        collection(db, 'transactions'),
+        where('userId', '==', loanData.userId),
+        where('isLoanPayment', '==', true),
+        where('loanId', '==', loanId)
+      );
+      const transactionsSnapshot = await getDocs(transactionsQuery);
+      const loanPayments = transactionsSnapshot.docs.map(doc => doc.data());
+
+      // Calculate the total payments
+      const totalPayments = loanPayments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
+
+      // Calculate the new balance
+      const newBalance = initialAmount - totalPayments;
+
+      // Update the loan balance in the database
+      await updateDoc(loanRef, { 
+        amount: newBalance,
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('Loan balance updated in database:', loanId, 'New balance:', newBalance);
+    } else {
+      console.error('Loan not found:', loanId);
+    }
+  } catch (error) {
+    console.error('Error updating loan balance in database:', error);
     throw error;
   }
 };
@@ -748,30 +784,15 @@ export const getLoans = async () => {
     );
 
     const loansSnapshot = await getDocs(loansQuery);
+
     const loans = loansSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
+      currentBalance: doc.data().amount // Use the amount field as the current balance
     }));
 
-    // Fetch all transactions
-    const transactionsQuery = query(
-      collection(db, 'transactions'),
-      where('userId', '==', user.uid),
-      where('isLoanPayment', '==', true)
-    );
-    const transactionsSnapshot = await getDocs(transactionsQuery);
-    const transactions = transactionsSnapshot.docs.map(doc => doc.data());
-
-    // Calculate current balance for each loan
-    const loansWithBalance = loans.map(loan => {
-      const loanPayments = transactions.filter(t => t.loanId === loan.id);
-      const totalPayments = loanPayments.reduce((sum, t) => sum + parseFloat(t.amount), 0);
-      const currentBalance = parseFloat(loan.initialAmount) - totalPayments;
-      return {...loan, currentBalance};
-    });
-
-    console.log('Fetched loans with calculated balances:', loansWithBalance);
-    return loansWithBalance;
+    console.log('Fetched loans:', loans);
+    return loans;
   } catch (error) {
     console.error('Error fetching loans:', error);
     throw error;
@@ -812,4 +833,5 @@ export default {
   getLoans,
   updateLoanBalance,
   onBalanceSheetUpdate,
+  updateLoanBalanceInDatabase,
 };
