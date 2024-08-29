@@ -1,3 +1,5 @@
+// reportUtils.js
+
 export const categorizeTransactions = (transactions) => {
   return {
     regularIncome: transactions.filter(t => t.type === 'income' && !t.creditCard && !t.isCashback),

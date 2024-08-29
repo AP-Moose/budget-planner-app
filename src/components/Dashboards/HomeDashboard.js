@@ -29,16 +29,18 @@ const HomeDashboard = () => {
           transactionDate.getFullYear() === currentMonth.getFullYear()
         );
       });
-
+  
       const categorizedTransactions = categorizeTransactions(currentMonthTransactions);
       const totals = calculateTotals(categorizedTransactions);
-
+  
       const totalIncome = totals.totalRegularIncome + totals.totalCreditCardIncome;
       const totalExpenses = totals.totalRegularExpenses + totals.totalCreditCardPurchases;
-      const totalCashOutflow = totals.totalRegularExpenses + totals.totalCreditCardPayments;
-
+  
+      // Update the totalCashOutflow calculation to include loan payments
+      const totalCashOutflow = totals.totalRegularExpenses + totals.totalCreditCardPayments + totals.totalLoanPayments;
+  
       const netCashFlow = totalIncome - totalCashOutflow;
-
+  
       setDashboardData({
         totalIncome,
         totalExpenses,
@@ -51,6 +53,7 @@ const HomeDashboard = () => {
       console.error('Error loading dashboard data:', error);
     }
   };
+  
 
   const formatCurrency = (amount) => {
     return `$${Math.abs(amount).toLocaleString('en-US', {
