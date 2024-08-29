@@ -77,8 +77,7 @@ function HomeScreen({ navigation }) {
     creditCardId: null,
     isCardPayment: false,
     isLoanPayment: false,
-    loanId: null,
-    isCashback: false
+    loanId: null
   });
   const [isAddingTransaction, setIsAddingTransaction] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -221,8 +220,7 @@ function HomeScreen({ navigation }) {
         creditCardId: null,
         isCardPayment: false,
         isLoanPayment: false,
-        loanId: null,
-        isCashback: false
+        loanId: null
       });
       setIsAddingTransaction(false);
       Alert.alert('Success', 'Transaction added successfully');
@@ -247,8 +245,7 @@ function HomeScreen({ navigation }) {
     setNewTransaction(prev => ({
       ...prev,
       creditCard: !prev.creditCard,
-      isLoanPayment: false,
-      isCashback: false
+      isLoanPayment: false
     }));
   };
 
@@ -260,18 +257,7 @@ function HomeScreen({ navigation }) {
     setNewTransaction(prev => ({
       ...prev,
       isLoanPayment: !prev.isLoanPayment,
-      creditCard: false,
-      isCashback: false
-    }));
-  };
-
-  const toggleIsCashback = () => {
-    setNewTransaction(prev => ({
-      ...prev,
-      isCashback: !prev.isCashback,
-      type: 'income',
-      creditCard: true,
-      isLoanPayment: false
+      creditCard: false
     }));
   };
 
@@ -303,9 +289,6 @@ function HomeScreen({ navigation }) {
           )}
           {item.isLoanPayment && (
             <Text style={styles.loanIndicator}>Loan Payment</Text>
-          )}
-          {item.isCashback && (
-            <Text style={styles.cashbackIndicator}>Cashback/Reward</Text>
           )}
         </View>
         <View style={styles.amountAndEditContainer}>
@@ -346,11 +329,11 @@ function HomeScreen({ navigation }) {
         <Switch
           value={newTransaction.creditCard}
           onValueChange={toggleCreditCard}
-          disabled={newTransaction.isLoanPayment || newTransaction.isCashback}
+          disabled={newTransaction.isLoanPayment}
         />
       </View>
 
-      {(newTransaction.creditCard || newTransaction.isCashback) && (
+      {newTransaction.creditCard && (
         <TouchableOpacity style={styles.selectButton} onPress={() => setShowCreditCardModal(true)}>
           <Text style={styles.selectButtonText}>
             {newTransaction.creditCardId ? creditCards.find(card => card.id === newTransaction.creditCardId)?.name : 'Select Credit Card'}
@@ -358,7 +341,7 @@ function HomeScreen({ navigation }) {
         </TouchableOpacity>
       )}
 
-      {newTransaction.creditCard && !newTransaction.isCashback && (
+      {newTransaction.creditCard && (
         <View style={styles.formRow}>
           <Text style={styles.label}>Is Card Payment:</Text>
           <Switch
@@ -373,7 +356,7 @@ function HomeScreen({ navigation }) {
         <Switch
           value={newTransaction.isLoanPayment}
           onValueChange={toggleIsLoanPayment}
-          disabled={newTransaction.creditCard || newTransaction.isCashback}
+          disabled={newTransaction.creditCard}
         />
       </View>
 
@@ -384,15 +367,6 @@ function HomeScreen({ navigation }) {
           </Text>
         </TouchableOpacity>
       )}
-
-      <View style={styles.formRow}>
-        <Text style={styles.label}>Cashback/Rewards:</Text>
-        <Switch
-          value={newTransaction.isCashback}
-          onValueChange={toggleIsCashback}
-          disabled={newTransaction.isLoanPayment}
-        />
-      </View>
 
       <TextInput
         style={styles.input}
@@ -560,13 +534,6 @@ function HomeScreen({ navigation }) {
                     </Text>
                   </TouchableOpacity>
                 )}
-                <View style={styles.switchContainer}>
-                  <Text>Cashback/Rewards:</Text>
-                  <Switch
-                    value={editingTransaction?.isCashback}
-                    onValueChange={(value) => setEditingTransaction(prev => ({...prev, isCashback: value, type: value ? 'income' : prev.type}))}
-                  />
-                </View>
                 <TouchableOpacity style={styles.addButton} onPress={handleUpdateTransaction}>
                   <Text style={styles.buttonText}>Update Transaction</Text>
                 </TouchableOpacity>
@@ -856,11 +823,6 @@ const styles = StyleSheet.create({
   loanIndicator: {
     fontSize: 12,
     color: '#FF9800',
-    marginTop: 2,
-  },
-  cashbackIndicator: {
-    fontSize: 12,
-    color: '#4CAF50',
     marginTop: 2,
   },
   modalOverlay: {
