@@ -4,6 +4,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useMonth } from '../context/MonthContext';
 import { generateReport, exportReportToCSV } from '../services/ReportService';
 import { ALL_CATEGORIES, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../utils/categories';
+import { generateMonthlySummary, generateCustomRangeReport, generateYTDSummary } from '../services/ReportService/summaryReports';
+import { getTransactions } from '../services/FirebaseService';
 
 const ReportsScreen = () => {
   const { currentMonth } = useMonth();
@@ -110,27 +112,38 @@ const ReportsScreen = () => {
     if (startDate > endDate) {
       Alert.alert('Invalid Date Range', 'Start date must be before or equal to end date.');
       return;
-    }
+    }  
 
     setIsLoading(true);
-    try {
-      console.log('Generating report:', reportType, formatDate(startDate), formatDate(endDate));
-      const report = await generateReport(reportType, startDate, endDate);
-      console.log('Generated report:', JSON.stringify(report, null, 2));
-      setReportData(report);
-
-      // Ensure top expense category and income source are set for YTD summary
-      if (reportType === 'ytd-summary' && report) {
-        report.topExpenseCategory = report.topExpenseCategory || 'N/A';
-        report.topIncomeSource = report.topIncomeSource || 'N/A';
-      }
-    } catch (error) {
-      console.error('Error generating report:', error);
-      Alert.alert('Error', `Failed to generate report: ${error.message}`);
-    } finally {
-      setIsLoading(false);
+  try {
+    console.log('Generating report:', reportType, formatDate(startDate), formatDate(endDate));
+    const transactions = await getTransactions(startDate, endDate);
+    let report;
+    
+    switch (reportType) {
+      case 'ytd-summary':
+        report = generateYTDSummary(transactions);
+        break;
+      case 'monthly-summary':
+        report = generateMonthlySummary(transactions);
+        break;
+      case 'custom-range':
+        report = generateCustomRangeReport(transactions);
+        break;
+      // ... other report types ...
+      default:
+        throw new Error('Unknown report type');
     }
-  };
+
+    console.log('Generated report:', JSON.stringify(report, null, 2));
+    setReportData(report);
+  } catch (error) {
+    console.error('Error generating report:', error);
+    Alert.alert('Error', `Failed to generate report: ${error.message}`);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleExportReport = async () => {
     if (!reportData) {
