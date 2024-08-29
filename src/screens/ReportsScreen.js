@@ -112,38 +112,38 @@ const ReportsScreen = () => {
     if (startDate > endDate) {
       Alert.alert('Invalid Date Range', 'Start date must be before or equal to end date.');
       return;
-    }  
-
-    setIsLoading(true);
-  try {
-    console.log('Generating report:', reportType, formatDate(startDate), formatDate(endDate));
-    const transactions = await getTransactions(startDate, endDate);
-    let report;
-    
-    switch (reportType) {
-      case 'ytd-summary':
-        report = generateYTDSummary(transactions);
-        break;
-      case 'monthly-summary':
-        report = generateMonthlySummary(transactions);
-        break;
-      case 'custom-range':
-        report = generateCustomRangeReport(transactions);
-        break;
-      // ... other report types ...
-      default:
-        throw new Error('Unknown report type');
     }
-
-    console.log('Generated report:', JSON.stringify(report, null, 2));
-    setReportData(report);
-  } catch (error) {
-    console.error('Error generating report:', error);
-    Alert.alert('Error', `Failed to generate report: ${error.message}`);
-  } finally {
-    setIsLoading(false);
-  }
-};
+  
+    setIsLoading(true);
+    try {
+      console.log('Generating report:', reportType, formatDate(startDate), formatDate(endDate));
+      const transactions = await getTransactions(startDate, endDate);
+      let report;
+      
+      switch (reportType) {
+        case 'ytd-summary':
+          report = generateYTDSummary(transactions);
+          break;
+        case 'monthly-summary':
+          report = generateMonthlySummary(transactions);
+          break;
+        case 'custom-range':
+          report = generateCustomRangeReport(transactions, startDate, endDate);
+          break;
+        // ... other report types ...
+        default:
+          throw new Error('Unknown report type');
+      }
+  
+      console.log('Generated report:', JSON.stringify(report, null, 2));
+      setReportData(report);
+    } catch (error) {
+      console.error('Error generating report:', error);
+      Alert.alert('Error', `Failed to generate report: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleExportReport = async () => {
     if (!reportData) {
@@ -289,38 +289,38 @@ const ReportsScreen = () => {
   );
 
   const renderCustomRange = (data) => (
-    <View style={styles.reportContainer}>
-      <Text style={styles.reportTitle}>Custom Range Report</Text>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Date Range:</Text>
-        <Text style={styles.reportValue}>{`${formatDate(data.startDate)} - ${formatDate(data.endDate)}`}</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Total Income:</Text>
-        <Text style={styles.reportValue}>{formatCurrency(data.totalIncome)}</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Total Expenses:</Text>
-        <Text style={styles.reportValue}>{formatCurrency(data.totalExpenses)}</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Net Savings:</Text>
-        <Text style={styles.reportValue}>{formatCurrency(data.netSavings)}</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Savings Rate:</Text>
-        <Text style={styles.reportValue}>{data.savingsRate?.toFixed(2) || '0.00'}%</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Top Expense Category:</Text>
-        <Text style={styles.reportValue}>{data.topExpenseCategory || 'N/A'}</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Top Income Source:</Text>
-        <Text style={styles.reportValue}>{data.topIncomeSource || 'N/A'}</Text>
-      </View>
+  <View style={styles.reportContainer}>
+    <Text style={styles.reportTitle}>Custom Range Report</Text>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Date Range:</Text>
+      <Text style={styles.reportValue}>{`${formatDate(data.startDate)} - ${formatDate(data.endDate)}`}</Text>
     </View>
-  );
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Total Income:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.totalIncome)}</Text>
+    </View>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Total Expenses:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.totalExpenses)}</Text>
+    </View>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Net Savings:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.netSavings)}</Text>
+    </View>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Savings Rate:</Text>
+      <Text style={styles.reportValue}>{data.savingsRate?.toFixed(2) || '0.00'}%</Text>
+    </View>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Top Expense Category:</Text>
+      <Text style={styles.reportValue}>{data.topExpenseCategory || 'N/A'}</Text>
+    </View>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Top Income Source:</Text>
+      <Text style={styles.reportValue}>{data.topIncomeSource || 'N/A'}</Text>
+    </View>
+  </View>
+);
 
   const renderCategoryBreakdown = (data) => (
     <View style={styles.reportContainer}>
