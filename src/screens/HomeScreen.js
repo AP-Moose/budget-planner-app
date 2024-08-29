@@ -245,19 +245,25 @@ function HomeScreen({ navigation }) {
     setNewTransaction(prev => ({
       ...prev,
       creditCard: !prev.creditCard,
-      isLoanPayment: false
+      isLoanPayment: false,
+      category: prev.isCardPayment || prev.isLoanPayment ? 'Debt Payment' : prev.category // Set to "Debt Payment" if it's a payment
     }));
   };
 
   const toggleIsCardPayment = () => {
-    setNewTransaction(prev => ({ ...prev, isCardPayment: !prev.isCardPayment }));
+    setNewTransaction(prev => ({
+      ...prev,
+      isCardPayment: !prev.isCardPayment,
+      category: !prev.isCardPayment ? 'Debt Payment' : prev.category, // Automatically set category to "Debt Payment" when selecting Card Payment
+    }));
   };
 
   const toggleIsLoanPayment = () => {
     setNewTransaction(prev => ({
       ...prev,
       isLoanPayment: !prev.isLoanPayment,
-      creditCard: false
+      creditCard: false,
+      category: !prev.isLoanPayment ? 'Debt Payment' : prev.category, // Automatically set category to "Debt Payment" when selecting Loan Payment
     }));
   };
 
@@ -385,7 +391,12 @@ function HomeScreen({ navigation }) {
         placeholderTextColor="#999"
       />
 
-      <TouchableOpacity style={styles.selectButton} onPress={() => setShowCategoryModal(true)}>
+      {/* Category Selection, disable for Debt Payments */}
+      <TouchableOpacity
+        style={[styles.selectButton, (newTransaction.isCardPayment || newTransaction.isLoanPayment) && styles.disabledSelectButton]}
+        onPress={() => !newTransaction.isCardPayment && !newTransaction.isLoanPayment && setShowCategoryModal(true)}
+        disabled={newTransaction.isCardPayment || newTransaction.isLoanPayment}
+      >
         <Text style={styles.selectButtonText}>
           {newTransaction.category || 'Select Category'}
         </Text>
@@ -457,6 +468,7 @@ function HomeScreen({ navigation }) {
                     setShowEditModal(false);
                     setShowCategoryModal(true);
                   }}
+                  disabled={editingTransaction?.isCardPayment || editingTransaction?.isLoanPayment}
                 >
                   <Text style={styles.selectButtonText}>
                   {editingTransaction?.category ? getCategoryName(editingTransaction.category) : 'Select Category'}
@@ -489,7 +501,11 @@ function HomeScreen({ navigation }) {
                   <Text>Credit Card Transaction:</Text>
                   <Switch
                     value={editingTransaction?.creditCard}
-                    onValueChange={(value) => setEditingTransaction(prev => ({...prev, creditCard: value}))}
+                    onValueChange={(value) => setEditingTransaction(prev => ({
+                      ...prev, 
+                      creditCard: value,
+                      category: value && prev.isCardPayment ? 'Debt Payment' : prev.category // Automatically set category to "Debt Payment" when selecting Credit Card Payment
+                    }))}
                   />
                 </View>
                 {editingTransaction?.creditCard && (
@@ -509,7 +525,11 @@ function HomeScreen({ navigation }) {
                       <Text>Is Card Payment:</Text>
                       <Switch
                         value={editingTransaction?.isCardPayment}
-                        onValueChange={(value) => setEditingTransaction(prev => ({...prev, isCardPayment: value}))}
+                        onValueChange={(value) => setEditingTransaction(prev => ({
+                          ...prev, 
+                          isCardPayment: value,
+                          category: value ? 'Debt Payment' : prev.category // Automatically set category to "Debt Payment" when selecting Card Payment
+                        }))}
                       />
                     </View>
                   </>
@@ -518,7 +538,12 @@ function HomeScreen({ navigation }) {
                   <Text>Loan Payment:</Text>
                   <Switch
                     value={editingTransaction?.isLoanPayment}
-                    onValueChange={(value) => setEditingTransaction(prev => ({...prev, isLoanPayment: value}))}
+                    onValueChange={(value) => setEditingTransaction(prev => ({
+                      ...prev, 
+                      isLoanPayment: value,
+                      category: value ? 'Debt Payment' : prev.category, // Automatically set category to "Debt Payment" when selecting Loan Payment
+                      creditCard: false
+                    }))}
                   />
                 </View>
                 {editingTransaction?.isLoanPayment && (
@@ -766,6 +791,10 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     borderRadius: 5,
   },
+  disabledSelectButton: {
+    backgroundColor: '#e0e0e0',
+    borderColor: '#aaa',
+  },
   selectButtonText: {
     fontSize: 16,
     color: '#333',
@@ -853,3 +882,4 @@ const styles = StyleSheet.create({
 });
 
 export default HomeScreen;
+
