@@ -12,7 +12,7 @@ import { generateExpenseTrendAnalysis } from '../services/ReportService/trendRep
 import { generateBudgetVsActual, getBudgetGoalsForRange } from '../services/ReportService/budgetReports';
 import { generateSavingsRateReport } from '../services/ReportService/savingsReports';
 import { generateIncomeSourcesAnalysis } from '../services/ReportService/incomeReports';
-import { generateCashFlowStatement } from '../services/ReportService/cashFlowReports';
+import { generateCashFlowStatement, generateDetailedCashFlowStatement } from '../services/ReportService/cashFlowReports';
 
 const ReportsScreen = () => {
   const { currentMonth } = useMonth();
@@ -49,6 +49,7 @@ const ReportsScreen = () => {
       reports: [
         { label: 'Budget vs Actual Spending Comparison', value: 'budget-vs-actual' },
         { label: 'Savings Rate Report', value: 'savings-rate' },
+        { label: 'Detailed Cash Flow Statement', value: 'detailed-cash-flow' },
       ]
     },
     {
@@ -56,6 +57,7 @@ const ReportsScreen = () => {
       reports: [
         { label: 'Income Sources Analysis', value: 'income-sources' },
         { label: 'Cash Flow Statement', value: 'cash-flow' },
+        
       ]
     },
     {
@@ -162,6 +164,9 @@ const ReportsScreen = () => {
         case 'cash-flow':
           report = await generateCashFlowStatement(transactions, startDate, endDate);
           break;
+          case 'detailed-cash-flow':
+            report = await generateDetailedCashFlowStatement(transactions, startDate, endDate); // Add this case
+            break;
         case 'category-transaction-detail':
           report = await generateCategoryTransactionDetail(transactions);
           break;
@@ -276,6 +281,7 @@ const ReportsScreen = () => {
       'savings-rate': withErrorHandling(renderSavingsRate),
       'expense-trend': withErrorHandling(renderExpenseTrend),
       'cash-flow': withErrorHandling(renderCashFlow),
+      'detailed-cash-flow': withErrorHandling(renderDetailedCashFlow),
       'category-transaction-detail': withErrorHandling(renderCategoryTransactionDetail),
       'credit-card-statement': withErrorHandling(renderCreditCardStatement),
       'credit-utilization': withErrorHandling(renderCreditUtilization),
@@ -499,6 +505,63 @@ const renderCashFlow = (data) => (
     </View>
   </View>
 );
+
+const renderDetailedCashFlow = (data) => (
+  <View style={styles.reportContainer}>
+    <Text style={styles.reportTitle}>Detailed Cash Flow Statement</Text>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Total Cash Inflow:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.cashInflow.total)}</Text>
+    </View>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Total Cash Outflow:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.cashOutflow.total)}</Text>
+    </View>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Net Cash Flow:</Text>
+      <Text style={[styles.reportValue, data.netCashFlow < 0 ? styles.negativeValue : styles.positiveValue]}>
+        {formatCurrency(data.netCashFlow)}
+      </Text>
+    </View>
+    <Text style={styles.sectionTitle}>Cash Inflow Details</Text>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Regular Income:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.cashInflow.regularIncome)}</Text>
+    </View>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Credit Card Income:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.cashInflow.creditCardIncome)}</Text>
+    </View>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Cashback Rewards:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.cashInflow.cashbackRewards)}</Text>
+    </View>
+    <Text style={styles.sectionTitle}>Cash Outflow Details</Text>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Regular Expenses:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.cashOutflow.regularExpenses)}</Text>
+    </View>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Credit Card Payments:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.cashOutflow.creditCardPayments)}</Text>
+    </View>
+    <Text style={styles.sectionTitle}>Credit Card Activity</Text>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Purchases:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.creditCardActivity.purchases)}</Text>
+    </View>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Non-Cash Expenses:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.nonCashExpenses)}</Text>
+    </View>
+    <View style={styles.reportRow}>
+      <Text style={styles.reportLabel}>Net Income Effect:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.netIncomeEffect)}</Text>
+    </View>
+  </View>
+);
+
+
 
 const renderCategoryTransactionDetail = (data) => (
   <View style={styles.reportContainer}>

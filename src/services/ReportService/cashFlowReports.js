@@ -3,9 +3,12 @@ import { categorizeTransactions, calculateTotals } from '../../utils/reportUtils
 export const generateCashFlowStatement = (transactions, startDate, endDate) => {
   console.log('Generating cash flow statement');
   try {
+    const startUTC = new Date(startDate).getTime(); // Convert to UTC
+    const endUTC = new Date(endDate).getTime(); // Convert to UTC
+
     const filteredTransactions = transactions.filter(transaction => {
-      const transactionDate = new Date(transaction.date);
-      return transactionDate >= startDate && transactionDate <= endDate;
+      const transactionDate = new Date(transaction.date).getTime(); // Convert to UTC
+      return transactionDate >= startUTC && transactionDate <= endUTC;
     });
 
     console.log('Filtered Transactions:', filteredTransactions);
@@ -44,9 +47,12 @@ export const generateCashFlowStatement = (transactions, startDate, endDate) => {
 export const generateDetailedCashFlowStatement = (transactions, startDate, endDate) => {
   console.log('Generating detailed cash flow statement');
   try {
+    const startUTC = new Date(startDate).getTime(); // Convert to UTC
+    const endUTC = new Date(endDate).getTime(); // Convert to UTC
+
     const filteredTransactions = transactions.filter(transaction => {
-      const transactionDate = new Date(transaction.date);
-      return transactionDate >= startDate && transactionDate <= endDate;
+      const transactionDate = new Date(transaction.date).getTime(); // Convert to UTC
+      return transactionDate >= startUTC && transactionDate <= endUTC;
     });
 
     console.log('Filtered Transactions:', filteredTransactions);
@@ -62,7 +68,8 @@ export const generateDetailedCashFlowStatement = (transactions, startDate, endDa
       cashInflow: {
         total: cashInflow,
         regularIncome: totals.totalRegularIncome,
-        creditCardIncome: totals.totalCreditCardIncome
+        creditCardIncome: totals.totalCreditCardIncome,
+        cashbackRewards: totals.totalCashbackRewards || 0 // Ensure cashback rewards are included
       },
       cashOutflow: {
         total: cashOutflow,
@@ -71,11 +78,11 @@ export const generateDetailedCashFlowStatement = (transactions, startDate, endDa
       },
       netCashFlow,
       creditCardActivity: {
-        purchases: totals.totalCreditCardPurchases,
-        payments: totals.totalCreditCardPayments
+        purchases: totals.totalCreditCardPurchases || 0,
+        payments: totals.totalCreditCardPayments || 0
       },
-      nonCashExpenses: totals.totalCreditCardPurchases,
-      netIncomeEffect: cashInflow - (totals.totalRegularExpenses + totals.totalCreditCardPurchases)
+      nonCashExpenses: totals.totalNonCashExpenses || 0, // Ensure this is defined
+      netIncomeEffect: cashInflow - (totals.totalRegularExpenses + (totals.totalCreditCardPurchases || 0))
     };
   } catch (error) {
     console.error('Error in generateDetailedCashFlowStatement:', error);
