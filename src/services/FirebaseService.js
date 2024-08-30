@@ -100,7 +100,7 @@ export const addTransaction = async (transaction) => {
     console.log('Transaction saved successfully with ID:', docRef.id);
 
     if (transactionToSave.creditCard && transactionToSave.creditCardId) {
-      await updateCreditCardBalance(transactionToSave.creditCardId, transactionToSave.amount, transactionToSave.type, transactionToSave.isCardPayment);
+      await updateCreditCardBalance(transactionToSave.creditCardId);
     }
 
     if (transactionToSave.isLoanPayment && transactionToSave.loanId) {
@@ -149,7 +149,8 @@ export const getTransactions = async () => {
       amount: Number(doc.data().amount),
       date: doc.data().date.toDate(),
       creditCard: Boolean(doc.data().creditCard),
-      isCardPayment: Boolean(doc.data().isCardPayment)
+      isCardPayment: Boolean(doc.data().isCardPayment),
+      creditCardId: doc.data().creditCardId || null // Ensure this field is captured
     }));
     console.log(`Retrieved ${transactions.length} transactions for user:`, user.uid);
     return transactions;
@@ -289,10 +290,13 @@ export const addCreditCard = async (cardData) => {
       throw new Error('No user logged in');
     }
 
+    const transactions = await getTransactions();  // Fetch transactions
+    const newBalance = calculateCreditCardBalance({ ...cardData }, transactions);  // Calculate the balance
+
     const cardToSave = {
       ...cardData,
       userId: user.uid,
-      balance: Number(cardData.startingBalance) || 0,
+      balance: newBalance,  // Use the calculated balance
       limit: Number(cardData.limit) || 0,
       startingBalance: Number(cardData.startingBalance) || 0,
       startDate: Timestamp.fromDate(cardData.startDate || new Date()),
@@ -353,7 +357,7 @@ export const updateCreditCard = async (id, updatedData) => {
 
       await updateDoc(cardRef, {
         ...updatedData,
-        balance: newBalance,
+        balance: newBalance,  // Store the new balance
         limit: updatedData.limit !== undefined ? updatedData.limit : currentData.limit,
         startingBalance: card.startingBalance,
         startDate: Timestamp.fromDate(card.startDate),
@@ -385,7 +389,7 @@ export const deleteCreditCard = async (id) => {
   }
 };
 
-const updateCreditCardBalance = async (cardId, amount, transactionType, isCardPayment) => {
+const updateCreditCardBalance = async (cardId) => {
   try {
     const cardRef = doc(db, 'creditCards', cardId);
     const cardDoc = await getDoc(cardRef);
@@ -798,6 +802,9 @@ export const getLoans = async () => {
     throw error;
   }
 };
+
+
+
 
 export default {
   signUp,

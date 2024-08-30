@@ -22,6 +22,7 @@ import {
   getTransactions
 } from '../services/FirebaseService';
 import { categorizeTransactions, calculateTotals } from '../utils/reportUtils';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const UserProfileScreen = ({ navigation }) => {
   const [initialCashBalance, setInitialCashBalance] = useState('');
@@ -59,7 +60,7 @@ const UserProfileScreen = ({ navigation }) => {
   const loadUserProfile = async () => {
     try {
       const profile = await getUserProfile();
-      const initialBalance = profile.initialCashBalance ? profile.initialCashBalance : 0;
+      const initialBalance = parseFloat(profile.initialCashBalance) || 0;
       setInitialCashBalance(initialBalance.toString());
 
       const transactions = await getTransactions();
@@ -71,7 +72,7 @@ const UserProfileScreen = ({ navigation }) => {
       const netCashFlow = totalIncome - totalCashOutflow;
 
       setAccumulatedCash(netCashFlow);
-      setTotalCashBalance(initialBalance + netCashFlow);
+      setTotalCashBalance(initialBalance + netCashFlow); // Calculate total cash balance
     } catch (error) {
       console.error('Error loading user profile:', error);
       Alert.alert('Error', 'Failed to load user profile. Please try again.');
@@ -157,7 +158,7 @@ const UserProfileScreen = ({ navigation }) => {
 
   const onChangeDate = (event, selectedDate) => {
     const currentDate = selectedDate || newItem.date;
-    setShowDatePicker(Platform.OS === 'ios');
+    setShowDatePicker(false);
     setNewItem({...newItem, date: currentDate});
   };
 
