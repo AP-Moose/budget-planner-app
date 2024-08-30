@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Platform
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { 
   getUserProfile, 
   updateUserProfile, 
@@ -19,11 +18,15 @@ import {
   updateBalanceSheetItem,
   deleteBalanceSheetItem,
   getCreditCards,
-  getLoans
+  getLoans,
+  getTransactions // Ensure this is imported
 } from '../services/FirebaseService';
+import { categorizeTransactions, calculateTotals } from '../utils/reportUtils';
 
 const UserProfileScreen = ({ navigation }) => {
   const [initialCashBalance, setInitialCashBalance] = useState('');
+  const [accumulatedCash, setAccumulatedCash] = useState(0);
+  const [totalCashBalance, setTotalCashBalance] = useState(0);
   const [balanceSheetItems, setBalanceSheetItems] = useState([]);
   const [creditCards, setCreditCards] = useState([]);
   const [loans, setLoans] = useState([]);
@@ -39,7 +42,7 @@ const UserProfileScreen = ({ navigation }) => {
 
   useEffect(() => {
     loadUserProfile();
-    loadBalanceSheetItems();
+    // Directly load balance sheet items, credit cards, and loans without wrapping them in a separate function
     loadCreditCards();
     loadLoans();
   }, []);
@@ -57,20 +60,22 @@ const UserProfileScreen = ({ navigation }) => {
   const loadUserProfile = async () => {
     try {
       const profile = await getUserProfile();
-      setInitialCashBalance(profile.initialCashBalance ? profile.initialCashBalance.toString() : '');
+      const initialBalance = profile.initialCashBalance ? profile.initialCashBalance : 0;
+      setInitialCashBalance(initialBalance.toString());
+
+      const transactions = await getTransactions(); // Fetch all transactions
+      const categorizedTransactions = categorizeTransactions(transactions);
+      const totals = calculateTotals(categorizedTransactions);
+
+      const totalIncome = totals.totalRegularIncome + totals.totalCreditCardIncome;
+      const totalCashOutflow = totals.totalRegularExpenses + totals.totalCreditCardPayments + totals.totalLoanPayments;
+      const netCashFlow = totalIncome - totalCashOutflow;
+
+      setAccumulatedCash(netCashFlow);
+      setTotalCashBalance(initialBalance + netCashFlow);
     } catch (error) {
       console.error('Error loading user profile:', error);
       Alert.alert('Error', 'Failed to load user profile. Please try again.');
-    }
-  };
-
-  const loadBalanceSheetItems = async () => {
-    try {
-      const items = await getBalanceSheetItems();
-      setBalanceSheetItems(items);
-    } catch (error) {
-      console.error('Error loading balance sheet items:', error);
-      Alert.alert('Error', 'Failed to load balance sheet items. Please try again.');
     }
   };
 
@@ -97,6 +102,7 @@ const UserProfileScreen = ({ navigation }) => {
   const handleSave = async () => {
     try {
       await updateUserProfile({ initialCashBalance: parseFloat(initialCashBalance) || 0 });
+      loadUserProfile(); // Recalculate after saving
       Alert.alert('Success', 'User profile updated successfully');
     } catch (error) {
       console.error('Error updating user profile:', error);
@@ -131,8 +137,7 @@ const UserProfileScreen = ({ navigation }) => {
         date: new Date(),
         interestRate: ''
       });
-      loadBalanceSheetItems();
-      loadLoans();
+      loadUserProfile(); // Recalculate after adding a new item
       Alert.alert('Success', 'Item added successfully');
     } catch (error) {
       console.error('Error adding item:', error);
@@ -143,8 +148,7 @@ const UserProfileScreen = ({ navigation }) => {
   const handleDeleteItem = async (itemId) => {
     try {
       await deleteBalanceSheetItem(itemId);
-      loadBalanceSheetItems();
-      loadLoans();
+      loadUserProfile(); // Recalculate after deletion
       Alert.alert('Success', 'Item deleted successfully');
     } catch (error) {
       console.error('Error deleting item:', error);
@@ -222,6 +226,7 @@ const UserProfileScreen = ({ navigation }) => {
       </View>
     );
   };
+
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -242,6 +247,16 @@ const UserProfileScreen = ({ navigation }) => {
           <TouchableOpacity style={styles.button} onPress={handleSave}>
             <Text style={styles.buttonText}>Save Cash Balance</Text>
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Accumulated Cash</Text>
+          <Text>${accumulatedCash.toFixed(2)}</Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Total Cash Balance</Text>
+          <Text>${totalCashBalance.toFixed(2)}</Text>
         </View>
 
         <View style={styles.section}>
