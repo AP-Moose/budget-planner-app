@@ -19,7 +19,7 @@ import {
   deleteBalanceSheetItem,
   getCreditCards,
   getLoans,
-  getTransactions // Ensure this is imported
+  getTransactions
 } from '../services/FirebaseService';
 import { categorizeTransactions, calculateTotals } from '../utils/reportUtils';
 
@@ -42,7 +42,6 @@ const UserProfileScreen = ({ navigation }) => {
 
   useEffect(() => {
     loadUserProfile();
-    // Directly load balance sheet items, credit cards, and loans without wrapping them in a separate function
     loadCreditCards();
     loadLoans();
   }, []);
@@ -63,7 +62,7 @@ const UserProfileScreen = ({ navigation }) => {
       const initialBalance = profile.initialCashBalance ? profile.initialCashBalance : 0;
       setInitialCashBalance(initialBalance.toString());
 
-      const transactions = await getTransactions(); // Fetch all transactions
+      const transactions = await getTransactions();
       const categorizedTransactions = categorizeTransactions(transactions);
       const totals = calculateTotals(categorizedTransactions);
 
@@ -169,6 +168,13 @@ const UserProfileScreen = ({ navigation }) => {
     return (
       <View>
         <Text style={styles.sectionTitle}>Assets</Text>
+
+        {/* Cash Assets Section */}
+        <View style={styles.item}>
+          <Text style={styles.subTitle}>Cash Assets</Text>
+          <Text>Total Cash Balance: ${totalCashBalance.toFixed(2)}</Text>
+        </View>
+
         {assets.map((item, index) => (
           <View key={index} style={styles.item}>
             <Text>{item.name}: ${parseFloat(item.amount).toFixed(2)}</Text>
@@ -252,11 +258,6 @@ const UserProfileScreen = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Accumulated Cash</Text>
           <Text>${accumulatedCash.toFixed(2)}</Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Total Cash Balance</Text>
-          <Text>${totalCashBalance.toFixed(2)}</Text>
         </View>
 
         <View style={styles.section}>
@@ -365,6 +366,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 10,
+  },
+  subTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 5,
   },
   input: {
     backgroundColor: '#fff',
