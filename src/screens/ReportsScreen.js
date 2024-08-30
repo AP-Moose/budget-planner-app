@@ -10,6 +10,7 @@ import { generateBalanceSheetReport } from '../services/ReportService/balanceShe
 import { generateCategoryBreakdown, generateCategoryTransactionDetail } from '../services/ReportService/categoryReports';
 import { generateExpenseTrendAnalysis } from '../services/ReportService/trendReports';
 import { generateBudgetVsActual, getBudgetGoalsForRange } from '../services/ReportService/budgetReports';
+import { generateSavingsRateReport } from '../services/ReportService/savingsReports';
 
 const ReportsScreen = () => {
   const { currentMonth } = useMonth();
@@ -122,58 +123,60 @@ const ReportsScreen = () => {
     try {
       console.log('Generating report:', reportType, formatDate(startDate), formatDate(endDate));
       const transactions = await getTransactions(startDate, endDate);
+      console.log('Transactions:', transactions);
+      
       let report;
   
       switch (reportType) {
         case 'ytd-summary':
-          report = await generateYTDSummary(transactions); // Ensure async/await here
+          report = await generateYTDSummary(transactions);
           break;
         case 'monthly-summary':
-          report = await generateMonthlySummary(transactions); // Ensure async/await here
+          report = await generateMonthlySummary(transactions);
           break;
         case 'custom-range':
           const budgetGoalsForRange = await getBudgetGoalsForRange(startDate, endDate);
           report = await generateCustomRangeReport(transactions, startDate, endDate, budgetGoalsForRange);
           break;
         case 'balance-sheet':
-          report = await generateBalanceSheetReport(transactions, endDate); // Ensure async/await here
+          report = await generateBalanceSheetReport(transactions, endDate);
           break;
         case 'category-breakdown':
-          report = await generateCategoryBreakdown(transactions); // Ensure async/await here
+          report = await generateCategoryBreakdown(transactions);
           break;
         case 'budget-vs-actual':
           const budgetGoalsForSelectedMonths = await getBudgetGoalsForRange(startDate, endDate);
-          report = await generateBudgetVsActual(transactions, startDate, endDate, budgetGoalsForSelectedMonths); // Ensure async/await here
+          report = await generateBudgetVsActual(transactions, startDate, endDate, budgetGoalsForSelectedMonths);
           break;
         case 'income-sources':
-          report = await generateIncomeSources(transactions); // Ensure async/await here
+          report = await generateIncomeSources(transactions);
           break;
         case 'savings-rate':
-          report = await generateSavingsRate(transactions); // Ensure async/await here
+          report = await generateSavingsRateReport(transactions, startDate, endDate);
           break;
         case 'expense-trend':
-          report = await generateExpenseTrendAnalysis(transactions); // Ensure async/await here
+          report = await generateExpenseTrendAnalysis(transactions);
           break;
         case 'cash-flow':
-          report = await generateCashFlow(transactions); // Ensure async/await here
+          report = await generateCashFlow(transactions);
           break;
         case 'category-transaction-detail':
-          report = await generateCategoryTransactionDetail(transactions); // Ensure async/await here
+          report = await generateCategoryTransactionDetail(transactions);
           break;
         case 'credit-card-statement':
-          report = await generateCreditCardStatement(transactions); // Ensure async/await here
+          report = await generateCreditCardStatement(transactions);
           break;
         case 'credit-utilization':
-          report = await generateCreditUtilization(transactions); // Ensure async/await here
+          report = await generateCreditUtilization(transactions);
           break;
         case 'payment-history':
-          report = await generatePaymentHistory(transactions); // Ensure async/await here
+          report = await generatePaymentHistory(transactions);
           break;
         case 'debt-reduction-projection':
-          report = await generateDebtReductionProjection(transactions); // Ensure async/await here
+          report = await generateDebtReductionProjection(transactions);
           break;
         case 'category-credit-card-usage':
-          report = await generateCategoryCreditCardUsage(transactions); // Ensure async/await here
+          report = await generateCategoryCreditCardUsage(transactions);
           break;
         default:
           throw new Error('Unknown report type');
@@ -188,6 +191,7 @@ const ReportsScreen = () => {
       setIsLoading(false);
     }
   };
+  
   
   
   
