@@ -1,4 +1,5 @@
 import { getCreditCards, getBalanceSheetItems, getUserProfile } from '../FirebaseService';
+import { categorizeTransactions, calculateTotals } from '../../utils/reportUtils';
 import { calculateTotalAssets, calculateTotalLiabilities, calculateNetWorth } from '../../utils/financialCalculations';
 
 export const generateBalanceSheetReport = async (transactions, asOfDate) => {
@@ -8,12 +9,24 @@ export const generateBalanceSheetReport = async (transactions, asOfDate) => {
     const balanceSheetItems = await getBalanceSheetItems();
     const userProfile = await getUserProfile();
 
+    // Categorize transactions and calculate totals
+    const categorizedTransactions = categorizeTransactions(transactions);
+    const totals = calculateTotals(categorizedTransactions);
+
     // Calculate cash balance
-    let cashBalance = userProfile?.initialCashBalance || 0;
-    const cashTransactions = transactions.filter(t => !t.creditCard && new Date(t.date) <= asOfDate);
-    cashBalance += cashTransactions.reduce((sum, t) => {
-      return t.type === 'income' ? sum + Number(t.amount) : sum - Number(t.amount);
-    }, 0);
+    let initialCashBalance = userProfile?.initialCashBalance || 0;
+    console.log('Initial cash balance:', initialCashBalance);
+
+    const totalIncome = totals.totalRegularIncome + totals.totalCreditCardIncome;
+    const totalCashOutflow = totals.totalRegularExpenses + totals.totalCreditCardPayments + totals.totalLoanPayments;
+    const netCashFlow = totalIncome - totalCashOutflow;
+
+    console.log('Total income:', totalIncome);
+    console.log('Total cash outflow:', totalCashOutflow);
+    console.log('Net cash flow:', netCashFlow);
+
+    const cashBalance = initialCashBalance + netCashFlow;
+    console.log('Final cash balance:', cashBalance);
 
     // Calculate credit card balances
     const creditCardBalances = creditCards.reduce((acc, card) => {
@@ -74,7 +87,12 @@ export const generateBalanceSheetReport = async (transactions, asOfDate) => {
         otherLiabilities: liabilities.otherLiabilities,
         total: totalLiabilities
       },
-      netWorth: netWorth
+      netWorth: netWorth,
+      cashFlowDetails: {
+        totalIncome,
+        totalCashOutflow,
+        netCashFlow
+      }
     };
   } catch (error) {
     console.error('Error in generateBalanceSheetReport:', error);

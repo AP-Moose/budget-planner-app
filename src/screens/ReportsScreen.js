@@ -6,6 +6,7 @@ import { generateReport, exportReportToCSV } from '../services/ReportService';
 import { ALL_CATEGORIES, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../utils/categories';
 import { generateMonthlySummary, generateCustomRangeReport, generateYTDSummary } from '../services/ReportService/summaryReports';
 import { getTransactions } from '../services/FirebaseService';
+import { generateBalanceSheetReport } from '../services/ReportService/balanceSheetReport';
 
 const ReportsScreen = () => {
   const { currentMonth } = useMonth();
@@ -130,7 +131,45 @@ const ReportsScreen = () => {
         case 'custom-range':
           report = generateCustomRangeReport(transactions, startDate, endDate);
           break;
-        // ... other report types ...
+        case 'balance-sheet':
+          report = await generateBalanceSheetReport(transactions, endDate);
+          break;
+        case 'category-breakdown':
+          report = generateCategoryBreakdown(transactions);
+          break;
+        case 'budget-vs-actual':
+          report = generateBudgetVsActual(transactions);
+          break;
+        case 'income-sources':
+          report = generateIncomeSources(transactions);
+          break;
+        case 'savings-rate':
+          report = generateSavingsRate(transactions);
+          break;
+        case 'expense-trend':
+          report = generateExpenseTrend(transactions);
+          break;
+        case 'cash-flow':
+          report = generateCashFlow(transactions);
+          break;
+        case 'category-transaction-detail':
+          report = generateCategoryTransactionDetail(transactions);
+          break;
+        case 'credit-card-statement':
+          report = generateCreditCardStatement(transactions);
+          break;
+        case 'credit-utilization':
+          report = generateCreditUtilization(transactions);
+          break;
+        case 'payment-history':
+          report = generatePaymentHistory(transactions);
+          break;
+        case 'debt-reduction-projection':
+          report = generateDebtReductionProjection(transactions);
+          break;
+        case 'category-credit-card-usage':
+          report = generateCategoryCreditCardUsage(transactions);
+          break;
         default:
           throw new Error('Unknown report type');
       }
@@ -210,9 +249,9 @@ const ReportsScreen = () => {
 
   const renderReportData = () => {
     if (!reportData) return null;
-
+  
     console.log('Rendering report data:', JSON.stringify(reportData, null, 2));
-
+  
     const renderFunctions = {
       'monthly-summary': withErrorHandling(renderMonthlySummary),
       'ytd-summary': withErrorHandling(renderYTDSummary),
@@ -231,7 +270,7 @@ const ReportsScreen = () => {
       'category-credit-card-usage': withErrorHandling(renderCategoryCreditCardUsage),
       'balance-sheet': withErrorHandling(renderBalanceSheet),
     };
-
+  
     const renderFunction = renderFunctions[reportType];
     return renderFunction ? renderFunction(reportData) : <Text style={styles.reportItem}>Unknown report type</Text>;
   };
