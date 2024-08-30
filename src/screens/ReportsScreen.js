@@ -9,6 +9,7 @@ import { getTransactions } from '../services/FirebaseService';
 import { generateBalanceSheetReport } from '../services/ReportService/balanceSheetReport';
 import { generateCategoryBreakdown, generateCategoryTransactionDetail } from '../services/ReportService/categoryReports';
 import { generateExpenseTrendAnalysis } from '../services/ReportService/trendReports';
+import { generateBudgetVsActual, getBudgetGoalsForRange } from '../services/ReportService/budgetReports';
 
 const ReportsScreen = () => {
   const { currentMonth } = useMonth();
@@ -122,55 +123,57 @@ const ReportsScreen = () => {
       console.log('Generating report:', reportType, formatDate(startDate), formatDate(endDate));
       const transactions = await getTransactions(startDate, endDate);
       let report;
-      
+  
       switch (reportType) {
         case 'ytd-summary':
-          report = generateYTDSummary(transactions);
+          report = await generateYTDSummary(transactions); // Ensure async/await here
           break;
         case 'monthly-summary':
-          report = generateMonthlySummary(transactions);
+          report = await generateMonthlySummary(transactions); // Ensure async/await here
           break;
         case 'custom-range':
-          report = generateCustomRangeReport(transactions, startDate, endDate);
+          const budgetGoalsForRange = await getBudgetGoalsForRange(startDate, endDate);
+          report = await generateCustomRangeReport(transactions, startDate, endDate, budgetGoalsForRange);
           break;
         case 'balance-sheet':
-          report = await generateBalanceSheetReport(transactions, endDate);
+          report = await generateBalanceSheetReport(transactions, endDate); // Ensure async/await here
           break;
         case 'category-breakdown':
-          report = generateCategoryBreakdown(transactions);
+          report = await generateCategoryBreakdown(transactions); // Ensure async/await here
           break;
         case 'budget-vs-actual':
-          report = generateBudgetVsActual(transactions);
+          const budgetGoalsForSelectedMonths = await getBudgetGoalsForRange(startDate, endDate);
+          report = await generateBudgetVsActual(transactions, startDate, endDate, budgetGoalsForSelectedMonths); // Ensure async/await here
           break;
         case 'income-sources':
-          report = generateIncomeSources(transactions);
+          report = await generateIncomeSources(transactions); // Ensure async/await here
           break;
         case 'savings-rate':
-          report = generateSavingsRate(transactions);
+          report = await generateSavingsRate(transactions); // Ensure async/await here
           break;
         case 'expense-trend':
-          report = generateExpenseTrendAnalysis(transactions);
+          report = await generateExpenseTrendAnalysis(transactions); // Ensure async/await here
           break;
         case 'cash-flow':
-          report = generateCashFlow(transactions);
+          report = await generateCashFlow(transactions); // Ensure async/await here
           break;
         case 'category-transaction-detail':
-          report = generateCategoryTransactionDetail(transactions);
+          report = await generateCategoryTransactionDetail(transactions); // Ensure async/await here
           break;
         case 'credit-card-statement':
-          report = generateCreditCardStatement(transactions);
+          report = await generateCreditCardStatement(transactions); // Ensure async/await here
           break;
         case 'credit-utilization':
-          report = generateCreditUtilization(transactions);
+          report = await generateCreditUtilization(transactions); // Ensure async/await here
           break;
         case 'payment-history':
-          report = generatePaymentHistory(transactions);
+          report = await generatePaymentHistory(transactions); // Ensure async/await here
           break;
         case 'debt-reduction-projection':
-          report = generateDebtReductionProjection(transactions);
+          report = await generateDebtReductionProjection(transactions); // Ensure async/await here
           break;
         case 'category-credit-card-usage':
-          report = generateCategoryCreditCardUsage(transactions);
+          report = await generateCategoryCreditCardUsage(transactions); // Ensure async/await here
           break;
         default:
           throw new Error('Unknown report type');
@@ -185,13 +188,15 @@ const ReportsScreen = () => {
       setIsLoading(false);
     }
   };
-
+  
+  
+  
   const handleExportReport = async () => {
     if (!reportData) {
       Alert.alert('Error', 'Please generate a report first.');
       return;
     }
-
+  
     try {
       const message = await exportReportToCSV(reportData, reportType);
       Alert.alert('Success', message);
@@ -200,6 +205,7 @@ const ReportsScreen = () => {
       Alert.alert('Error', `Failed to export report: ${error.message}`);
     }
   };
+  
 
   const formatCurrency = (value) => {
     if (value === undefined || value === null || isNaN(value)) return '$0.00';
@@ -375,30 +381,40 @@ const ReportsScreen = () => {
     </View>
   );
 
-  const renderBudgetVsActual = (data) => (
-    <View style={styles.reportContainer}>
-      <Text style={styles.reportTitle}>Budget vs Actual</Text>
-      {data.map((item) => (
-        <View key={item.category} style={styles.reportSection}>
-        <Text style={styles.reportSubtitle}>{item.category}</Text>
-        <View style={styles.reportRow}>
-          <Text style={styles.reportLabel}>Budgeted:</Text>
-          <Text style={styles.reportValue}>{formatCurrency(item.budgeted)}</Text>
-        </View>
-        <View style={styles.reportRow}>
-          <Text style={styles.reportLabel}>Actual:</Text>
-          <Text style={styles.reportValue}>{formatCurrency(item.actual)}</Text>
-        </View>
-        <View style={styles.reportRow}>
-          <Text style={styles.reportLabel}>Difference:</Text>
-          <Text style={[styles.reportValue, item.difference < 0 ? styles.negativeValue : styles.positiveValue]}>
-            {formatCurrency(item.difference)}
-          </Text>
-        </View>
+  const renderBudgetVsActual = (data) => {
+    console.log('Render Budget vs Actual Data:', data);
+  
+    return (
+      <View style={styles.reportContainer}>
+        <Text style={styles.reportTitle}>Budget vs Actual</Text>
+        {Array.isArray(data) && data.length > 0 ? (
+          data.map((item) => (
+            <View key={item.category} style={styles.reportSection}>
+              <Text style={styles.reportSubtitle}>{item.category}</Text>
+              <View style={styles.reportRow}>
+                <Text style={styles.reportLabel}>Budgeted:</Text>
+                <Text style={styles.reportValue}>{formatCurrency(item.budgeted)}</Text>
+              </View>
+              <View style={styles.reportRow}>
+                <Text style={styles.reportLabel}>Actual:</Text>
+                <Text style={styles.reportValue}>{formatCurrency(item.actual)}</Text>
+              </View>
+              <View style={styles.reportRow}>
+                <Text style={styles.reportLabel}>Difference:</Text>
+                <Text style={[styles.reportValue, item.difference < 0 ? styles.negativeValue : styles.positiveValue]}>
+                  {formatCurrency(item.difference)}
+                </Text>
+              </View>
+            </View>
+          ))
+        ) : (
+          <Text>No data available for the selected date range.</Text>
+        )}
       </View>
-    ))}
-  </View>
-);
+    );
+  };
+  
+  
 
 const renderIncomeSources = (data) => (
   <View style={styles.reportContainer}>
