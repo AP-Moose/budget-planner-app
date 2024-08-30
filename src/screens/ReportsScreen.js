@@ -7,6 +7,7 @@ import { ALL_CATEGORIES, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../utils/
 import { generateMonthlySummary, generateCustomRangeReport, generateYTDSummary } from '../services/ReportService/summaryReports';
 import { getTransactions } from '../services/FirebaseService';
 import { generateBalanceSheetReport } from '../services/ReportService/balanceSheetReport';
+import { generateCategoryBreakdown } from '../services/ReportService/categoryReports';
 
 const ReportsScreen = () => {
   const { currentMonth } = useMonth();
