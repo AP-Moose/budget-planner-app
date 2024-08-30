@@ -1,9 +1,16 @@
 import { categorizeTransactions, calculateTotals } from '../../utils/reportUtils';
 
-export const generateCashFlowStatement = (transactions) => {
+export const generateCashFlowStatement = (transactions, startDate, endDate) => {
   console.log('Generating cash flow statement');
   try {
-    const categorizedTransactions = categorizeTransactions(transactions);
+    const filteredTransactions = transactions.filter(transaction => {
+      const transactionDate = new Date(transaction.date);
+      return transactionDate >= startDate && transactionDate <= endDate;
+    });
+
+    console.log('Filtered Transactions:', filteredTransactions);
+
+    const categorizedTransactions = categorizeTransactions(filteredTransactions);
     const totals = calculateTotals(categorizedTransactions);
 
     const cashInflow = totals.totalRegularIncome + totals.totalCreditCardIncome + totals.totalCashbackRewards;
@@ -34,10 +41,17 @@ export const generateCashFlowStatement = (transactions) => {
   }
 };
 
-export const generateDetailedCashFlowStatement = (transactions) => {
+export const generateDetailedCashFlowStatement = (transactions, startDate, endDate) => {
   console.log('Generating detailed cash flow statement');
   try {
-    const categorizedTransactions = categorizeTransactions(transactions);
+    const filteredTransactions = transactions.filter(transaction => {
+      const transactionDate = new Date(transaction.date);
+      return transactionDate >= startDate && transactionDate <= endDate;
+    });
+
+    console.log('Filtered Transactions:', filteredTransactions);
+
+    const categorizedTransactions = categorizeTransactions(filteredTransactions);
     const totals = calculateTotals(categorizedTransactions);
 
     const cashInflow = totals.totalRegularIncome + totals.totalCreditCardIncome;

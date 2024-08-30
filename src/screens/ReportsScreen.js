@@ -12,6 +12,7 @@ import { generateExpenseTrendAnalysis } from '../services/ReportService/trendRep
 import { generateBudgetVsActual, getBudgetGoalsForRange } from '../services/ReportService/budgetReports';
 import { generateSavingsRateReport } from '../services/ReportService/savingsReports';
 import { generateIncomeSourcesAnalysis } from '../services/ReportService/incomeReports';
+import { generateCashFlowStatement } from '../services/ReportService/cashFlowReports';
 
 const ReportsScreen = () => {
   const { currentMonth } = useMonth();
@@ -159,7 +160,7 @@ const ReportsScreen = () => {
           report = await generateExpenseTrendAnalysis(transactions);
           break;
         case 'cash-flow':
-          report = await generateCashFlow(transactions);
+          report = await generateCashFlowStatement(transactions, startDate, endDate);
           break;
         case 'category-transaction-detail':
           report = await generateCategoryTransactionDetail(transactions);
