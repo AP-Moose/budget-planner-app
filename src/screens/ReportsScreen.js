@@ -8,6 +8,7 @@ import { generateMonthlySummary, generateCustomRangeReport, generateYTDSummary }
 import { getTransactions } from '../services/FirebaseService';
 import { generateBalanceSheetReport } from '../services/ReportService/balanceSheetReport';
 import { generateCategoryBreakdown } from '../services/ReportService/categoryReports';
+import { generateExpenseTrendAnalysis } from '../services/ReportService/trendReports';
 
 const ReportsScreen = () => {
   const { currentMonth } = useMonth();
@@ -148,7 +149,7 @@ const ReportsScreen = () => {
           report = generateSavingsRate(transactions);
           break;
         case 'expense-trend':
-          report = generateExpenseTrend(transactions);
+          report = generateExpenseTrendAnalysis(transactions);
           break;
         case 'cash-flow':
           report = generateCashFlow(transactions);
