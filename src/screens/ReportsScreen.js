@@ -15,6 +15,7 @@ import { generateIncomeSourcesAnalysis } from '../services/ReportService/incomeR
 import { generateCashFlowStatement, generateDetailedCashFlowStatement } from '../services/ReportService/cashFlowReports';
 import { generateCreditCardStatement } from '../services/ReportService/creditCardReports';
 import { generateCreditUtilizationReport } from '../services/ReportService/creditUtilizationReport'; 
+import { generatePaymentHistoryReport } from '../services/ReportService/paymentHistoryReport';
 
 
 const ReportsScreen = () => {
@@ -196,7 +197,7 @@ const ReportsScreen = () => {
           report = await generateCreditUtilizationReport(startDate, endDate);
           break;
         case 'payment-history':
-          report = await generatePaymentHistory(transactions);
+          report = await generatePaymentHistoryReport(transactions, startDate, endDate);
           break;
         case 'debt-reduction-projection':
           report = await generateDebtReductionProjection(transactions);
@@ -681,13 +682,14 @@ const renderPaymentHistory = (data) => (
     <Text style={styles.reportTitle}>Payment History Report</Text>
     {data.map((payment, index) => (
       <View key={index} style={styles.paymentRow}>
-        <Text style={styles.paymentDate}>{formatDate(payment.date)}</Text>
+        <Text style={styles.paymentDate}>{payment.date}</Text>
         <Text style={styles.paymentCardName}>{payment.creditCardName}</Text>
         <Text style={styles.paymentAmount}>{formatCurrency(payment.amount)}</Text>
       </View>
     ))}
   </View>
 );
+
 
 const renderDebtReductionProjection = (data) => (
   <View style={styles.reportContainer}>
