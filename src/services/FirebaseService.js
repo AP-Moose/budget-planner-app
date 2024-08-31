@@ -325,13 +325,16 @@ export const getCreditCards = async () => {
       id: doc.id,
       name: doc.data().name,
       balance: doc.data().balance,
-      // Include other relevant fields
+      limit: doc.data().limit,
+      startingBalance: doc.data().startingBalance, // Include starting balance
+      startDate: doc.data().startDate ? doc.data().startDate.toDate() : new Date(), // Convert Firestore Timestamp to Date
     }));
   } catch (error) {
     console.error('Error getting credit cards:', error);
     throw error;
   }
 };
+
 
 export const updateCreditCard = async (id, updatedData) => {
   try {

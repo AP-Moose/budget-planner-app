@@ -14,6 +14,8 @@ import { generateSavingsRateReport } from '../services/ReportService/savingsRepo
 import { generateIncomeSourcesAnalysis } from '../services/ReportService/incomeReports';
 import { generateCashFlowStatement, generateDetailedCashFlowStatement } from '../services/ReportService/cashFlowReports';
 import { generateCreditCardStatement } from '../services/ReportService/creditCardReports';
+import { generateCreditUtilizationReport } from '../services/ReportService/creditUtilizationReport'; 
+
 
 const ReportsScreen = () => {
   const { currentMonth } = useMonth();
@@ -191,7 +193,7 @@ const ReportsScreen = () => {
           report = await generateCreditCardStatement(transactions, creditCards, startDate, endDate);
           break;
         case 'credit-utilization':
-          report = await generateCreditUtilization(transactions);
+          report = await generateCreditUtilizationReport(transactions);
           break;
         case 'payment-history':
           report = await generatePaymentHistory(transactions);
@@ -666,7 +668,8 @@ const renderCreditUtilization = (data) => (
         </View>
         <View style={styles.reportRow}>
           <Text style={styles.reportLabel}>Utilization:</Text>
-          <Text style={styles.reportValue}>{cardData.utilization.toFixed(2)}%</Text>
+          <Text style={styles.reportValue}>{cardData.utilization !== undefined ? cardData.utilization : '0.00'}</Text>
+
         </View>
       </View>
     ))}
