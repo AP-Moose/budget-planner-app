@@ -1,9 +1,22 @@
 import { EXPENSE_CATEGORIES } from '../../utils/categories';
 
-export const generateCategoryCreditCardUsage = (transactions) => {
+export const generateCategoryCreditCardUsage = (transactions, startDate, endDate) => {
   console.log('Generating category-specific credit card usage report');
   try {
-    const creditCardTransactions = transactions.filter(t => t.creditCard && !t.isCardPayment);
+    // Adjust start and end dates to cover the full day in UTC
+    const adjustedStartDate = new Date(startDate);
+    adjustedStartDate.setUTCHours(0, 0, 0, 0);
+    
+    const adjustedEndDate = new Date(endDate);
+    adjustedEndDate.setUTCHours(23, 59, 59, 999);
+
+    // Filter transactions within the date range
+    const creditCardTransactions = transactions.filter(t => 
+      t.creditCard && !t.isCardPayment && 
+      new Date(t.date) >= adjustedStartDate && 
+      new Date(t.date) <= adjustedEndDate
+    );
+
     const report = {};
 
     EXPENSE_CATEGORIES.forEach(category => {
@@ -32,3 +45,4 @@ export const generateCategoryCreditCardUsage = (transactions) => {
     throw error;
   }
 };
+

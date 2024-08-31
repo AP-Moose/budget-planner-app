@@ -17,7 +17,7 @@ import { generateCreditCardStatement } from '../services/ReportService/creditCar
 import { generateCreditUtilizationReport } from '../services/ReportService/creditUtilizationReport'; 
 import { generatePaymentHistoryReport } from '../services/ReportService/paymentHistoryReport';
 import { generateDebtReductionProjection } from '../services/ReportService/debtReductionProjection';
-
+import { generateCategoryCreditCardUsage } from '../services/ReportService/categoryCreditCardUsage';
 
 const ReportsScreen = () => {
   const { currentMonth } = useMonth();
@@ -204,7 +204,7 @@ const ReportsScreen = () => {
           report = await generateDebtReductionProjection(transactions, startDate, endDate);
           break;
         case 'category-credit-card-usage':
-          report = await generateCategoryCreditCardUsage(transactions);
+          report = await generateCategoryCreditCardUsage(transactions, startDate, endDate);
           break;
         default:
           throw new Error('Unknown report type');
@@ -730,29 +730,30 @@ const renderDebtReductionProjection = (data) => (
 const renderCategoryCreditCardUsage = (data) => (
   <View style={styles.reportContainer}>
     <Text style={styles.reportTitle}>Category Credit Card Usage</Text>
-    {Object.entries(data).map(([category, categoryData]) => (
+    {Object.entries(data).map(([category, values]) => (
       <View key={category} style={styles.categorySection}>
         <Text style={styles.reportSubtitle}>{category}</Text>
         <View style={styles.reportRow}>
           <Text style={styles.reportLabel}>Total Amount:</Text>
-          <Text style={styles.reportValue}>{formatCurrency(categoryData.totalAmount)}</Text>
+          <Text style={styles.reportValue}>{values.totalAmount.toFixed(2)}</Text>
         </View>
         <View style={styles.reportRow}>
           <Text style={styles.reportLabel}>Transaction Count:</Text>
-          <Text style={styles.reportValue}>{categoryData.transactionCount}</Text>
+          <Text style={styles.reportValue}>{values.transactionCount}</Text>
         </View>
         <View style={styles.reportRow}>
-          <Text style={styles.reportLabel}>Avg. Transaction Amount:</Text>
-          <Text style={styles.reportValue}>{formatCurrency(categoryData.averageTransactionAmount)}</Text>
+          <Text style={styles.reportLabel}>Average Transaction Amount:</Text>
+          <Text style={styles.reportValue}>{values.averageTransactionAmount.toFixed(2)}</Text>
         </View>
         <View style={styles.reportRow}>
           <Text style={styles.reportLabel}>Percentage of Total:</Text>
-          <Text style={styles.reportValue}>{categoryData.percentageOfTotal.toFixed(2)}%</Text>
+          <Text style={styles.reportValue}>{values.percentageOfTotal.toFixed(2)}%</Text>
         </View>
       </View>
     ))}
   </View>
 );
+
 
 const renderBalanceSheet = (data) => (
   <View style={styles.reportContainer}>
