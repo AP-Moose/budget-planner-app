@@ -16,6 +16,7 @@ import { generateCashFlowStatement, generateDetailedCashFlowStatement } from '..
 import { generateCreditCardStatement } from '../services/ReportService/creditCardReports';
 import { generateCreditUtilizationReport } from '../services/ReportService/creditUtilizationReport'; 
 import { generatePaymentHistoryReport } from '../services/ReportService/paymentHistoryReport';
+import { generateDebtReductionProjection } from '../services/ReportService/debtReductionProjection';
 
 
 const ReportsScreen = () => {
@@ -200,7 +201,7 @@ const ReportsScreen = () => {
           report = await generatePaymentHistoryReport(transactions, startDate, endDate);
           break;
         case 'debt-reduction-projection':
-          report = await generateDebtReductionProjection(transactions);
+          report = await generateDebtReductionProjection(transactions, startDate, endDate);
           break;
         case 'category-credit-card-usage':
           report = await generateCategoryCreditCardUsage(transactions);

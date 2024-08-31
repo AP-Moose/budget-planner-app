@@ -5,7 +5,7 @@ const calculateMonthsBetweenDates = (date1, date2) => {
   return (date2.getFullYear() - date1.getFullYear()) * 12 + (date2.getMonth() - date1.getMonth());
 };
 
-export const generateDebtReductionProjection = async (transactions) => {
+export const generateDebtReductionProjection = async (transactions, startDate, endDate) => {
   console.log('Generating debt reduction projection');
   try {
     const creditCards = await getCreditCards();
@@ -15,9 +15,9 @@ export const generateDebtReductionProjection = async (transactions) => {
     for (const card of creditCards) {
       const cardStartDate = new Date(card.startDate);
       const cardTransactions = transactions.filter(t => 
-        t.creditCardId === card.id && new Date(t.date) >= cardStartDate
+        t.creditCardId === card.id && new Date(t.date) >= cardStartDate && new Date(t.date) <= endDate // Include date filtering
       );
-      
+
       const monthsCovered = calculateMonthsBetweenDates(cardStartDate, currentDate);
 
       const totalPayments = cardTransactions
@@ -46,6 +46,7 @@ export const generateDebtReductionProjection = async (transactions) => {
       };
     }
 
+    console.log('Generated report:', report);
     return report;
   } catch (error) {
     console.error('Error in generateDebtReductionProjection:', error);
