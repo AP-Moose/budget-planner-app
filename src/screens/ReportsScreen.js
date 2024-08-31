@@ -193,7 +193,7 @@ const ReportsScreen = () => {
           report = await generateCreditCardStatement(transactions, creditCards, startDate, endDate);
           break;
         case 'credit-utilization':
-          report = await generateCreditUtilizationReport(transactions);
+          report = await generateCreditUtilizationReport(startDate, endDate);
           break;
         case 'payment-history':
           report = await generatePaymentHistory(transactions);
