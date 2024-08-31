@@ -5,7 +5,7 @@ import { addCreditCard, updateCreditCard, deleteCreditCard, onCreditCardsUpdate,
 
 const CreditCardScreen = () => {
   const [creditCards, setCreditCards] = useState([]);
-  const [newCard, setNewCard] = useState({ name: '', limit: '', startingBalance: '', startDate: new Date() });
+  const [newCard, setNewCard] = useState({ name: '', limit: '', startingBalance: '', startDate: new Date(), interestRate: '' });
   const [editingCard, setEditingCard] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [transactions, setTransactions] = useState([]);
@@ -31,19 +31,20 @@ const CreditCardScreen = () => {
   };
 
   const handleAddCard = async () => {
-    if (!newCard.name || !newCard.limit) {
-      Alert.alert('Error', 'Please enter card name and limit');
+    if (!newCard.name || !newCard.limit || !newCard.interestRate) {
+      Alert.alert('Error', 'Please enter card name, limit, and interest rate');
       return;
     }
     try {
       await addCreditCard({
         ...newCard,
-        limit: parseFloat(newCard.limit),
-        startingBalance: newCard.startingBalance === '' ? 0 : parseFloat(newCard.startingBalance),
-        balance: newCard.startingBalance === '' ? 0 : parseFloat(newCard.startingBalance),
+        limit: parseFloat(newCard.limit) || 0,
+        startingBalance: newCard.startingBalance === '' ? 0 : parseFloat(newCard.startingBalance) || 0,
+        balance: newCard.startingBalance === '' ? 0 : parseFloat(newCard.startingBalance) || 0,
+        interestRate: parseFloat(newCard.interestRate) || 0, // Include the interest rate
         startDate: newCard.startDate,
       });
-      setNewCard({ name: '', limit: '', startingBalance: '', startDate: new Date() });
+      setNewCard({ name: '', limit: '', startingBalance: '', startDate: new Date(), interestRate: '' });
     } catch (error) {
       console.error('Error adding credit card:', error);
       Alert.alert('Error', 'Failed to add credit card. Please try again.');
@@ -52,8 +53,6 @@ const CreditCardScreen = () => {
 
   const handleUpdateCard = async (id, updatedCard) => {
     try {
-      console.log('Received updatedCard:', updatedCard);
-
       if (!updatedCard || typeof updatedCard !== 'object') {
         throw new Error('Invalid card data');
       }
@@ -62,12 +61,11 @@ const CreditCardScreen = () => {
 
       const cardToUpdate = {
         name: updatedCard.name,
-        limit: updatedCard.limit === '' ? 0 : parseFloat(updatedCard.limit),
-        startingBalance: updatedCard.startingBalance === '' ? 0 : parseFloat(updatedCard.startingBalance),
+        limit: updatedCard.limit === '' ? 0 : parseFloat(updatedCard.limit) || 0,
+        startingBalance: updatedCard.startingBalance === '' ? 0 : parseFloat(updatedCard.startingBalance) || 0,
         startDate: updatedCard.startDate || new Date(),
+        interestRate: updatedCard.interestRate === '' ? 0 : parseFloat(updatedCard.interestRate) || 0, // Update interest rate
       };
-      
-      console.log('Updating card with data:', cardToUpdate);
 
       await updateCreditCard(id, cardToUpdate);
       setEditingCard(null);
@@ -107,7 +105,7 @@ const CreditCardScreen = () => {
               <Text style={styles.inputLabel}>Credit Limit:</Text>
               <TextInput
                 style={styles.input}
-                value={item.limit.toString()}
+                value={item.limit !== undefined ? item.limit.toString() : ''}
                 onChangeText={(text) => setCreditCards(cards => cards.map(c => c.id === item.id ? {...c, limit: text} : c))}
                 keyboardType="numeric"
                 returnKeyType="done"
@@ -119,7 +117,7 @@ const CreditCardScreen = () => {
               <Text style={styles.inputLabel}>Starting Balance:</Text>
               <TextInput
                 style={styles.input}
-                value={item.startingBalance.toString()}
+                value={item.startingBalance !== undefined ? item.startingBalance.toString() : ''}
                 onChangeText={(text) => setCreditCards(cards => cards.map(c => c.id === item.id ? {...c, startingBalance: text} : c))}
                 keyboardType="numeric"
                 returnKeyType="done"
@@ -130,6 +128,18 @@ const CreditCardScreen = () => {
               <TouchableOpacity onPress={() => setShowDatePicker(true)}>
                 <Text style={styles.dateText}>{new Date(item.startDate).toDateString()}</Text>
               </TouchableOpacity>
+            </View>
+          </View>
+          <View style={styles.rowContainer}>
+            <View style={styles.halfInput}>
+              <Text style={styles.inputLabel}>Interest Rate:</Text>
+              <TextInput
+                style={styles.input}
+                value={item.interestRate !== undefined ? item.interestRate.toString() : ''}
+                onChangeText={(text) => setCreditCards(cards => cards.map(c => c.id === item.id ? {...c, interestRate: text} : c))}
+                keyboardType="numeric"
+                returnKeyType="done"
+              />
             </View>
           </View>
           {showDatePicker && (
@@ -169,10 +179,11 @@ const CreditCardScreen = () => {
       ) : (
         <>
           <Text style={styles.cardName}>{item.name}</Text>
-          <Text>Limit: ${parseFloat(item.limit).toFixed(2)}</Text>
-          <Text>Current Balance: ${item.balance.toFixed(2)}</Text>
-          <Text>Starting Balance: ${parseFloat(item.startingBalance).toFixed(2)}</Text>
+          <Text>Limit: ${parseFloat(item.limit).toFixed(2) || 0}</Text>
+          <Text>Current Balance: ${item.balance ? item.balance.toFixed(2) : '0.00'}</Text>
+          <Text>Starting Balance: ${parseFloat(item.startingBalance).toFixed(2) || 0}</Text>
           <Text>Start Date: {new Date(item.startDate).toDateString()}</Text>
+          <Text>Interest Rate: {item.interestRate ? item.interestRate.toFixed(2) : '0.00'}%</Text>
           <View style={styles.buttonRow}>
             <TouchableOpacity
               style={styles.button}
@@ -239,6 +250,19 @@ const CreditCardScreen = () => {
             <TouchableOpacity onPress={() => setShowDatePicker(true)}>
               <Text style={styles.dateText}>{newCard.startDate.toDateString()}</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+        <View style={styles.rowContainer}>
+          <View style={styles.halfInput}>
+            <Text style={styles.inputLabel}>Interest Rate (%):</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Interest Rate"
+              value={newCard.interestRate}
+              onChangeText={(text) => setNewCard({ ...newCard, interestRate: text })}
+              keyboardType="numeric"
+              returnKeyType="done"
+            />
           </View>
         </View>
         {showDatePicker && (

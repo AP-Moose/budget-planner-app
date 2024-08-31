@@ -695,7 +695,10 @@ const renderPaymentHistory = (data) => (
 const renderDebtReductionProjection = (data) => (
   <View style={styles.reportContainer}>
     <Text style={styles.reportTitle}>Debt Reduction Projection</Text>
-    {Object.entries(data).map(([cardName, cardData]) => (
+
+    {/* Render Credit Cards Section */}
+    <Text style={styles.subHeader}>Credit Cards</Text>
+    {Object.entries(data.creditCards).map(([cardName, cardData]) => (
       <View key={cardName} style={styles.creditCardSection}>
         <Text style={styles.reportSubtitle}>{cardName}</Text>
         <View style={styles.reportRow}>
@@ -724,8 +727,39 @@ const renderDebtReductionProjection = (data) => (
         </View>
       </View>
     ))}
+
+    {/* Render Loans Section */}
+    <Text style={styles.subHeader}>Loans</Text>
+    {Object.entries(data.loans).map(([loanName, loanData]) => (
+      <View key={loanName} style={styles.loanSection}>
+        <Text style={styles.reportSubtitle}>{loanName}</Text>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Current Balance:</Text>
+          <Text style={styles.reportValue}>{formatCurrency(loanData.currentBalance)}</Text>
+        </View>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Initial Balance:</Text>
+          <Text style={styles.reportValue}>{formatCurrency(loanData.initialBalance)}</Text>
+        </View>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Interest Rate:</Text>
+          <Text style={styles.reportValue}>{loanData.interestRate}%</Text>
+        </View>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Avg. Monthly Payment:</Text>
+          <Text style={styles.reportValue}>{loanData.averageMonthlyPayment}</Text>
+        </View>
+        <View style={styles.reportRow}>
+          <Text style={styles.reportLabel}>Months to Pay Off:</Text>
+          <Text style={styles.reportValue}>{loanData.monthsToPayOff}</Text>
+        </View>
+      </View>
+    ))}
   </View>
 );
+
+
+
 
 const renderCategoryCreditCardUsage = (data) => (
   <View style={styles.reportContainer}>
@@ -1117,6 +1151,15 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
     borderRadius: 5,
     padding: 10,
+    backgroundColor: '#fff', // Added background color for box-like appearance
+  },
+  loanSection: {
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 10,
+    backgroundColor: '#fff', // Added background color for box-like appearance
   },
   transactionTitle: {
     fontSize: 16,
@@ -1180,6 +1223,14 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     color: '#555',
   },
+  subHeader: {
+    fontSize: 22, // Adjust the size as needed
+    fontWeight: 'bold',
+    marginTop: 15,
+    marginBottom: 10,
+    color: '#333',
+  },
 });
+
 
 export default ReportsScreen;

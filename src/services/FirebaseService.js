@@ -296,12 +296,14 @@ export const addCreditCard = async (cardData) => {
     const cardToSave = {
       ...cardData,
       userId: user.uid,
-      balance: newBalance,  // Use the calculated balance
+      balance: newBalance,
       limit: Number(cardData.limit) || 0,
       startingBalance: Number(cardData.startingBalance) || 0,
       startDate: Timestamp.fromDate(cardData.startDate || new Date()),
+      interestRate: Number(cardData.interestRate) || 0, // Save interest rate
       lastUpdated: Timestamp.fromDate(new Date())
     };
+    
 
     const docRef = await addDoc(collection(db, 'creditCards'), cardToSave);
     console.log('Credit card added successfully with ID:', docRef.id);
