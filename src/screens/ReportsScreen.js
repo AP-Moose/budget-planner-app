@@ -5,7 +5,7 @@ import { useMonth } from '../context/MonthContext';
 import { generateReport, exportReportToCSV } from '../services/ReportService';
 import { ALL_CATEGORIES, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../utils/categories';
 import { generateMonthlySummary, generateCustomRangeReport, generateYTDSummary } from '../services/ReportService/summaryReports';
-import { getTransactions } from '../services/FirebaseService';
+import { getTransactions, getCreditCards } from '../services/FirebaseService';
 import { generateBalanceSheetReport } from '../services/ReportService/balanceSheetReport';
 import { generateCategoryBreakdown, generateCategoryTransactionDetail } from '../services/ReportService/categoryReports';
 import { generateExpenseTrendAnalysis } from '../services/ReportService/trendReports';
@@ -13,6 +13,7 @@ import { generateBudgetVsActual, getBudgetGoalsForRange } from '../services/Repo
 import { generateSavingsRateReport } from '../services/ReportService/savingsReports';
 import { generateIncomeSourcesAnalysis } from '../services/ReportService/incomeReports';
 import { generateCashFlowStatement, generateDetailedCashFlowStatement } from '../services/ReportService/cashFlowReports';
+import { generateCreditCardStatement } from '../services/ReportService/creditCardReports';
 
 const ReportsScreen = () => {
   const { currentMonth } = useMonth();
@@ -25,6 +26,8 @@ const ReportsScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showReportTypeModal, setShowReportTypeModal] = useState(false);
   const [isYTD, setIsYTD] = useState(false);
+  const [creditCards, setCreditCards] = useState([]);
+
 
   const reportTypes = [
     {
@@ -75,6 +78,20 @@ const ReportsScreen = () => {
   useEffect(() => {
     updateDateRange();
   }, [reportType, currentMonth, isYTD]);
+
+  useEffect(() => {
+    const fetchCreditCards = async () => {
+      try {
+        const fetchedCreditCards = await getCreditCards();
+        setCreditCards(fetchedCreditCards);
+      } catch (error) {
+        console.error('Error fetching credit cards:', error);
+      }
+    };
+  
+    fetchCreditCards();
+  }, []);
+  
 
   const updateDateRange = () => {
     const now = new Date();
@@ -171,7 +188,7 @@ const ReportsScreen = () => {
           report = await generateCategoryTransactionDetail(transactions);
           break;
         case 'credit-card-statement':
-          report = await generateCreditCardStatement(transactions);
+          report = await generateCreditCardStatement(transactions, creditCards, startDate, endDate);
           break;
         case 'credit-utilization':
           report = await generateCreditUtilization(transactions);
