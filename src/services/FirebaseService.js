@@ -30,32 +30,58 @@ const sanitizeCategory = (category) => {
   return category.replace(/[^a-zA-Z0-9]/g, '_');
 };
 
-export const updateBudgetGoal = async (category, updatedData, year, months = []) => {
+export const updateBudgetGoal = async (category, updatedData, months = []) => {
   try {
     const user = auth.currentUser;
-    if (!user) throw new Error('No user logged in');
+    if (!user) {
+      console.error('No user logged in');
+      throw new Error('No user logged in');
+    }
 
     const sanitizedCategory = sanitizeCategory(category);
-    for (const month of months) {
-      const documentId = `${user.uid}_${sanitizedCategory}_${year}_${month}`;
-      console.log(`Updating document ID: ${documentId}`);
 
-      const goalRef = doc(db, 'budgetGoals', documentId);
+    // Loop through each month and update the budget goal for each one
+    for (const month of months) {
+      const goalRef = doc(db, 'budgetGoals', `${user.uid}_${sanitizedCategory}_${updatedData.year}_${month}`);
       await setDoc(goalRef, {
         ...updatedData,
         userId: user.uid,
-        category,
-        month,
-        year, // Ensure year is saved in the document
+        category: category,
+        month: month,
         amount: Number(updatedData.amount),
       }, { merge: true });
 
-      console.log(`Budget goal updated for ${category} in month: ${month}, year: ${year}`);
+      console.log(`Budget goal updated for ${category} in month: ${month}`);
     }
+
+    console.log('Budget goal updated successfully for category:', category, 'for months:', months);
   } catch (error) {
     console.error('Error updating budget goal:', error);
     throw error;
   }
+};
+
+export const onBudgetGoalsUpdate = (year, callback) => {
+  const user = auth.currentUser;
+  if (!user) {
+    console.error('No user logged in');
+    return () => {};
+  }
+
+  let q = query(
+    collection(db, 'budgetGoals'),
+    where('userId', '==', user.uid),
+    where('year', '==', year)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const budgetGoals = snapshot.docs.map(doc => ({
+      id: doc.id.split('_')[1],
+      ...doc.data(),
+      amount: Number(doc.data().amount)
+    }));
+    callback(budgetGoals);
+  });
 };
 
 
@@ -68,7 +94,6 @@ export const deleteBudgetGoal = async (category, year, month) => {
       throw new Error('No user logged in');
     }
 
-    // Sanitize the category to ensure it creates a valid document path
     const sanitizedCategory = sanitizeCategory(category);
     const goalRef = doc(db, 'budgetGoals', `${user.uid}_${sanitizedCategory}_${year}_${month}`);
     
@@ -84,6 +109,7 @@ export const deleteBudgetGoal = async (category, year, month) => {
     throw error;
   }
 };
+
 
 export const getBudgetGoals = async (year = null) => {
   try {
@@ -919,4 +945,5 @@ export default {
   updateLoanBalanceInDatabase,
   clearAllBudgetGoals,
   deleteBudgetGoal,
+  onBudgetGoalsUpdate,
 };

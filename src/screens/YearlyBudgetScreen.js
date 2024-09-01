@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
-import { getBudgetGoals, updateBudgetGoal, clearAllBudgetGoals, deleteBudgetGoal } from '../services/FirebaseService';  // Ensure the correct function is imported
+import { getBudgetGoals, updateBudgetGoal, clearAllBudgetGoals, deleteBudgetGoal, onBudgetGoalsUpdate } from '../services/FirebaseService';  // Ensure the correct function is imported
 import { EXPENSE_CATEGORIES } from '../utils/categories';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -11,11 +11,29 @@ const YearlyBudgetScreen = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Load the yearly budget initially
     loadYearlyBudget();
+  
+    // Set up the listener for real-time updates
+    const unsubscribe = onBudgetGoalsUpdate(selectedYear, (newBudgetGoals) => {
+      const yearBudget = {};
+      for (let month = 1; month <= 12; month++) {
+        yearBudget[month] = EXPENSE_CATEGORIES.reduce((acc, category) => {
+          const goal = newBudgetGoals.find(g => g.month === month && g.category === category) || { amount: '0', isRecurring: false };
+          acc[category] = goal;
+          return acc;
+        }, {});
+      }
+      setYearlyBudget(yearBudget);
+    });
+  
+    // Cleanup the listener on component unmount or when the selected year changes
+    return () => unsubscribe();
   }, [selectedYear]);
+  
 
   const loadYearlyBudget = async () => {
-    setIsLoading(true);
+    setIsLoading(true);  // Only set loading to true here
     try {
       const yearGoals = await getBudgetGoals(selectedYear);
       const yearBudget = {};
@@ -30,41 +48,48 @@ const YearlyBudgetScreen = ({ navigation }) => {
     } catch (error) {
       console.error('Error loading yearly budget:', error);
     } finally {
-      setIsLoading(false);
+      setIsLoading(false);  // Ensure loader is turned off after loading completes
     }
   };
-
+  
   const handleUpdateGoal = async (startMonth, category, amount, isRecurring) => {
     const updatedYearlyBudget = { ...yearlyBudget };
-
-    // Update the current month
+  
+    // Update the current month in the state immediately
     updatedYearlyBudget[startMonth][category] = {
-        ...updatedYearlyBudget[startMonth][category],
-        amount,
-        isRecurring,
+      ...updatedYearlyBudget[startMonth][category],
+      amount,
+      isRecurring,
     };
-
-    setYearlyBudget(updatedYearlyBudget);
-
+  
+    setYearlyBudget(updatedYearlyBudget);  // Immediate UI update
+  
     // Determine the months to update based on whether the goal is recurring
-    const monthsToUpdate = isRecurring ? Array.from({ length: 12 - startMonth + 1 }, (_, i) => startMonth + i) : [startMonth];
-
-    // Update in the database for the selected months
-    await updateBudgetGoal(category, {
+    const monthsToUpdate = isRecurring
+      ? Array.from({ length: 12 - startMonth + 1 }, (_, i) => startMonth + i)
+      : [startMonth];
+  
+    try {
+      // Update the budget goal in the database
+      await updateBudgetGoal(category, {
         amount,
         isRecurring,
         year: selectedYear,
-    }, selectedYear, monthsToUpdate);
-
-    // If the goal is switched to non-recurring, only then clean up the other months
-    if (!isRecurring && startMonth < 12) {
+      }, monthsToUpdate);
+  
+      // Only delete future months if we're switching from recurring to non-recurring
+      if (!isRecurring) {
         const monthsToClear = Array.from({ length: 12 - startMonth }, (_, i) => startMonth + i + 1);
         for (const month of monthsToClear) {
-            console.log(`Checking and possibly deleting for month ${month}`);
-            await deleteBudgetGoal(category, selectedYear, month);
+          await deleteBudgetGoal(category, selectedYear, month);
         }
+      }
+    } catch (error) {
+      console.error('Error updating budget goal:', error);
     }
-};
+  };
+  
+  
 
 
   const clearAllGoalsForYear = () => {
