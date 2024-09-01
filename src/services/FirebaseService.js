@@ -9,7 +9,8 @@ import {
   updateDoc, 
   deleteDoc, 
   doc, 
-  where, 
+  where,
+  writeBatch, 
   setDoc, 
   getDoc, 
   onSnapshot, 
@@ -24,6 +25,94 @@ import { calculateCreditCardBalance } from '../utils/creditCardUtils';
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+
+const sanitizeCategory = (category) => {
+  return category.replace(/[^a-zA-Z0-9]/g, '_');
+};
+
+export const updateBudgetGoal = async (category, updatedData) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      console.error('No user logged in');
+      throw new Error('No user logged in');
+    }
+
+    // Sanitize the category to ensure it creates a valid document path
+    const sanitizedCategory = sanitizeCategory(category);
+    const goalRef = doc(db, 'budgetGoals', `${user.uid}_${sanitizedCategory}`);
+    await setDoc(goalRef, {
+      ...updatedData,
+      userId: user.uid,
+      category: category, // Store the original category name
+      amount: Number(updatedData.amount)
+    }, { merge: true });
+    console.log('Budget goal updated successfully for category:', category);
+  } catch (error) {
+    console.error('Error updating budget goal:', error);
+    throw error;
+  }
+};
+
+export const getBudgetGoals = async (year = null) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      console.error('No user logged in');
+      throw new Error('No user logged in');
+    }
+
+    let q = query(
+      collection(db, 'budgetGoals'),
+      where('userId', '==', user.uid)
+    );
+
+    if (year !== null) {
+      q = query(q, where('year', '==', year));
+    }
+
+    const snapshot = await getDocs(q);
+    const budgetGoals = snapshot.docs.map(doc => ({
+      id: doc.id.split('_')[1],
+      ...doc.data(),
+      amount: Number(doc.data().amount)
+    }));
+    console.log(`Retrieved ${budgetGoals.length} budget goals for user:`, user.uid);
+    return budgetGoals;
+  } catch (error) {
+    console.error('Error getting budget goals:', error);
+    throw error;
+  }
+};
+
+export const clearAllBudgetGoals = async (year = null) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const goalsRef = collection(db, 'budgetGoals');
+    let q;
+    
+    if (year !== null) {
+      q = query(goalsRef, where('userId', '==', user.uid), where('year', '==', year));
+    } else {
+      q = query(goalsRef, where('userId', '==', user.uid));
+    }
+
+    const snapshot = await getDocs(q);
+
+    const batch = writeBatch(db); // Initialize a write batch
+    snapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref); // Add each document to the batch delete
+    });
+
+    await batch.commit(); // Commit the batch delete
+    console.log(year !== null ? `Cleared all budget goals for the year ${year}` : 'Cleared all budget goals for all time');
+  } catch (error) {
+    console.error('Error clearing budget goals:', error);
+    throw error;
+  }
+};
 
 export const signUp = async (email, password) => {
   try {
@@ -230,55 +319,6 @@ export const deleteTransaction = async (id) => {
     }
   } catch (error) {
     console.error('Error deleting transaction:', error);
-    throw error;
-  }
-};
-
-export const updateBudgetGoal = async (category, updatedData) => {
-  try {
-    const user = auth.currentUser;
-    if (!user) {
-      console.error('No user logged in');
-      throw new Error('No user logged in');
-    }
-
-    const goalRef = doc(db, 'budgetGoals', `${user.uid}_${category}`);
-    await setDoc(goalRef, {
-      ...updatedData,
-      userId: user.uid,
-      category: category,
-      amount: Number(updatedData.amount)
-    }, { merge: true });
-    console.log('Budget goal updated successfully for category:', category);
-  } catch (error) {
-    console.error('Error updating budget goal:', error);
-    throw error;
-  }
-};
-
-export const getBudgetGoals = async () => {
-  try {
-    const user = auth.currentUser;
-    if (!user) {
-      console.error('No user logged in');
-      throw new Error('No user logged in');
-    }
-
-    const q = query(
-      collection(db, 'budgetGoals'),
-      where('userId', '==', user.uid)
-    );
-    
-    const snapshot = await getDocs(q);
-    const budgetGoals = snapshot.docs.map(doc => ({
-      id: doc.id.split('_')[1],
-      ...doc.data(),
-      amount: Number(doc.data().amount)
-    }));
-    console.log(`Retrieved ${budgetGoals.length} budget goals for user:`, user.uid);
-    return budgetGoals;
-  } catch (error) {
-    console.error('Error getting budget goals:', error);
     throw error;
   }
 };
@@ -808,9 +848,6 @@ export const getLoans = async () => {
   }
 };
 
-
-
-
 export default {
   signUp,
   signIn,
@@ -846,4 +883,5 @@ export default {
   updateLoanBalance,
   onBalanceSheetUpdate,
   updateLoanBalanceInDatabase,
+  clearAllBudgetGoals,
 };

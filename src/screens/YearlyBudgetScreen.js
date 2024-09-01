@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
-import { getBudgetGoals, updateBudgetGoal } from '../services/FirebaseService';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
+import { getBudgetGoals, updateBudgetGoal, clearAllBudgetGoals } from '../services/FirebaseService';  // Ensure the correct function is imported
 import { EXPENSE_CATEGORIES } from '../utils/categories';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -36,38 +36,32 @@ const YearlyBudgetScreen = ({ navigation }) => {
 
   const handleUpdateGoal = async (month, category, amount, isRecurring) => {
     const updatedYearlyBudget = { ...yearlyBudget };
-    
+  
     // Update the current month
-    updatedYearlyBudget[month][category] = { 
-      ...updatedYearlyBudget[month][category], 
-      amount, 
-      isRecurring 
+    updatedYearlyBudget[month][category] = {
+      ...updatedYearlyBudget[month][category],
+      amount,
+      isRecurring,
     };
-
-    // If recurring, update all future months
-    if (isRecurring) {
-      for (let futureMonth = month + 1; futureMonth <= 12; futureMonth++) {
-        updatedYearlyBudget[futureMonth][category] = { 
-          ...updatedYearlyBudget[futureMonth][category], 
-          amount, 
-          isRecurring 
-        };
-      }
-    }
-
+  
     setYearlyBudget(updatedYearlyBudget);
-
-    // Update in the database
+  
+    // Update in the database for the current month
     await updateBudgetGoal(category, {
       amount,
       isRecurring,
       year: selectedYear,
       month,
     });
-
-    // If recurring, update future months in the database
+  
+    // If recurring, update future months in the database and state
     if (isRecurring) {
       for (let futureMonth = month + 1; futureMonth <= 12; futureMonth++) {
+        updatedYearlyBudget[futureMonth][category] = {
+          ...updatedYearlyBudget[futureMonth][category],
+          amount,
+          isRecurring,
+        };
         await updateBudgetGoal(category, {
           amount,
           isRecurring,
@@ -75,7 +69,66 @@ const YearlyBudgetScreen = ({ navigation }) => {
           month: futureMonth,
         });
       }
+      setYearlyBudget(updatedYearlyBudget);
     }
+  };
+
+  const clearAllGoalsForYear = () => {
+    Alert.alert(
+      `Clear All Budget Goals`,
+      `Clear all budget goals, or just for this year (${selectedYear})?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Clear All-Time', onPress: () => confirmClearAllGoals(true) },
+        { text: `Clear for ${selectedYear}`, onPress: () => confirmClearAllGoals(false) },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const confirmClearAllGoals = (clearForAllTime) => {
+    Alert.alert(
+      'Are you sure?',
+      clearForAllTime
+        ? 'This will delete all of your budget goals for all time that you’ve ever set.'
+        : `This will delete all goals for ${selectedYear}.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes, Delete',
+          onPress: async () => {
+            await clearAllBudgetGoals(clearForAllTime ? null : selectedYear);
+            loadYearlyBudget();
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const resetMonthGoals = (month) => {
+    Alert.alert(
+      `Reset Budget Goals for ${new Date(selectedYear, month - 1, 1).toLocaleString('default', { month: 'long' })}`,
+      'Are you sure you want to reset all goals for this month?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Reset', onPress: async () => {
+            const updatedYearlyBudget = { ...yearlyBudget };
+            EXPENSE_CATEGORIES.forEach(category => {
+              updatedYearlyBudget[month][category] = { amount: '0', isRecurring: false };
+              updateBudgetGoal(category, {
+                amount: '0',
+                isRecurring: false,
+                year: selectedYear,
+                month,
+              });
+            });
+            setYearlyBudget(updatedYearlyBudget);
+          }
+        },
+      ],
+      { cancelable: true }
+    );
   };
 
   const formatCurrency = (amount) => {
@@ -115,6 +168,9 @@ const YearlyBudgetScreen = ({ navigation }) => {
             </View>
           );
         })}
+        <TouchableOpacity style={styles.resetButton} onPress={() => resetMonthGoals(month)}>
+          <Text style={styles.resetButtonText}>Reset Month</Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -150,6 +206,9 @@ const YearlyBudgetScreen = ({ navigation }) => {
         </View>
         <TouchableOpacity style={styles.editButton} onPress={() => setEditMode(!editMode)}>
           <Text style={styles.editButtonText}>{editMode ? 'View Mode' : 'Edit Mode'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.clearButton} onPress={clearAllGoalsForYear}>
+          <Text style={styles.clearButtonText}>Clear All Budget Goals</Text>
         </TouchableOpacity>
         {Array.from({ length: 12 }, (_, i) => i + 1).map(renderMonthlyBudget)}
       </ScrollView>
@@ -247,6 +306,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   editButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  resetButton: {
+    backgroundColor: '#FF6B6B',
+    padding: 5,
+    borderRadius: 5,
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  resetButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  clearButton: {
+    backgroundColor: '#FF6B6B',
+    padding: 10,
+    margin: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  clearButtonText: {
     color: '#fff',
     fontWeight: 'bold',
   },
