@@ -26,35 +26,39 @@ const HomeDashboard = () => {
       const auth = getAuth();
       const user = auth.currentUser;
       const db = getFirestore();
-
+  
       if (!user) {
         throw new Error('No user logged in');
       }
-
+  
       const transactionsRef = collection(db, 'transactions');
+      
+      const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+      const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0, 23, 59, 59, 999); // Ensures the full last day is included
+      
       const q = query(
         transactionsRef,
         where('userId', '==', user.uid),
-        where('date', '>=', new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)),
-        where('date', '<=', new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)),
+        where('date', '>=', startOfMonth),
+        where('date', '<=', endOfMonth),
         orderBy('date', 'desc')
       );
-
+  
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const transactions = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
         }));
-
+  
         const categorizedTransactions = categorizeTransactions(transactions);
         const totals = calculateTotals(categorizedTransactions);
-
+  
         const totalIncome = totals.totalRegularIncome + totals.totalCreditCardIncome;
         const totalExpenses = totals.totalRegularExpenses + totals.totalCreditCardPurchases;
         const totalCashOutflow = totals.totalRegularExpenses + totals.totalCreditCardPayments + totals.totalLoanPayments;
-
+  
         const netCashFlow = totalIncome - totalCashOutflow;
-
+  
         setDashboardData({
           totalIncome,
           totalExpenses,
@@ -64,12 +68,13 @@ const HomeDashboard = () => {
           creditCardPayments: totals.totalCreditCardPayments,
         });
       });
-
+  
       return unsubscribe; // Unsubscribe from updates when the component unmounts
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     }
   };
+  
 
   const formatCurrency = (amount) => {
     return `$${Math.abs(amount).toLocaleString('en-US', {
