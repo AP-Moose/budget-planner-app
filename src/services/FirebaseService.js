@@ -30,39 +30,35 @@ const sanitizeCategory = (category) => {
   return category.replace(/[^a-zA-Z0-9]/g, '_');
 };
 
-export const updateBudgetGoal = async (category, updatedData, months = []) => {
+export const updateBudgetGoal = async (category, updatedData, year, months = []) => {
   try {
     const user = auth.currentUser;
-    if (!user) {
-      console.error('No user logged in');
-      throw new Error('No user logged in');
-    }
+    if (!user) throw new Error('No user logged in');
 
-    console.log(`Updating budget goal for ${category} for months: ${months}`);
-
-    // Sanitize the category to ensure it creates a valid document path
     const sanitizedCategory = sanitizeCategory(category);
-
-    // Loop through each month and update the budget goal for each one
     for (const month of months) {
-      const goalRef = doc(db, 'budgetGoals', `${user.uid}_${sanitizedCategory}_${month}`);
+      const documentId = `${user.uid}_${sanitizedCategory}_${year}_${month}`;
+      console.log(`Updating document ID: ${documentId}`);
+
+      const goalRef = doc(db, 'budgetGoals', documentId);
       await setDoc(goalRef, {
         ...updatedData,
         userId: user.uid,
-        category: category, // Store the original category name
-        month: month,
+        category,
+        month,
+        year, // Ensure year is saved in the document
         amount: Number(updatedData.amount),
       }, { merge: true });
 
-      console.log(`Budget goal updated for ${category} in month: ${month}`);
+      console.log(`Budget goal updated for ${category} in month: ${month}, year: ${year}`);
     }
-
-    console.log('Budget goal updated successfully for category:', category, 'for months:', months);
   } catch (error) {
     console.error('Error updating budget goal:', error);
     throw error;
   }
 };
+
+
 
 export const deleteBudgetGoal = async (category, year, month) => {
   try {

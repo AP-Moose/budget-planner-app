@@ -39,9 +39,9 @@ const YearlyBudgetScreen = ({ navigation }) => {
 
     // Update the current month
     updatedYearlyBudget[startMonth][category] = {
-      ...updatedYearlyBudget[startMonth][category],
-      amount,
-      isRecurring,
+        ...updatedYearlyBudget[startMonth][category],
+        amount,
+        isRecurring,
     };
 
     setYearlyBudget(updatedYearlyBudget);
@@ -51,19 +51,21 @@ const YearlyBudgetScreen = ({ navigation }) => {
 
     // Update in the database for the selected months
     await updateBudgetGoal(category, {
-      amount,
-      isRecurring,
-      year: selectedYear,
-    }, monthsToUpdate);
+        amount,
+        isRecurring,
+        year: selectedYear,
+    }, selectedYear, monthsToUpdate);
 
-    // If the goal is switched to non-recurring, clean up the other months
-    if (!isRecurring) {
-      const monthsToClear = Array.from({ length: 12 - startMonth }, (_, i) => startMonth + i + 1);
-      for (const month of monthsToClear) {
-        await deleteBudgetGoal(category, selectedYear, month);
-      }
+    // If the goal is switched to non-recurring, only then clean up the other months
+    if (!isRecurring && startMonth < 12) {
+        const monthsToClear = Array.from({ length: 12 - startMonth }, (_, i) => startMonth + i + 1);
+        for (const month of monthsToClear) {
+            console.log(`Checking and possibly deleting for month ${month}`);
+            await deleteBudgetGoal(category, selectedYear, month);
+        }
     }
-  };
+};
+
 
   const clearAllGoalsForYear = () => {
     Alert.alert(
@@ -98,30 +100,25 @@ const YearlyBudgetScreen = ({ navigation }) => {
     );
   };
 
-  const resetMonthGoals = (month) => {
+  const resetMonthGoals = async (month) => {
     Alert.alert(
-      `Reset Budget Goals for ${new Date(selectedYear, month - 1, 1).toLocaleString('default', { month: 'long' })}`,
-      'Are you sure you want to reset all goals for this month?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Reset', onPress: async () => {
-            const updatedYearlyBudget = { ...yearlyBudget };
-            EXPENSE_CATEGORIES.forEach(category => {
-              updatedYearlyBudget[month][category] = { amount: '0', isRecurring: false };
-              updateBudgetGoal(category, {
-                amount: '0',
-                isRecurring: false,
-                year: selectedYear,
-                month,
-              });
-            });
-            setYearlyBudget(updatedYearlyBudget);
-          }
-        },
-      ],
-      { cancelable: true }
+        `Reset Budget Goals for ${new Date(selectedYear, month - 1, 1).toLocaleString('default', { month: 'long' })}`,
+        'Are you sure you want to reset all goals for this month?',
+        [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Reset', onPress: async () => {
+                const updatedYearlyBudget = { ...yearlyBudget };
+                EXPENSE_CATEGORIES.forEach(async category => {
+                    updatedYearlyBudget[month][category] = { amount: '0', isRecurring: false };
+                    await deleteBudgetGoal(category, selectedYear, month); // Ensure it deletes the correct month/year
+                });
+                setYearlyBudget(updatedYearlyBudget);
+            }},
+        ],
+        { cancelable: true }
     );
-  };
+};
+
 
   const formatCurrency = (amount) => {
     return `$${parseFloat(amount).toFixed(2)}`;
