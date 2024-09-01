@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
-import { getBudgetGoals, updateBudgetGoal, clearAllBudgetGoals } from '../services/FirebaseService';  // Ensure the correct function is imported
+import { getBudgetGoals, updateBudgetGoal, clearAllBudgetGoals, deleteBudgetGoal } from '../services/FirebaseService';  // Ensure the correct function is imported
 import { EXPENSE_CATEGORIES } from '../utils/categories';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -34,42 +34,34 @@ const YearlyBudgetScreen = ({ navigation }) => {
     }
   };
 
-  const handleUpdateGoal = async (month, category, amount, isRecurring) => {
+  const handleUpdateGoal = async (startMonth, category, amount, isRecurring) => {
     const updatedYearlyBudget = { ...yearlyBudget };
-  
+
     // Update the current month
-    updatedYearlyBudget[month][category] = {
-      ...updatedYearlyBudget[month][category],
+    updatedYearlyBudget[startMonth][category] = {
+      ...updatedYearlyBudget[startMonth][category],
       amount,
       isRecurring,
     };
-  
+
     setYearlyBudget(updatedYearlyBudget);
-  
-    // Update in the database for the current month
+
+    // Determine the months to update based on whether the goal is recurring
+    const monthsToUpdate = isRecurring ? Array.from({ length: 12 - startMonth + 1 }, (_, i) => startMonth + i) : [startMonth];
+
+    // Update in the database for the selected months
     await updateBudgetGoal(category, {
       amount,
       isRecurring,
       year: selectedYear,
-      month,
-    });
-  
-    // If recurring, update future months in the database and state
-    if (isRecurring) {
-      for (let futureMonth = month + 1; futureMonth <= 12; futureMonth++) {
-        updatedYearlyBudget[futureMonth][category] = {
-          ...updatedYearlyBudget[futureMonth][category],
-          amount,
-          isRecurring,
-        };
-        await updateBudgetGoal(category, {
-          amount,
-          isRecurring,
-          year: selectedYear,
-          month: futureMonth,
-        });
+    }, monthsToUpdate);
+
+    // If the goal is switched to non-recurring, clean up the other months
+    if (!isRecurring) {
+      const monthsToClear = Array.from({ length: 12 - startMonth }, (_, i) => startMonth + i + 1);
+      for (const month of monthsToClear) {
+        await deleteBudgetGoal(category, selectedYear, month);
       }
-      setYearlyBudget(updatedYearlyBudget);
     }
   };
 
