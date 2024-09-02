@@ -4,14 +4,16 @@ import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../../utils/categories';
 export const generateMonthlySummary = (transactions, startDate, endDate) => {
   console.log('Generating monthly summary');
   try {
-    // Convert startDate and endDate to UTC for comparison
-    const start = new Date(Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()));
-    const end = new Date(Date.UTC(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59));
+    const startMonth = startDate.getMonth();
+    const startYear = startDate.getFullYear();
 
-    // Filter transactions by date range
+    // Filter transactions by month and year
     const filteredTransactions = transactions.filter(transaction => {
-      const transactionDate = new Date(transaction.date); // Assuming transaction.date is in UTC
-      return transactionDate >= start && transactionDate <= end;
+      const transactionDate = new Date(transaction.date);
+      return (
+        transactionDate.getMonth() === startMonth &&
+        transactionDate.getFullYear() === startYear
+      );
     });
 
     const categorizedTransactions = categorizeTransactions(filteredTransactions);
@@ -35,6 +37,8 @@ export const generateMonthlySummary = (transactions, startDate, endDate) => {
     throw error;
   }
 };
+
+
 
 
 export const generateCustomRangeReport = (transactions, startDate, endDate) => {
