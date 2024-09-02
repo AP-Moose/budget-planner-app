@@ -1,10 +1,20 @@
 import { categorizeTransactions, calculateTotals } from '../../utils/reportUtils';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../../utils/categories';
 
-export const generateMonthlySummary = (transactions) => {
+export const generateMonthlySummary = (transactions, startDate, endDate) => {
   console.log('Generating monthly summary');
   try {
-    const categorizedTransactions = categorizeTransactions(transactions);
+    // Convert startDate and endDate to UTC for comparison
+    const start = new Date(Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()));
+    const end = new Date(Date.UTC(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59));
+
+    // Filter transactions by date range
+    const filteredTransactions = transactions.filter(transaction => {
+      const transactionDate = new Date(transaction.date); // Assuming transaction.date is in UTC
+      return transactionDate >= start && transactionDate <= end;
+    });
+
+    const categorizedTransactions = categorizeTransactions(filteredTransactions);
     const totals = calculateTotals(categorizedTransactions);
 
     const totalIncome = totals.totalRegularIncome + totals.totalCreditCardIncome;
@@ -18,13 +28,14 @@ export const generateMonthlySummary = (transactions) => {
       netSavings,
       savingsRate,
       creditCardPurchases: totals.totalCreditCardPurchases,
-      creditCardPayments: totals.totalCreditCardPayments
+      creditCardPayments: totals.totalCreditCardPayments,
     };
   } catch (error) {
     console.error('Error in generateMonthlySummary:', error);
     throw error;
   }
 };
+
 
 export const generateCustomRangeReport = (transactions, startDate, endDate) => {
   console.log('Generating custom range report');
