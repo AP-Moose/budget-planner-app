@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, Switch, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { getBudgetGoals, updateBudgetGoal, getTransactions } from '../services/FirebaseService';
+import { getBudgetGoals, updateBudgetGoal, getTransactions, deleteBudgetGoal } from '../services/FirebaseService';
 import { EXPENSE_CATEGORIES } from '../utils/categories';
 import { useMonth } from '../context/MonthContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -72,30 +72,33 @@ function BudgetGoalsScreen({ navigation }) {
       return;
     }
   
-    // Ensure isRecurring is never undefined and defaults to false
     const isRecurring = goal.isRecurring || false;
-  
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth() + 1;
-    
+  
     setIsUpdating(true);
     try {
       await updateBudgetGoal(goal.category, {
         amount: parseFloat(goal.amount),
-        isRecurring: isRecurring,  // Always set isRecurring
+        isRecurring: isRecurring,
         year: year,
         month: month,
-      });
+      }, [month]); // Pass the current month
   
-      // If recurring, update only for the rest of the current year
       if (isRecurring) {
+        // Update future months if recurring is on
         for (let futureMonth = month + 1; futureMonth <= 12; futureMonth++) {
           await updateBudgetGoal(goal.category, {
             amount: parseFloat(goal.amount),
             isRecurring: isRecurring,
             year: year,
             month: futureMonth,
-          });
+          }, [futureMonth]);
+        }
+      } else {
+        // If recurring is turned off, delete goals for future months
+        for (let futureMonth = month + 1; futureMonth <= 12; futureMonth++) {
+          await deleteBudgetGoal(goal.category, year, futureMonth);
         }
       }
   
@@ -103,13 +106,12 @@ function BudgetGoalsScreen({ navigation }) {
       await loadGoals();  // Reload goals after update
       Alert.alert('Success', 'Goal Updated');
     } catch (error) {
-      console.error('Error updating budget goal:', error);
+      console.error('Error updating budget goal:', error.message);
       Alert.alert('Error', 'Failed to update budget goal. Please try again.');
     } finally {
       setIsUpdating(false);
     }
   };
-  
   
   
 

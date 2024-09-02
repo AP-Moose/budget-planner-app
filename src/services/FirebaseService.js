@@ -40,9 +40,11 @@ export const updateBudgetGoal = async (category, updatedData, months = []) => {
 
     const sanitizedCategory = sanitizeCategory(category);
 
-    // Loop through each month and update the budget goal for each one
     for (const month of months) {
-      const goalRef = doc(db, 'budgetGoals', `${user.uid}_${sanitizedCategory}_${updatedData.year}_${month}`);
+      const goalDocId = `${user.uid}_${sanitizedCategory}_${updatedData.year}_${month}`;
+      console.log('Generated Document ID:', goalDocId); // Log the generated document ID
+
+      const goalRef = doc(db, 'budgetGoals', goalDocId);
       await setDoc(goalRef, {
         ...updatedData,
         userId: user.uid,
@@ -56,10 +58,13 @@ export const updateBudgetGoal = async (category, updatedData, months = []) => {
 
     console.log('Budget goal updated successfully for category:', category, 'for months:', months);
   } catch (error) {
-    console.error('Error updating budget goal:', error);
-    throw error;
+    console.error('Error updating budget goal:', error.message);
+    throw error; // Rethrow the error to handle it in the calling function
   }
 };
+
+
+
 
 export const onBudgetGoalsUpdate = (year, callback) => {
   const user = auth.currentUser;
@@ -109,6 +114,7 @@ export const deleteBudgetGoal = async (category, year, month) => {
     throw error;
   }
 };
+
 
 
 export const getBudgetGoals = async (year = null) => {
