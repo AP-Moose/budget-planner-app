@@ -178,7 +178,7 @@ const ReportsScreen = () => {
             report = await generateDetailedCashFlowStatement(transactions, startDate, endDate); // Add this case
             break;
         case 'category-transaction-detail':
-          report = await generateCategoryTransactionDetail(transactions);
+          report = await generateCategoryTransactionDetail(transactions, startDate, endDate);
           break;
         case 'credit-card-statement':
           report = await generateCreditCardStatement(transactions, creditCards, startDate, endDate);

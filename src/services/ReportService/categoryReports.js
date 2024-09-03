@@ -63,7 +63,7 @@ export const generateCategoryTransactionDetail = (transactions, startDate, endDa
   try {
     const categoryTransactions = {};
 
-    // Calculate the first and last day of the current month
+    // Calculate the first and last day of the current month as fallback
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -71,6 +71,8 @@ export const generateCategoryTransactionDetail = (transactions, startDate, endDa
     // Convert startDate and endDate to Date objects if they're not already, with default values
     const start = startDate ? new Date(startDate) : firstDayOfMonth;
     const end = endDate ? new Date(endDate) : lastDayOfMonth;
+
+    console.log(`Filtering transactions from ${start} to ${end}`);
 
     ALL_CATEGORIES.forEach(category => {
       categoryTransactions[category] = [];
@@ -81,12 +83,13 @@ export const generateCategoryTransactionDetail = (transactions, startDate, endDa
       const isWithinRange = transactionDate >= start && transactionDate <= end;
 
       if (isWithinRange) {
+        console.log(`Transaction within range: ${t.date} - ${t.category}`);
         categoryTransactions[t.category].push({
           date: t.date,
           amount: Number(t.amount),
           description: t.description,
           creditCard: t.creditCard,
-          isCardPayment: t.isCardPayment
+          isCardPayment: t.isCardPayment,
         });
       }
     });
@@ -96,6 +99,7 @@ export const generateCategoryTransactionDetail = (transactions, startDate, endDa
       categoryTransactions[category].sort((a, b) => new Date(a.date) - new Date(b.date));
     });
 
+    console.log('Generated report:', categoryTransactions);
     return categoryTransactions;
   } catch (error) {
     console.error('Error in generateCategoryTransactionDetail:', error);
