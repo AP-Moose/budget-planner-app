@@ -4,9 +4,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useMonth } from '../context/MonthContext';
 import { generateReport, exportReportToCSV } from '../services/ReportService';
 import { ALL_CATEGORIES, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../utils/categories';
-import { generateYTDSummary } from '../services/ReportService/ytdSummaryReport.js';
-import { generateMonthlySummary } from '../services/ReportService/monthlySummaryReport';
-import { generateCustomRangeReport } from '../services/ReportService/customRangeReport.js';
+import { generateMonthlySummary, generateCustomRangeReport, generateYTDSummary } from '../services/ReportService/summaryReports';
 import { getTransactions, getCreditCards } from '../services/FirebaseService';
 import { generateBalanceSheetReport } from '../services/ReportService/balanceSheetReport';
 import { generateCategoryBreakdown, generateCategoryTransactionDetail } from '../services/ReportService/categoryReports';
@@ -39,8 +37,6 @@ const ReportsScreen = () => {
     {
       category: "Summary Reports",
       reports: [
-        { label: 'Monthly Income vs Expense Summary', value: 'monthly-summary' },
-        { label: 'Year-to-Date Financial Summary', value: 'ytd-summary' },
         { label: 'Custom Date Range Report', value: 'custom-range' },
         { label: 'Balance Sheet', value: 'balance-sheet' },
       ]
@@ -104,9 +100,6 @@ const ReportsScreen = () => {
     if (isYTD || reportType === 'ytd-summary') {
       setStartDate(new Date(now.getFullYear(), 0, 1));
       setEndDate(now);
-    } else if (reportType === 'monthly-summary') {
-      setStartDate(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1));
-      setEndDate(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0));
     } else if (reportType === 'expense-trend') {
       const sixMonthsAgo = new Date(now);
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
@@ -155,12 +148,6 @@ const ReportsScreen = () => {
       let report;
   
       switch (reportType) {
-        case 'ytd-summary':
-          report = await generateYTDSummary(transactions);
-          break;
-        case 'monthly-summary':
-          report = await generateMonthlySummary(transactions, startDate, endDate);
-          break;
         case 'custom-range':
           const budgetGoalsForRange = await getBudgetGoalsForRange(startDate, endDate);
           report = await generateCustomRangeReport(transactions, startDate, endDate, budgetGoalsForRange);
@@ -247,21 +234,9 @@ const ReportsScreen = () => {
   };
 
   const renderDateSelection = () => {
-    if (isYTD || reportType === 'ytd-summary') {
-      return (
-        <View style={styles.dateContainer}>
-          <Text>Year-to-Date: {startDate.getFullYear()}</Text>
-        </View>
-      );
-    } else if (reportType === 'monthly-summary') {
-      return (
-        <View style={styles.dateContainer}>
-          <TouchableOpacity onPress={() => setShowStartDatePicker(true)} style={styles.dateButton}>
-            <Text>Month: {startDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    } else {
+    if (reportType === 'balance-sheet') {
+      return null;
+    }  else {
       return (
         <View style={styles.dateContainer}>
           <TouchableOpacity onPress={() => setShowStartDatePicker(true)} style={styles.dateButton}>
@@ -295,8 +270,6 @@ const ReportsScreen = () => {
     console.log('Rendering report data:', JSON.stringify(reportData, null, 2));
   
     const renderFunctions = {
-      'monthly-summary': withErrorHandling(renderMonthlySummary),
-      'ytd-summary': withErrorHandling(renderYTDSummary),
       'custom-range': withErrorHandling(renderCustomRange),
       'category-breakdown': withErrorHandling(renderCategoryBreakdown),
       'budget-vs-actual': withErrorHandling(renderBudgetVsActual),
@@ -317,58 +290,6 @@ const ReportsScreen = () => {
     const renderFunction = renderFunctions[reportType];
     return renderFunction ? renderFunction(reportData) : <Text style={styles.reportItem}>Unknown report type</Text>;
   };
-
-  const renderMonthlySummary = (data) => (
-    <View style={styles.reportContainer}>
-      <Text style={styles.reportTitle}>Monthly Summary</Text>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Total Income:</Text>
-        <Text style={styles.reportValue}>{formatCurrency(data.totalIncome)}</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Total Expenses:</Text>
-        <Text style={styles.reportValue}>{formatCurrency(data.totalExpenses)}</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Net Savings:</Text>
-        <Text style={styles.reportValue}>{formatCurrency(data.netSavings)}</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Savings Rate:</Text>
-        <Text style={styles.reportValue}>{data.savingsRate?.toFixed(2) || '0.00'}%</Text>
-      </View>
-    </View>
-  );
-
-  const renderYTDSummary = (data) => (
-    <View style={styles.reportContainer}>
-      <Text style={styles.reportTitle}>Year-to-Date Summary</Text>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Total Income:</Text>
-        <Text style={styles.reportValue}>{formatCurrency(data.totalIncome)}</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Total Expenses:</Text>
-        <Text style={styles.reportValue}>{formatCurrency(data.totalExpenses)}</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Net Savings:</Text>
-        <Text style={styles.reportValue}>{formatCurrency(data.netSavings)}</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>YTD Savings Rate:</Text>
-        <Text style={styles.reportValue}>{data.savingsRate?.toFixed(2) || '0.00'}%</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Top Expense Category:</Text>
-        <Text style={styles.reportValue}>{data.topExpenseCategory || 'N/A'}</Text>
-      </View>
-      <View style={styles.reportRow}>
-        <Text style={styles.reportLabel}>Top Income Source:</Text>
-        <Text style={styles.reportValue}>{data.topIncomeSource || 'N/A'}</Text>
-      </View>
-    </View>
-  );
 
   const renderCustomRange = (data) => (
   <View style={styles.reportContainer}>

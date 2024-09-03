@@ -9,8 +9,11 @@ export const generateBalanceSheetReport = async (transactions, asOfDate) => {
     const balanceSheetItems = await getBalanceSheetItems();
     const userProfile = await getUserProfile();
 
+    // Filter transactions to include only those on or before the asOfDate
+    const filteredTransactions = transactions.filter(t => new Date(t.date) <= asOfDate);
+
     // Categorize transactions and calculate totals
-    const categorizedTransactions = categorizeTransactions(transactions);
+    const categorizedTransactions = categorizeTransactions(filteredTransactions);
     const totals = calculateTotals(categorizedTransactions);
 
     // Calculate cash balance
@@ -28,15 +31,15 @@ export const generateBalanceSheetReport = async (transactions, asOfDate) => {
     const cashBalance = initialCashBalance + netCashFlow;
     console.log('Final cash balance:', cashBalance);
 
-    // Calculate credit card balances
+    // Calculate credit card balances as of the asOfDate
     const creditCardBalances = creditCards.reduce((acc, card) => {
       acc[card.name] = card.balance;
       return acc;
     }, {});
 
-    // Update credit card balances based on transactions
-    transactions.forEach(t => {
-      if (t.creditCard && t.creditCardId && new Date(t.date) <= asOfDate) {
+    // Update credit card balances based on transactions up to asOfDate
+    filteredTransactions.forEach(t => {
+      if (t.creditCard && t.creditCardId) {
         const card = creditCards.find(c => c.id === t.creditCardId);
         if (card) {
           if (t.isCardPayment) {
@@ -48,9 +51,9 @@ export const generateBalanceSheetReport = async (transactions, asOfDate) => {
       }
     });
 
-    // Categorize balance sheet items
-    const assets = {investments: {}, otherAssets: {}};
-    const liabilities = {loans: {}, otherLiabilities: {}};
+    // Categorize balance sheet items as of the asOfDate
+    const assets = { investments: {}, otherAssets: {} };
+    const liabilities = { loans: {}, otherLiabilities: {} };
 
     balanceSheetItems.forEach(item => {
       if (item.type === 'Asset') {
@@ -79,20 +82,20 @@ export const generateBalanceSheetReport = async (transactions, asOfDate) => {
         cash: cashBalance,
         investments: assets.investments,
         otherAssets: assets.otherAssets,
-        total: totalAssets
+        total: totalAssets,
       },
       liabilities: {
         creditCards: creditCardBalances,
         loans: liabilities.loans,
         otherLiabilities: liabilities.otherLiabilities,
-        total: totalLiabilities
+        total: totalLiabilities,
       },
       netWorth: netWorth,
       cashFlowDetails: {
         totalIncome,
         totalCashOutflow,
-        netCashFlow
-      }
+        netCashFlow,
+      },
     };
   } catch (error) {
     console.error('Error in generateBalanceSheetReport:', error);

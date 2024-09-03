@@ -1,7 +1,5 @@
 import { getTransactions, getBudgetGoals, getCreditCards, getLoans } from '../FirebaseService';
-import { generateMonthlySummary } from './monthlySummaryReport';
-import { generateCustomRangeReport } from './customRangeReport';
-import { generateYTDSummary } from './ytdSummaryReport';
+import * as summaryReports from './summaryReports';
 import * as categoryReports from './categoryReports';
 import * as budgetReports from './budgetReports';
 import * as incomeReports from './incomeReports';
@@ -15,7 +13,6 @@ import { generatePaymentHistoryReport } from './paymentHistoryReport';
 import { generateDebtReductionProjection } from './debtReductionProjection';
 import { generateCategoryCreditCardUsage } from './categoryCreditCardUsage';
 import { generateBalanceSheetReport } from './balanceSheetReport';
-import { filterTransactionsByDate } from '../../utils/filterUtils';
 
 export const generateReport = async (reportType, startDate, endDate) => {
   try {
@@ -25,13 +22,16 @@ export const generateReport = async (reportType, startDate, endDate) => {
     const creditCards = await getCreditCards();
     const loans = await getLoans();
 
-    const filteredTransactions = filterTransactionsByDate(transactions, startDate, endDate);
+    const filteredTransactions = transactions.filter(t => {
+      const transactionDate = new Date(t.date);
+      return transactionDate >= startDate && transactionDate <= endDate;
+    });
 
     console.log('Filtered transactions:', filteredTransactions.length);
 
     switch (reportType) {
       case 'monthly-summary':
-        return generateMonthlySummary(filteredTransactions, startDate, endDate);
+        return summaryReports.generateMonthlySummary(filteredTransactions);
       case 'category-breakdown':
         return categoryReports.generateCategoryBreakdown(filteredTransactions);
       case 'budget-vs-actual':
@@ -41,9 +41,8 @@ export const generateReport = async (reportType, startDate, endDate) => {
       case 'savings-rate':
         return savingsReports.generateSavingsRateReport(filteredTransactions);
       case 'ytd-summary':
-        return generateYTDSummary(filteredTransactions, startDate, endDate);
       case 'custom-range':
-        return generateCustomRangeReport(filteredTransactions);
+        return summaryReports.generateCustomRangeReport(filteredTransactions);
       case 'expense-trend':
         return trendReports.generateExpenseTrendAnalysis(filteredTransactions);
       case 'cash-flow':
