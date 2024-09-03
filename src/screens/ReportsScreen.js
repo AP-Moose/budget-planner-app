@@ -157,7 +157,7 @@ const ReportsScreen = () => {
           report = await generateYTDSummary(transactions);
           break;
         case 'monthly-summary':
-          report = await generateMonthlySummary(transactions, startDate, endDate);
+          report = await generateMonthlySummary(transactions);
           break;
         case 'custom-range':
           const budgetGoalsForRange = await getBudgetGoalsForRange(startDate, endDate);
