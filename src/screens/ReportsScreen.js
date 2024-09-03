@@ -156,7 +156,7 @@ const ReportsScreen = () => {
           report = await generateBalanceSheetReport(transactions, endDate);
           break;
         case 'category-breakdown':
-          report = await generateCategoryBreakdown(transactions);
+          report = await generateCategoryBreakdown(transactions, startDate, endDate);
           break;
         case 'budget-vs-actual':
           const budgetGoalsForSelectedMonths = await getBudgetGoalsForRange(startDate, endDate);
