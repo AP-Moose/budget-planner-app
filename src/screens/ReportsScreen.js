@@ -169,7 +169,7 @@ const ReportsScreen = () => {
           report = await generateSavingsRateReport(transactions, startDate, endDate);
           break;
         case 'expense-trend':
-          report = await generateExpenseTrendAnalysis(transactions);
+          report = await generateExpenseTrendAnalysis(transactions, startDate, endDate);
           break;
         case 'cash-flow':
           report = await generateCashFlowStatement(transactions, startDate, endDate);
