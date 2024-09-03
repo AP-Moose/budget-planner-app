@@ -396,8 +396,8 @@ const renderSavingsRate = (data) => (
       <Text style={styles.reportValue}>{formatCurrency(data.totalExpenses)}</Text>
     </View>
     <View style={styles.reportRow}>
-      <Text style={styles.reportLabel}>Total Savings:</Text>
-      <Text style={styles.reportValue}>{formatCurrency(data.totalSavings)}</Text>
+      <Text style={styles.reportLabel}>Net Savings:</Text>
+      <Text style={styles.reportValue}>{formatCurrency(data.netSavings)}</Text>
     </View>
     <View style={styles.reportRow}>
       <Text style={styles.reportLabel}>Savings Rate:</Text>

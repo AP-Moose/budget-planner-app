@@ -3,16 +3,16 @@ import { categorizeTransactions } from '../../utils/reportUtils';
 import { getBudgetGoals } from '../FirebaseService';
 
 // Function to generate Budget vs Actual report
-export const generateBudgetVsActual = async (transactions, startDate, endDate, budgetGoals) => {
+export const generateBudgetVsActual = async (transactions, startDate, endDate) => {
   console.log('Generating budget vs actual');
   try {
     // Calculate the first and last day of the selected date range
-    const now = new Date();
-    const firstDayOfMonth = startDate ? new Date(startDate.getFullYear(), startDate.getMonth(), 1) : new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastDayOfMonth = endDate ? new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0) : new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const startYear = startDate.getFullYear();
+    const startMonth = startDate.getMonth() + 1;
+    const endYear = endDate.getFullYear();
+    const endMonth = endDate.getMonth() + 1;
 
-    console.log('First Day of Month:', firstDayOfMonth);
-    console.log('Last Day of Month:', lastDayOfMonth);
+    const budgetGoals = await getBudgetGoalsForRange(startDate, endDate);
 
     if (budgetGoals.length === 0) {
       console.log('No budget goals found for the selected range.');
@@ -26,40 +26,35 @@ export const generateBudgetVsActual = async (transactions, startDate, endDate, b
     console.log('Categorized Transactions:', categorizedTransactions);
 
     const results = EXPENSE_CATEGORIES.map(category => {
-      const budgetGoal = budgetGoals
-        .filter(goal => 
-          goal.category === category &&
-          goal.month >= firstDayOfMonth.getMonth() + 1 && 
-          goal.year >= firstDayOfMonth.getFullYear() && 
-          goal.month <= lastDayOfMonth.getMonth() + 1 && 
-          goal.year <= lastDayOfMonth.getFullYear()
-        )
+      // Sum the budget goals for the category within the selected range
+      const budgetedAmount = budgetGoals
+        .filter(goal => goal.category === category)
         .reduce((sum, goal) => sum + Number(goal.amount), 0);
-    
-      if (!budgetGoal) {
+
+      if (!budgetedAmount) {
         console.log(`No budget goal found for category: ${category}`);
       }
-    
+
       const actual = categorizedTransactions.regularExpenses
-        .filter(t => t.category === category && t.date >= firstDayOfMonth && t.date <= lastDayOfMonth)
+        .filter(t => t.category === category && t.date >= startDate && t.date <= endDate)
         .reduce((sum, t) => sum + Number(t.amount), 0);
-    
+
       const creditCardActual = categorizedTransactions.creditCardPurchases
-        .filter(t => t.category === category && t.date >= firstDayOfMonth && t.date <= lastDayOfMonth)
+        .filter(t => t.category === category && t.date >= startDate && t.date <= endDate)
         .reduce((sum, t) => sum + Number(t.amount), 0);
-    
+
       const totalActual = actual + creditCardActual;
-    
-      console.log(`Category: ${category}, Budgeted: ${budgetGoal}, Actual: ${totalActual}`);
-    
+
+      console.log(`Category: ${category}, Budgeted: ${budgetedAmount}, Actual: ${totalActual}`);
+
       return {
         category,
-        budgeted: budgetGoal,
+        budgeted: budgetedAmount,
         actual: totalActual,
-        difference: budgetGoal - totalActual
+        difference: budgetedAmount - totalActual
       };
     });
-    
+
     console.log('Budget vs Actual Results:', results);
 
     return results;
@@ -80,12 +75,12 @@ export const getBudgetGoalsForRange = async (startDate, endDate) => {
     const goals = [];
 
     for (let year = startYear; year <= endYear; year++) {
-      const start = year === startYear ? startMonth : 1;
-      const end = year === endYear ? endMonth : 12;
+      const fromMonth = year === startYear ? startMonth : 1;
+      const toMonth = year === endYear ? endMonth : 12;
 
-      for (let month = start; month <= end; month++) {
-        const monthlyGoals = await getBudgetGoals(year, month);
-        goals.push(...monthlyGoals);
+      for (let month = fromMonth; month <= toMonth; month++) {
+        const monthlyGoals = await getBudgetGoals(year);
+        goals.push(...monthlyGoals.filter(goal => goal.month === month));
       }
     }
 

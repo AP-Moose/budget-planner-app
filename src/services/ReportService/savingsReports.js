@@ -25,17 +25,21 @@ export const generateSavingsRateReport = (transactions, startDate, endDate) => {
     const totals = calculateTotals(categorizedTransactions);
 
     const totalIncome = totals.totalRegularIncome + totals.totalCreditCardIncome;
-    const totalExpenses = totals.totalRegularExpenses + totals.totalCreditCardPurchases;
+    const totalExpenses = totals.totalRegularExpenses +totals.totalCreditCardPurchases;
     const netSavings = totalIncome - totalExpenses;
     const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
+
+    // Calculate the number of months in the date range
+    const monthsInRange = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
+
+    const monthlyAverageSavings = monthsInRange > 0 ? netSavings / monthsInRange : 0;
 
     return {
       totalIncome,
       totalExpenses,
       netSavings,
       savingsRate,
-      creditCardPurchases: totals.totalCreditCardPurchases,
-      creditCardPayments: totals.totalCreditCardPayments,
+      monthlyAverageSavings,  // Include the calculated monthly average savings
     };
   } catch (error) {
     console.error('Error in generateSavingsRateReport:', error);
