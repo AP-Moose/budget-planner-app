@@ -230,7 +230,8 @@ const ReportsScreen = () => {
   };
 
   const renderDateSelection = () => {
-    if (reportType === 'balance-sheet') {
+    if (reportType === 'balance-sheet' || 'debt-reduction-projection'
+    ) {
       return null;
     }  else {
       return (
@@ -760,7 +761,7 @@ return (
       </TouchableOpacity>
     </View>
 
-    {reportType !== 'ytd-summary' && reportType !== 'balance-sheet' && (
+    {reportType !== 'ytd-summary' && reportType !== 'balance-sheet' && reportType !== 'debt-reduction-projection' &&(
       <TouchableOpacity 
         style={styles.ytdButton} 
         onPress={() => setIsYTD(!isYTD)}
