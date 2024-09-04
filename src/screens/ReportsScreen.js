@@ -186,7 +186,7 @@ const ReportsScreen = () => {
           report = await generatePaymentHistoryReport(transactions, startDate, endDate);
           break;
         case 'debt-reduction-projection':
-          report = await generateDebtReductionProjection(transactions, startDate, endDate);
+          report = await generateDebtReductionProjection(transactions);
           break;
         case 'category-credit-card-usage':
           report = await generateCategoryCreditCardUsage(transactions, startDate, endDate);
