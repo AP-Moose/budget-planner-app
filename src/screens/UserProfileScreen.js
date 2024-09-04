@@ -62,15 +62,25 @@ const UserProfileScreen = ({ navigation }) => {
       const profile = await getUserProfile();
       const initialBalance = parseFloat(profile.initialCashBalance) || 0;
       setInitialCashBalance(initialBalance.toString());
-
+  
       const transactions = await getTransactions();
-      const categorizedTransactions = categorizeTransactions(transactions);
+  
+      // Get current date and time in UTC
+      const currentDate = new Date();
+  
+      // Filter transactions to only include those up to the current date and time
+      const validTransactions = transactions.filter((transaction) => {
+        const transactionDate = new Date(transaction.date);
+        return transactionDate <= currentDate;
+      });
+  
+      const categorizedTransactions = categorizeTransactions(validTransactions);
       const totals = calculateTotals(categorizedTransactions);
-
+  
       const totalIncome = totals.totalRegularIncome + totals.totalCreditCardIncome;
       const totalCashOutflow = totals.totalRegularExpenses + totals.totalCreditCardPayments + totals.totalLoanPayments;
       const netCashFlow = totalIncome - totalCashOutflow;
-
+  
       setAccumulatedCash(netCashFlow);
       setTotalCashBalance(initialBalance + netCashFlow); // Calculate total cash balance
     } catch (error) {
@@ -78,6 +88,7 @@ const UserProfileScreen = ({ navigation }) => {
       Alert.alert('Error', 'Failed to load user profile. Please try again.');
     }
   };
+  
 
   const loadCreditCards = async () => {
     try {
