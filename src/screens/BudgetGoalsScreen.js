@@ -6,6 +6,7 @@ import { EXPENSE_CATEGORIES } from '../utils/categories';
 import { useMonth } from '../context/MonthContext';
 import { Ionicons } from '@expo/vector-icons';
 import MonthNavigator from '../components/MonthNavigator';
+import { categorizeTransactions } from '../utils/reportUtils';
 
 function BudgetGoalsScreen({ navigation }) {
   const { currentMonth, setCurrentMonth } = useMonth();
@@ -25,6 +26,8 @@ function BudgetGoalsScreen({ navigation }) {
     try {
       const year = currentMonth.getFullYear();
       const month = currentMonth.getMonth() + 1;
+      
+      // Fetch budget goals for the current month
       let fetchedGoals = await getBudgetGoals(year, month);
       
       // Ensure all categories are present with isRecurring set
@@ -38,8 +41,19 @@ function BudgetGoalsScreen({ navigation }) {
       setDebtPaymentGoal(existingDebtGoal || { category: 'Debt Payment', amount: '0', isRecurring: false });
   
       setBudgetGoals(allCategories);
+      
+      // Calculate total budget and actual spent for the month
+      const totalBudget = allCategories.reduce((sum, goal) => sum + Number(goal.amount), 0);
+      setTotalBudget(totalBudget);
   
-      // Your transaction handling code follows...
+      const transactions = await getTransactions();  // Fetch transactions for the user
+      const categorizedTransactions = categorizeTransactions(transactions);
+      
+      const totalSpent = categorizedTransactions.regularExpenses
+        .filter(t => t.date >= new Date(year, month - 1, 1) && t.date <= new Date(year, month, 0))
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+  
+      setTotalSpent(totalSpent);
   
     } catch (error) {
       console.error('Error loading budget goals:', error);
@@ -48,6 +62,7 @@ function BudgetGoalsScreen({ navigation }) {
       setIsLoading(false);
     }
   }, [currentMonth]);
+  
   
 
   useFocusEffect(
@@ -117,6 +132,7 @@ function BudgetGoalsScreen({ navigation }) {
 
   const renderBudgetUsage = () => {
     const percentUsed = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : (totalSpent > 0 ? 100 : 0);
+  
     return (
       <View style={styles.budgetUsageContainer}>
         <Text style={styles.budgetUsageTitle}>Budget Usage</Text>
@@ -143,6 +159,7 @@ function BudgetGoalsScreen({ navigation }) {
       </View>
     );
   };
+  
 
   const renderGoalItem = useCallback(({ item: goal }) => {
     const spent = actualExpenses[goal.category] || 0;
