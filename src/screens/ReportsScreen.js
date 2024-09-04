@@ -532,7 +532,7 @@ const renderCreditUtilization = (data) => (
         </View>
         <View style={styles.reportRow}>
           <Text style={styles.reportLabel}>Utilization:</Text>
-          <Text style={styles.reportValue}>{cardData.utilization !== undefined ? cardData.utilization : '0.00'}</Text>
+          <Text style={styles.reportValue}>{cardData.utilization !== undefined ? cardData.utilization : '0.00'}%</Text>
 
         </View>
       </View>
