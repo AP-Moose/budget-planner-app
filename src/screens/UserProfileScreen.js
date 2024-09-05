@@ -19,14 +19,13 @@ import {
   deleteBalanceSheetItem,
   getCreditCards,
   getLoans,
-  onCreditCardsUpdate,    // Real-time listener for credit cards
-  onLoansUpdate,          // Real-time listener for loans
-  onTransactionsUpdate,   // Real-time listener for transactions
+  onCreditCardsUpdate,
+  onLoansUpdate,
+  onTransactionsUpdate,
   getTransactions,
 } from '../services/FirebaseService';
 import { categorizeTransactions, calculateTotals } from '../utils/reportUtils';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { calculateCreditCardBalance } from '../utils/creditCardUtils';
 
 const UserProfileScreen = ({ navigation }) => {
   const [initialCashBalance, setInitialCashBalance] = useState('');
@@ -35,6 +34,7 @@ const UserProfileScreen = ({ navigation }) => {
   const [balanceSheetItems, setBalanceSheetItems] = useState([]);
   const [creditCards, setCreditCards] = useState([]);
   const [loans, setLoans] = useState([]);
+  const [editingItem, setEditingItem] = useState(null); // For editing mode
   const [newItem, setNewItem] = useState({ 
     type: 'Asset', 
     category: 'Investment', 
@@ -89,15 +89,8 @@ const UserProfileScreen = ({ navigation }) => {
       setInitialCashBalance(initialBalance.toString());
   
       const transactions = await getTransactions();
-  
-      // Get current date and time in UTC
       const currentDate = new Date();
-  
-      // Filter transactions to only include those up to the current date and time
-      const validTransactions = transactions.filter((transaction) => {
-        const transactionDate = new Date(transaction.date);
-        return transactionDate <= currentDate;
-      });
+      const validTransactions = transactions.filter((transaction) => new Date(transaction.date) <= currentDate);
   
       const categorizedTransactions = categorizeTransactions(validTransactions);
       const totals = calculateTotals(categorizedTransactions);
@@ -107,7 +100,7 @@ const UserProfileScreen = ({ navigation }) => {
       const netCashFlow = totalIncome - totalCashOutflow;
   
       setAccumulatedCash(netCashFlow);
-      setTotalCashBalance(initialBalance + netCashFlow); // Calculate total cash balance
+      setTotalCashBalance(initialBalance + netCashFlow);
     } catch (error) {
       console.error('Error loading user profile:', error);
       Alert.alert('Error', 'Failed to load user profile. Please try again.');
@@ -157,7 +150,7 @@ const UserProfileScreen = ({ navigation }) => {
   const handleSave = async () => {
     try {
       await updateUserProfile({ initialCashBalance: parseFloat(initialCashBalance) || 0 });
-      loadUserProfile(); // Recalculate after saving
+      loadUserProfile();
       Alert.alert('Success', 'User profile updated successfully');
     } catch (error) {
       console.error('Error updating user profile:', error);
@@ -165,50 +158,87 @@ const UserProfileScreen = ({ navigation }) => {
     }
   };
 
-  const handleAddItem = async () => {
+  const handleAddOrUpdateItem = async () => {
     if (!newItem.name || !newItem.amount) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
+  
     try {
-      const itemToAdd = {
+      const itemToSave = {
         ...newItem,
         amount: parseFloat(newItem.amount),
-        date: newItem.date.toISOString()
+        date: newItem.date.toISOString(),
       };
-
+  
       if (newItem.category === 'Loan') {
-        itemToAdd.interestRate = parseFloat(newItem.interestRate) || null;
-        itemToAdd.initialAmount = parseFloat(newItem.amount);
-        itemToAdd.currentBalance = parseFloat(newItem.amount);
+        itemToSave.interestRate = parseFloat(newItem.interestRate) || null;
+        itemToSave.initialAmount = parseFloat(newItem.amount); // Update only the initial amount
+      
+        // Prevent updating the current balance
+        if (editingItem) {
+          delete itemToSave.amount; // Ensure the 'amount' (current balance) field is not updated
+        }
       }
-
-      await updateBalanceSheetItem(itemToAdd);
-      setNewItem({ 
-        type: 'Asset', 
-        category: 'Investment', 
-        name: '', 
-        amount: '', 
+      
+  
+      if (editingItem) {
+        await updateBalanceSheetItem({ ...itemToSave, id: editingItem.id });
+        setEditingItem(null);
+      } else {
+        await updateBalanceSheetItem(itemToSave);
+      }
+  
+      setNewItem({
+        type: 'Asset',
+        category: 'Investment',
+        name: '',
+        amount: '',
         date: new Date(),
         interestRate: ''
       });
-      loadUserProfile(); // Recalculate after adding a new item
-      Alert.alert('Success', 'Item added successfully');
+      loadUserProfile();
+      Alert.alert('Success', `Item ${editingItem ? 'updated' : 'added'} successfully`);
     } catch (error) {
-      console.error('Error adding item:', error);
-      Alert.alert('Error', 'Failed to add item. Please try again.');
+      console.error(`Error ${editingItem ? 'updating' : 'adding'} item:`, error);
+      Alert.alert('Error', `Failed to ${editingItem ? 'update' : 'add'} item. Please try again.`);
     }
   };
+  
+  
 
-  const handleDeleteItem = async (itemId) => {
-    try {
-      await deleteBalanceSheetItem(itemId);
-      loadUserProfile(); // Recalculate after deletion
-      Alert.alert('Success', 'Item deleted successfully');
-    } catch (error) {
-      console.error('Error deleting item:', error);
-      Alert.alert('Error', 'Failed to delete item. Please try again.');
-    }
+  const handleDeleteItem = (itemId) => {
+    Alert.alert(
+      'Confirm Deletion',
+      'Are you sure you want to delete this item?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive', 
+          onPress: async () => {
+            try {
+              await deleteBalanceSheetItem(itemId);
+              loadUserProfile();
+              Alert.alert('Success', 'Item deleted successfully');
+            } catch (error) {
+              console.error('Error deleting item:', error);
+              Alert.alert('Error', 'Failed to delete item. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleEditItem = (item) => {
+    setEditingItem(item);
+    setNewItem({ 
+      ...item,
+      amount: item.initialAmount ? item.initialAmount.toString(): '',
+      interestRate: item.interestRate ? item.interestRate.toString() : '',
+      date: new Date(item.date)
+    });
   };
 
   const onChangeDate = (event, selectedDate) => {
@@ -236,9 +266,14 @@ const UserProfileScreen = ({ navigation }) => {
             <Text>{item.name}: ${parseFloat(item.amount).toFixed(2)}</Text>
             <Text>Category: {item.category}</Text>
             <Text>Date: {new Date(item.date).toLocaleDateString()}</Text>
-            <TouchableOpacity onPress={() => handleDeleteItem(item.id)}>
-              <Text style={styles.deleteButton}>Delete</Text>
-            </TouchableOpacity>
+            <View style={styles.actionRow}>
+              <TouchableOpacity onPress={() => handleEditItem(item)}>
+                <Text style={styles.editText}>Edit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleDeleteItem(item.id)}>
+                <Text style={styles.deleteText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ))}
 
@@ -248,9 +283,14 @@ const UserProfileScreen = ({ navigation }) => {
             <Text>{item.name}: ${parseFloat(item.amount).toFixed(2)}</Text>
             <Text>Category: {item.category}</Text>
             <Text>Date: {new Date(item.date).toLocaleDateString()}</Text>
-            <TouchableOpacity onPress={() => handleDeleteItem(item.id)}>
-              <Text style={styles.deleteButton}>Delete</Text>
-            </TouchableOpacity>
+            <View style={styles.actionRow}>
+              <TouchableOpacity onPress={() => handleEditItem(item)}>
+                <Text style={styles.editText}>Edit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleDeleteItem(item.id)}>
+                <Text style={styles.deleteText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ))}
       </View>
@@ -270,7 +310,6 @@ const UserProfileScreen = ({ navigation }) => {
     );
   };
 
-
   const renderLoans = () => {
     return (
       <View>
@@ -283,9 +322,14 @@ const UserProfileScreen = ({ navigation }) => {
             {loan.interestRate !== null && (
               <Text>Interest Rate: {loan.interestRate}%</Text>
             )}
-            <TouchableOpacity onPress={() => handleDeleteItem(loan.id)}>
-              <Text style={styles.deleteButton}>Delete</Text>
-            </TouchableOpacity>
+            <View style={styles.actionRow}>
+              <TouchableOpacity onPress={() => handleEditItem(loan)}>
+                <Text style={styles.editText}>Edit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleDeleteItem(loan.id)}>
+                <Text style={styles.deleteText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ))}
       </View>
@@ -327,7 +371,7 @@ const UserProfileScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Add New Item</Text>
+          <Text style={styles.sectionTitle}>{editingItem ? 'Edit Item' : 'Add New Item'}</Text>
           <TextInput
             style={styles.input}
             value={newItem.name}
@@ -396,8 +440,8 @@ const UserProfileScreen = ({ navigation }) => {
               <Text style={styles.pickerButtonText}>Other</Text>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.button} onPress={handleAddItem}>
-            <Text style={styles.buttonText}>Add Item</Text>
+          <TouchableOpacity style={styles.button} onPress={handleAddOrUpdateItem}>
+            <Text style={styles.buttonText}>{editingItem ? 'Update Item' : 'Add Item'}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -455,9 +499,16 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginBottom: 5,
   },
-  deleteButton: {
-    color: 'red',
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginTop: 5,
+  },
+  editText: {
+    color: '#2196F3',
+  },
+  deleteText: {
+    color: '#F44336',
   },
   pickerContainer: {
     flexDirection: 'row',

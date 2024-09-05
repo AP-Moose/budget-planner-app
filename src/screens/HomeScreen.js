@@ -191,14 +191,17 @@ function HomeScreen({ navigation }) {
     if (!editingTransaction) return;
   
     try {
+      // Ensure initialAmount is a number before updating the loan
+      const updatedLoanInfo = {
+        id: editingTransaction.loanId,
+        name: editingTransaction.loanName,  // Make sure you pass the updated name if necessary
+        initialAmount: parseFloat(editingTransaction.initialAmount) || 0 // Convert to number
+      };
+  
       await updateTransaction(editingTransaction.id, editingTransaction);
   
       if (editingTransaction.isLoanPayment) {
-        await updateLoanInformation({
-          id: editingTransaction.loanId,
-          name: editingTransaction.loanName,  // Make sure you pass updated name if necessary
-          initialAmount: editingTransaction.initialAmount // Update initial amount if relevant
-        });
+        await updateLoanInformation(updatedLoanInfo);
       }
   
       setEditingTransaction(null);
@@ -210,6 +213,7 @@ function HomeScreen({ navigation }) {
       Alert.alert('Error', 'Failed to update transaction. Please try again.');
     }
   };
+  
   
 
   const handleAddTransaction = async () => {
@@ -225,7 +229,7 @@ function HomeScreen({ navigation }) {
         await updateLoanInformation({
           id: newTransaction.loanId,
           name: newTransaction.loanName,
-          initialAmount: newTransaction.initialAmount // Ensure initial amount is updated if needed
+          initialAmount: parseFloat(newTransaction.initialAmount) || 0  // Convert to number
         });
       }
   
@@ -249,6 +253,7 @@ function HomeScreen({ navigation }) {
       Alert.alert('Error', 'Failed to add transaction. Please try again.');
     }
   };
+  
   
 
   const onChangeDate = (event, selectedDate) => {
