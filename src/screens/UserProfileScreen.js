@@ -19,10 +19,14 @@ import {
   deleteBalanceSheetItem,
   getCreditCards,
   getLoans,
-  getTransactions
+  onCreditCardsUpdate,    // Real-time listener for credit cards
+  onLoansUpdate,          // Real-time listener for loans
+  onTransactionsUpdate,   // Real-time listener for transactions
+  getTransactions,
 } from '../services/FirebaseService';
 import { categorizeTransactions, calculateTotals } from '../utils/reportUtils';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { calculateCreditCardBalance } from '../utils/creditCardUtils';
 
 const UserProfileScreen = ({ navigation }) => {
   const [initialCashBalance, setInitialCashBalance] = useState('');
@@ -40,6 +44,27 @@ const UserProfileScreen = ({ navigation }) => {
     interestRate: ''
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Set up real-time listeners for transactions, credit cards, and loans
+  useEffect(() => {
+    const unsubscribeTransactions = onTransactionsUpdate(() => {
+      loadUserProfile();  // Reload user profile when transactions change
+    });
+
+    const unsubscribeCreditCards = onCreditCardsUpdate(() => {
+      loadCreditCards();  // Reload credit cards when they change
+    });
+
+    const unsubscribeLoans = onLoansUpdate(() => {
+      loadLoans();  // Reload loans when they change
+    });
+
+    return () => {
+      unsubscribeTransactions();
+      unsubscribeCreditCards();
+      unsubscribeLoans();
+    };
+  }, []);
 
   useEffect(() => {
     loadUserProfile();
@@ -88,17 +113,36 @@ const UserProfileScreen = ({ navigation }) => {
       Alert.alert('Error', 'Failed to load user profile. Please try again.');
     }
   };
-  
 
   const loadCreditCards = async () => {
     try {
       const cards = await getCreditCards();
-      setCreditCards(cards);
+      const transactions = await getTransactions();
+      const currentDate = new Date();
+  
+      const updatedCards = cards.map((card) => {
+        let cardBalance = card.balance || 0;
+  
+        transactions.forEach((transaction) => {
+          if (transaction.creditCardId === card.id && new Date(transaction.date) <= currentDate) {
+            if (transaction.isCardPayment) {
+              cardBalance -= transaction.amount;
+            } else if (transaction.type === 'expense') {
+              cardBalance += transaction.amount;
+            }
+          }
+        });
+  
+        return { ...card, balance: cardBalance };
+      });
+  
+      setCreditCards(updatedCards);
     } catch (error) {
       console.error('Error loading credit cards:', error);
       Alert.alert('Error', 'Failed to load credit cards. Please try again.');
     }
   };
+  
 
   const loadLoans = async () => {
     try {
@@ -219,12 +263,13 @@ const UserProfileScreen = ({ navigation }) => {
         <Text style={styles.sectionTitle}>Credit Card Liabilities</Text>
         {creditCards.map((card, index) => (
           <View key={index} style={styles.item}>
-            <Text>{card.name}: ${card.balance.toFixed(2)}</Text>
+            <Text>{card.name}: ${card.balance ? card.balance.toFixed(2) : '0.00'}</Text>
           </View>
         ))}
       </View>
     );
   };
+
 
   const renderLoans = () => {
     return (

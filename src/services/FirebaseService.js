@@ -942,7 +942,56 @@ export const updateLoanBalanceInDatabase = async (loanId) => {
   }
 };
 
+export const onTransactionsUpdate = (callback) => {
+  const user = auth.currentUser;
+  if (!user) {
+    console.error('No user logged in');
+    return () => {};
+  }
 
+  const q = query(
+    collection(db, 'transactions'),
+    where('userId', '==', user.uid),
+    orderBy('date', 'desc')
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const transactions = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      amount: Number(doc.data().amount),
+      date: doc.data().date.toDate(),
+      creditCard: Boolean(doc.data().creditCard),
+      isCardPayment: Boolean(doc.data().isCardPayment),
+      creditCardId: doc.data().creditCardId || null // Ensure this field is captured
+    }));
+    callback(transactions);
+  });
+};
+
+export const onLoansUpdate = (callback) => {
+  const user = auth.currentUser;
+  if (!user) {
+    console.error('No user logged in');
+    return () => {};
+  }
+
+  const loansQuery = query(
+    collection(db, 'balanceSheet'),
+    where('userId', '==', user.uid),
+    where('type', '==', 'Liability'),  // Ensure it's a liability
+    where('category', '==', 'Loan')    // Ensure it's categorized as a loan
+  );
+
+  return onSnapshot(loansQuery, (snapshot) => {
+    const loans = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      currentBalance: doc.data().amount // Assuming the balance is stored in the "amount" field
+    }));
+    callback(loans); // Send the updated loans list to the provided callback
+  });
+};
 
 
 export default {
@@ -984,4 +1033,6 @@ export default {
   deleteBudgetGoal,
   onBudgetGoalsUpdate,
   addLoan,
+  onTransactionsUpdate,
+  onLoansUpdate,
 };
