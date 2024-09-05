@@ -1,4 +1,4 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, } from 'firebase/app';
 import { 
   getFirestore, 
   collection, 
@@ -845,47 +845,6 @@ export const updateLoanBalance = async (loanId, amount) => {
   }
 };
 
-export const updateLoanBalanceInDatabase = async (loanId) => {
-  try {
-    const loanRef = doc(db, 'balanceSheet', loanId);
-    const loanDoc = await getDoc(loanRef);
-    
-    if (loanDoc.exists()) {
-      const loanData = loanDoc.data();
-      const initialAmount = parseFloat(loanData.initialAmount);
-
-      // Get all loan payment transactions for this loan
-      const transactionsQuery = query(
-        collection(db, 'transactions'),
-        where('userId', '==', loanData.userId),
-        where('isLoanPayment', '==', true),
-        where('loanId', '==', loanId)
-      );
-      const transactionsSnapshot = await getDocs(transactionsQuery);
-      const loanPayments = transactionsSnapshot.docs.map(doc => doc.data());
-
-      // Calculate the total payments
-      const totalPayments = loanPayments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
-
-      // Calculate the new balance
-      const newBalance = initialAmount - totalPayments;
-
-      // Update the loan balance in the database
-      await updateDoc(loanRef, { 
-        amount: newBalance,
-        updatedAt: serverTimestamp()
-      });
-
-      console.log('Loan balance updated in database:', loanId, 'New balance:', newBalance);
-    } else {
-      console.error('Loan not found:', loanId);
-    }
-  } catch (error) {
-    console.error('Error updating loan balance in database:', error);
-    throw error;
-  }
-};
-
 export const getLoans = async () => {
   try {
     const user = auth.currentUser;
@@ -894,8 +853,8 @@ export const getLoans = async () => {
     const loansQuery = query(
       collection(db, 'balanceSheet'),
       where('userId', '==', user.uid),
-      where('type', '==', 'Liability'),
-      where('category', '==', 'Loan')
+      where('type', '==', 'Liability'),  // Ensure the type is Liability
+      where('category', '==', 'Loan')    // Ensure the category is Loan
     );
 
     const loansSnapshot = await getDocs(loansQuery);
@@ -913,6 +872,78 @@ export const getLoans = async () => {
     throw error;
   }
 };
+
+
+export const addLoan = async (loanData) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('No user logged in');
+    }
+
+    const loanToSave = {
+      ...loanData,
+      userId: user.uid,
+      category: 'Loan',  // Ensure the category is set to 'Loan'
+      type: 'Liability', // Ensure the type is set to 'Liability'
+      createdAt: serverTimestamp(), // Optional: Add a timestamp for when the loan is created
+    };
+
+    const loanRef = await addDoc(collection(db, 'balanceSheet'), loanToSave); // Use balanceSheet collection
+    console.log('Loan added successfully with ID:', loanRef.id);
+    return loanRef.id; // Return the newly created loan's ID
+  } catch (error) {
+    console.error('Error adding loan:', error);
+    throw new Error(`Failed to add loan: ${error.message}`);
+  }
+};
+
+export const updateLoanBalanceInDatabase = async (loanId) => {
+  try {
+    const loanRef = doc(db, 'balanceSheet', loanId);
+    const loanDoc = await getDoc(loanRef);
+    
+    if (loanDoc.exists()) {
+      const loanData = loanDoc.data();
+      const initialAmount = loanData.initialAmount ? parseFloat(loanData.initialAmount) : 0;
+
+      // Get all loan payment transactions for this loan
+      const transactionsQuery = query(
+        collection(db, 'transactions'),
+        where('userId', '==', loanData.userId),
+        where('isLoanPayment', '==', true),
+        where('loanId', '==', loanId)
+      );
+      const transactionsSnapshot = await getDocs(transactionsQuery);
+      const loanPayments = transactionsSnapshot.docs.map(doc => doc.data());
+
+      // Calculate the total payments
+      const totalPayments = loanPayments.reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
+
+      // Calculate the new balance
+      const newBalance = initialAmount - totalPayments;
+
+      // Ensure balance is valid before updating
+      if (!isNaN(newBalance)) {
+        await updateDoc(loanRef, { 
+          amount: newBalance,
+          updatedAt: serverTimestamp()
+        });
+        console.log('Loan balance updated in database:', loanId, 'New balance:', newBalance);
+      } else {
+        console.error('Error calculating new balance: NaN');
+      }
+    } else {
+      console.error('Loan not found:', loanId);
+    }
+  } catch (error) {
+    console.error('Error updating loan balance in database:', error);
+    throw error;
+  }
+};
+
+
+
 
 export default {
   signUp,
@@ -952,4 +983,5 @@ export default {
   clearAllBudgetGoals,
   deleteBudgetGoal,
   onBudgetGoalsUpdate,
+  addLoan,
 };

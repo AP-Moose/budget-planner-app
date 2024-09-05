@@ -235,7 +235,9 @@ const UserProfileScreen = ({ navigation }) => {
             <Text>{loan.name}</Text>
             <Text>Initial Amount: ${parseFloat(loan.initialAmount).toFixed(2)}</Text>
             <Text>Current Balance: ${parseFloat(loan.amount).toFixed(2)}</Text>
-            {loan.interestRate && <Text>Interest Rate: {loan.interestRate}%</Text>}
+            {loan.interestRate !== null && (
+              <Text>Interest Rate: {loan.interestRate}%</Text>
+            )}
             <TouchableOpacity onPress={() => handleDeleteItem(loan.id)}>
               <Text style={styles.deleteButton}>Delete</Text>
             </TouchableOpacity>

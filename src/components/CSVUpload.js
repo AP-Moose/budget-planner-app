@@ -3,7 +3,7 @@ import { View, Text, Alert, StyleSheet, TextInput, Modal, TouchableOpacity, Scro
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import Papa from 'papaparse';
-import { addTransaction, getTransactions, getCreditCards, addCreditCard } from '../services/FirebaseService';
+import { addTransaction, getTransactions, getCreditCards, addCreditCard, getLoans, addLoan } from '../services/FirebaseService';
 import { ALL_CATEGORIES } from '../utils/categories';
 
 const CSVUpload = ({ onTransactionsUpdate }) => {
@@ -64,7 +64,9 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
   const validateAndPrepareCSVData = async (data) => {
     console.log('Validating and preparing CSV data');
     const creditCards = await getCreditCards();
+    const loans = await getLoans();
     const creditCardMap = new Map(creditCards.map(card => [card.name.toLowerCase(), card.id]));
+    const loanMap = new Map(loans.map(loan => [loan.name.toLowerCase(), loan.id]));
 
     const validatedData = [];
     for (let index = 0; index < data.length; index++) {
@@ -80,7 +82,10 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
         let creditCard = row.creditCard?.toLowerCase() === 'yes';
         let creditCardId = null;
         let isCardPayment = row.isCardPayment?.toLowerCase() === 'yes';
+        let isLoanPayment = false;
+        let loanId = null;
 
+        // Handle credit card
         if (creditCard && row.creditCardName) {
           const cardName = row.creditCardName.toLowerCase();
           if (creditCardMap.has(cardName)) {
@@ -89,7 +94,7 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
             try {
               const newCardId = await addCreditCard({
                 name: row.creditCardName,
-                limit: 0,  // Default values, update as needed
+                limit: 0,
                 startingBalance: 0
               });
               creditCardMap.set(cardName, newCardId);
@@ -97,6 +102,30 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
             } catch (error) {
               console.error(`Error adding new credit card ${row.creditCardName}:`, error);
               throw new Error(`Failed to add new credit card ${row.creditCardName}: ${error.message}`);
+            }
+          }
+        }
+
+        // Handle loan payment
+        if (row.isLoanPayment?.toLowerCase() === 'yes' && row.loanName) {
+          const loanName = row.loanName.toLowerCase();
+          if (loanMap.has(loanName)) {
+            isLoanPayment = true;
+            loanId = loanMap.get(loanName);
+          } else {
+            // Add new loan if not found
+            try {
+              const newLoanId = await addLoan({
+                name: row.loanName,
+                amount: 0,  // Default values, update as needed
+                interestRate: 0
+              });
+              loanMap.set(loanName, newLoanId);
+              isLoanPayment = true;
+              loanId = newLoanId;
+            } catch (error) {
+              console.error(`Error adding new loan ${row.loanName}:`, error);
+              throw new Error(`Failed to add new loan ${row.loanName}: ${error.message}`);
             }
           }
         }
@@ -115,7 +144,9 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
           type: row.type.toLowerCase(),
           creditCard,
           creditCardId,
-          isCardPayment
+          isCardPayment,
+          isLoanPayment,
+          loanId
         });
       } else {
         console.log(`Invalid row ${index}:`, row);
@@ -153,7 +184,7 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
       Alert.alert('Error', `Failed to import transactions: ${error.message}`);
     }
   };
-  
+
   const exportTransactions = async () => {
     try {
       const transactions = await getTransactions();
@@ -169,15 +200,16 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
 
   const exportSampleCSV = async () => {
     const sampleData = [
-      { amount: '1000', category: 'Salary', date: '2024-08-01', description: 'Monthly salary', type: 'income', creditCard: 'No', creditCardName: '', isCardPayment: 'No' },
-      { amount: '50', category: 'Groceries', date: '2024-08-02', description: 'Weekly groceries', type: 'expense', creditCard: 'Yes', creditCardName: 'Apple Card', isCardPayment: 'No' },
-      { amount: '30', category: 'Dining Out/Takeaway', date: '2024-08-03', description: 'Lunch with colleagues', type: 'expense', creditCard: 'No', creditCardName: '', isCardPayment: 'No' },
-      { amount: '500', category: 'Debt Payment', date: '2024-08-05', description: 'Credit card payment', type: 'expense', creditCard: 'Yes', creditCardName: 'Apple Card', isCardPayment: 'Yes' },
+      { amount: '1000', category: 'Salary', date: '2024-08-01', description: 'Monthly salary', type: 'income', creditCard: 'No', creditCardName: '', isCardPayment: 'No', isLoanPayment: 'No', loanName: '' },
+      { amount: '50', category: 'Groceries', date: '2024-08-02', description: 'Weekly groceries', type: 'expense', creditCard: 'Yes', creditCardName: 'Apple Card', isCardPayment: 'No', isLoanPayment: 'No', loanName: '' },
+      { amount: '30', category: 'Dining Out/Takeaway', date: '2024-08-03', description: 'Lunch with colleagues', type: 'expense', creditCard: 'No', creditCardName: '', isCardPayment: 'No', isLoanPayment: 'No', loanName: '' },
+      { amount: '500', category: 'Debt Payment', date: '2024-08-05', description: 'Credit card payment', type: 'expense', creditCard: 'Yes', creditCardName: 'Apple Card', isCardPayment: 'Yes', isLoanPayment: 'No', loanName: '' },
+      { amount: '100', category: 'Debt Payment', date: '2024-08-06', description: 'Loan payment', type: 'expense', creditCard: 'No', creditCardName: '', isCardPayment: 'No', isLoanPayment: 'Yes', loanName: 'Student Loan' }
     ];
-
+  
     const csv = Papa.unparse(sampleData);
     const csvUri = FileSystem.documentDirectory + 'sample_transactions.csv';
-
+  
     try {
       await FileSystem.writeAsStringAsync(csvUri, csv);
       await Sharing.shareAsync(csvUri);
@@ -186,7 +218,7 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
       Alert.alert('Error', 'Failed to export sample CSV. Please try again.');
     }
   };
-
+  
   const handleImportExport = () => {
     Alert.alert(
       "Import/Export",
@@ -210,6 +242,11 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
 
   return (
     <View style={styles.container}>
+      {/* Display the import status */}
+      <View style={styles.statusContainer}>
+        {importStatus && <Text style={styles.statusText}>{importStatus}</Text>}
+      </View>
+
       <TouchableOpacity style={styles.button} onPress={handleImportExport}>
         <Text style={styles.buttonText}>Import/Export</Text>
       </TouchableOpacity>
@@ -250,17 +287,20 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
             <Text style={styles.instructionsTitle}>Instructions:</Text>
             <Text style={styles.instructions}>
               1. Ensure your CSV file has these columns:{'\n'}
-                 amount, category, date, description, type, creditCard, creditCardName, isCardPayment{'\n\n'}
+                amount, category, date, description, type, creditCard, creditCardName, isCardPayment, isLoanPayment, loanName{'\n\n'}
               2. Valid categories are:{'\n'}
-                 {ALL_CATEGORIES.join(', ')}{'\n\n'}
+                {ALL_CATEGORIES.join(', ')}{'\n\n'}
               3. Date should be in YYYY-MM-DD format{'\n\n'}
               4. Type should be either 'income' or 'expense'{'\n\n'}
               5. Credit Card should be 'Yes' or 'No' (or left blank for 'No'){'\n\n'}
               6. CreditCardName should be the name of the credit card (if Credit Card is 'Yes'){'\n\n'}
               7. IsCardPayment should be 'Yes' for credit card payments, 'No' otherwise{'\n\n'}
-              8. Avoid using commas in description{'\n\n'}
-              9. Export a sample CSV to see the correct format
+              8. IsLoanPayment should be 'Yes' for loan payments, 'No' otherwise{'\n\n'}
+              9. LoanName should be the name of the loan (if IsLoanPayment is 'Yes'){'\n\n'}
+              10. Avoid using commas in description{'\n\n'}
+              11. Export a sample CSV to see the correct format
             </Text>
+
             <TouchableOpacity style={styles.closeButton} onPress={() => setIsModalVisible(false)}>
               <Text style={styles.buttonText}>Close</Text>
             </TouchableOpacity>
@@ -274,6 +314,13 @@ const CSVUpload = ({ onTransactionsUpdate }) => {
 const styles = StyleSheet.create({
   container: {
     marginVertical: 5,
+  },
+  statusContainer: {
+    marginVertical: 10,
+  },
+  statusText: {
+    color: 'red',
+    textAlign: 'center',
   },
   button: {
     backgroundColor: '#4CAF50',
