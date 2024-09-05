@@ -23,5 +23,7 @@ export const calculateTotals = (categorizedTransactions) => {
     totalCreditCardIncome: sumAmount(categorizedTransactions.creditCardIncome),
     totalLoanPayments: sumAmount(categorizedTransactions.loanPayments),
     totalCashbackRewards: sumAmount(categorizedTransactions.cashbackRewards),
+     // New Debt Payment calculation
+    totalDebtPayments: sumAmount(categorizedTransactions.creditCardPayments) + sumAmount(categorizedTransactions.loanPayments),
   };
 };

@@ -7,6 +7,7 @@ import { useMonth } from '../context/MonthContext';
 import { Ionicons } from '@expo/vector-icons';
 import MonthNavigator from '../components/MonthNavigator';
 import { categorizeTransactions } from '../utils/reportUtils';
+import { calculateTotals } from '../utils/reportUtils';
 
 function BudgetGoalsScreen({ navigation }) {
   const { currentMonth, setCurrentMonth } = useMonth();
@@ -26,34 +27,49 @@ function BudgetGoalsScreen({ navigation }) {
     try {
       const year = currentMonth.getFullYear();
       const month = currentMonth.getMonth() + 1;
-  
-      // Fetch budget goals for the current year and month
-      let fetchedGoals = await getBudgetGoals(year, month);  // Modify getBudgetGoals to accept both year and month
+      
+      // Fetch budget goals for the current month
+      let fetchedGoals = await getBudgetGoals(year, month);
       
       // Ensure all categories are present with isRecurring set
       const allCategories = EXPENSE_CATEGORIES.map(category => {
-        const existingGoal = fetchedGoals.find(g => g.category === category && g.month === month); // Add month filter
+        const existingGoal = fetchedGoals.find(g => g.category === category);
         return existingGoal || { category, amount: '0', isRecurring: false };
       });
   
       // Set debt payment goal with isRecurring defined
-      const existingDebtGoal = fetchedGoals.find(g => g.category === 'Debt Payment' && g.month === month); // Add month filter
+      const existingDebtGoal = fetchedGoals.find(g => g.category === 'Debt Payment');
       setDebtPaymentGoal(existingDebtGoal || { category: 'Debt Payment', amount: '0', isRecurring: false });
   
       setBudgetGoals(allCategories);
   
-      // Calculate total budget and actual spent for the month
-      const totalBudget = allCategories.reduce((sum, goal) => sum + Number(goal.amount), 0);
-      setTotalBudget(totalBudget);
-  
+      // Fetch and categorize transactions
       const transactions = await getTransactions();  // Fetch transactions for the user
       const categorizedTransactions = categorizeTransactions(transactions);
   
-      const totalSpent = categorizedTransactions.regularExpenses
-        .filter(t => t.date >= new Date(year, month - 1, 1) && t.date <= new Date(year, month, 0))
-        .reduce((sum, t) => sum + Number(t.amount), 0);
+      // Apply month filtering for both regular expenses and debt payments
+      const filteredTransactions = categorizedTransactions.regularExpenses.filter(t => {
+        const transactionDate = new Date(t.date);
+        return transactionDate.getFullYear() === year && transactionDate.getMonth() + 1 === month;
+      });
   
+      const filteredDebtPayments = categorizedTransactions.creditCardPayments.concat(categorizedTransactions.loanPayments).filter(t => {
+        const transactionDate = new Date(t.date);
+        return transactionDate.getFullYear() === year && transactionDate.getMonth() + 1 === month;
+      });
+  
+      // Calculate totals for the selected month
+      const totalSpent = filteredTransactions.reduce((sum, t) => sum + Number(t.amount), 0);
+      const debtPaymentsSpent = filteredDebtPayments.reduce((sum, t) => sum + Number(t.amount), 0);
+  
+      // Update the total spent (for regular expenses only)
       setTotalSpent(totalSpent);
+  
+      // Set Debt Payments separately
+      setActualExpenses({
+        regularExpenses: totalSpent,
+        debtPayments: debtPaymentsSpent,  // Track debt payments spent separately
+      });
   
     } catch (error) {
       console.error('Error loading budget goals:', error);
@@ -62,8 +78,6 @@ function BudgetGoalsScreen({ navigation }) {
       setIsLoading(false);
     }
   }, [currentMonth]);
-  
-  
   
 
   useFocusEffect(
@@ -160,6 +174,7 @@ function BudgetGoalsScreen({ navigation }) {
       </View>
     );
   };
+  
   
 
   const renderGoalItem = useCallback(({ item: goal }) => {
