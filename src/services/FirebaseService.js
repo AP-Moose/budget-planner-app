@@ -117,36 +117,45 @@ export const deleteBudgetGoal = async (category, year, month) => {
 
 
 
-export const getBudgetGoals = async (year = null) => {
+export const getBudgetGoals = async (year, month) => {
   try {
     const user = auth.currentUser;
     if (!user) {
-      console.error('No user logged in');
       throw new Error('No user logged in');
     }
 
-    let q = query(
-      collection(db, 'budgetGoals'),
-      where('userId', '==', user.uid)
-    );
-
-    if (year !== null) {
-      q = query(q, where('year', '==', year));
+    if (!year || !month) {
+      throw new Error('Year and month must be provided');
     }
 
+    const q = query(
+      collection(db, 'budgetGoals'),
+      where('userId', '==', user.uid),
+      where('year', '==', year),
+      where('month', '==', month)
+    );
+
     const snapshot = await getDocs(q);
+    
+    // Return an empty array if no results are found
+    if (snapshot.empty) {
+      return [];
+    }
+
     const budgetGoals = snapshot.docs.map(doc => ({
-      id: doc.id.split('_')[1],
+      id: doc.id,
       ...doc.data(),
       amount: Number(doc.data().amount)
     }));
-    console.log(`Retrieved ${budgetGoals.length} budget goals for user:`, user.uid);
+
     return budgetGoals;
   } catch (error) {
     console.error('Error getting budget goals:', error);
     throw error;
   }
 };
+
+
 
 export const clearAllBudgetGoals = async (year = null) => {
   try {

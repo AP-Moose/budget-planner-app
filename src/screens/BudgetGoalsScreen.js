@@ -26,29 +26,29 @@ function BudgetGoalsScreen({ navigation }) {
     try {
       const year = currentMonth.getFullYear();
       const month = currentMonth.getMonth() + 1;
-      
-      // Fetch budget goals for the current month
-      let fetchedGoals = await getBudgetGoals(year, month);
+  
+      // Fetch budget goals for the current year and month
+      let fetchedGoals = await getBudgetGoals(year, month);  // Modify getBudgetGoals to accept both year and month
       
       // Ensure all categories are present with isRecurring set
       const allCategories = EXPENSE_CATEGORIES.map(category => {
-        const existingGoal = fetchedGoals.find(g => g.category === category);
+        const existingGoal = fetchedGoals.find(g => g.category === category && g.month === month); // Add month filter
         return existingGoal || { category, amount: '0', isRecurring: false };
       });
   
       // Set debt payment goal with isRecurring defined
-      const existingDebtGoal = fetchedGoals.find(g => g.category === 'Debt Payment');
+      const existingDebtGoal = fetchedGoals.find(g => g.category === 'Debt Payment' && g.month === month); // Add month filter
       setDebtPaymentGoal(existingDebtGoal || { category: 'Debt Payment', amount: '0', isRecurring: false });
   
       setBudgetGoals(allCategories);
-      
+  
       // Calculate total budget and actual spent for the month
       const totalBudget = allCategories.reduce((sum, goal) => sum + Number(goal.amount), 0);
       setTotalBudget(totalBudget);
   
       const transactions = await getTransactions();  // Fetch transactions for the user
       const categorizedTransactions = categorizeTransactions(transactions);
-      
+  
       const totalSpent = categorizedTransactions.regularExpenses
         .filter(t => t.date >= new Date(year, month - 1, 1) && t.date <= new Date(year, month, 0))
         .reduce((sum, t) => sum + Number(t.amount), 0);
@@ -62,6 +62,7 @@ function BudgetGoalsScreen({ navigation }) {
       setIsLoading(false);
     }
   }, [currentMonth]);
+  
   
   
 

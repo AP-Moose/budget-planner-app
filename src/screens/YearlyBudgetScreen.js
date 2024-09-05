@@ -33,13 +33,16 @@ const YearlyBudgetScreen = ({ navigation }) => {
   
 
   const loadYearlyBudget = async () => {
-    setIsLoading(true);  // Only set loading to true here
+    setIsLoading(true);
     try {
-      const yearGoals = await getBudgetGoals(selectedYear);
       const yearBudget = {};
       for (let month = 1; month <= 12; month++) {
+        // Fetch goals for the specific month and year
+        const monthGoals = await getBudgetGoals(selectedYear, month);
+  
+        // Ensure each category has an entry, even if no goal exists in the database
         yearBudget[month] = EXPENSE_CATEGORIES.reduce((acc, category) => {
-          const goal = yearGoals.find(g => g.month === month && g.category === category) || { amount: '0', isRecurring: false };
+          const goal = monthGoals.find(g => g.category === category) || { amount: '0', isRecurring: false };
           acc[category] = goal;
           return acc;
         }, {});
@@ -48,9 +51,10 @@ const YearlyBudgetScreen = ({ navigation }) => {
     } catch (error) {
       console.error('Error loading yearly budget:', error);
     } finally {
-      setIsLoading(false);  // Ensure loader is turned off after loading completes
+      setIsLoading(false);
     }
   };
+  
   
   const handleUpdateGoal = async (startMonth, category, amount, isRecurring) => {
     const updatedYearlyBudget = { ...yearlyBudget };
