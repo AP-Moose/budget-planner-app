@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { getTransactions, deleteTransaction, addTransaction, updateTransaction, getCreditCards, getLoans } from '../services/FirebaseService';
+import { getTransactions, deleteTransaction, addTransaction, updateTransaction, getCreditCards, getLoans, updateLoanInformation } from '../services/FirebaseService';
 import { getCategoryName, INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../utils/categories';
 import SearchBar from '../components/SearchBar';
 import HomeDashboard from '../components/Dashboards/HomeDashboard';
@@ -189,9 +189,18 @@ function HomeScreen({ navigation }) {
 
   const handleUpdateTransaction = async () => {
     if (!editingTransaction) return;
-
+  
     try {
       await updateTransaction(editingTransaction.id, editingTransaction);
+  
+      if (editingTransaction.isLoanPayment) {
+        await updateLoanInformation({
+          id: editingTransaction.loanId,
+          name: editingTransaction.loanName,  // Make sure you pass updated name if necessary
+          initialAmount: editingTransaction.initialAmount // Update initial amount if relevant
+        });
+      }
+  
       setEditingTransaction(null);
       setShowEditModal(false);
       Alert.alert('Success', 'Transaction updated successfully');
@@ -201,15 +210,25 @@ function HomeScreen({ navigation }) {
       Alert.alert('Error', 'Failed to update transaction. Please try again.');
     }
   };
+  
 
   const handleAddTransaction = async () => {
     if (!newTransaction.amount || !newTransaction.description || !newTransaction.category) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-
+  
     try {
-      await addTransaction(newTransaction);
+      const transactionId = await addTransaction(newTransaction);
+  
+      if (newTransaction.isLoanPayment) {
+        await updateLoanInformation({
+          id: newTransaction.loanId,
+          name: newTransaction.loanName,
+          initialAmount: newTransaction.initialAmount // Ensure initial amount is updated if needed
+        });
+      }
+  
       setNewTransaction({
         type: 'expense',
         amount: '',
@@ -230,6 +249,7 @@ function HomeScreen({ navigation }) {
       Alert.alert('Error', 'Failed to add transaction. Please try again.');
     }
   };
+  
 
   const onChangeDate = (event, selectedDate) => {
     const currentDate = selectedDate || (editingTransaction ? editingTransaction.date : newTransaction.date);
@@ -471,7 +491,7 @@ function HomeScreen({ navigation }) {
                   disabled={editingTransaction?.isCardPayment || editingTransaction?.isLoanPayment}
                 >
                   <Text style={styles.selectButtonText}>
-                  {editingTransaction?.category ? getCategoryName(editingTransaction.category) : 'Select Category'}
+                    {editingTransaction?.category ? getCategoryName(editingTransaction.category) : 'Select Category'}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
@@ -551,7 +571,7 @@ function HomeScreen({ navigation }) {
                     style={styles.selectButton} 
                     onPress={() => {
                       setShowEditModal(false);
-                      setShowLoanModal(true);
+                      setShowLoanModal(true); // Open loan modal
                     }}
                   >
                     <Text style={styles.selectButtonText}>
@@ -575,6 +595,7 @@ function HomeScreen({ navigation }) {
       </Modal>
     );
   };
+  
 
   return (
     <KeyboardAvoidingView 
@@ -653,18 +674,28 @@ function HomeScreen({ navigation }) {
         title="Select Credit Card"
       />
       <SelectModal
-        visible={showLoanModal}
-        onClose={() => setShowLoanModal(false)}
-        options={loans.map(loan => ({ label: loan.name, value: loan.id }))}
-        onSelect={(option) => {
-          if (editingTransaction) {
-            setEditingTransaction(prev => ({ ...prev, loanId: option.value }));
-          } else {
-            setNewTransaction(prev => ({ ...prev, loanId: option.value }));
-          }
-        }}
-        title="Select Loan"
-      />
+  visible={showLoanModal}
+  onClose={() => setShowLoanModal(false)}  // Only close loan modal
+  options={loans.map(loan => ({ label: loan.name, value: loan.id }))}
+  onSelect={(option) => {
+    const selectedLoan = loans.find(loan => loan.id === option.value);  // Get selected loan details
+
+    // Update editingTransaction with the selected loan details
+    if (editingTransaction) {
+      setEditingTransaction(prev => ({
+        ...prev,
+        loanId: selectedLoan.id,
+        loanName: selectedLoan.name,  // Store the loan name for reference
+      }));
+    }
+
+    setShowLoanModal(false);  // Close the loan modal, but leave the edit modal open
+    setShowEditModal(true);  // Ensure that the edit modal is visible
+  }}
+  title="Select Loan"
+/>
+
+
     </KeyboardAvoidingView>
   );
 }
