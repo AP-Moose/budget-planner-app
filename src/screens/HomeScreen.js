@@ -814,35 +814,36 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     borderWidth: 1,
     borderColor: '#ddd',
-    padding: 10,
-    marginBottom: 15,
-    borderRadius: 5,
-    fontSize: 16,
+    padding: 15,
+    marginBottom: 20,
+    borderRadius: 8,
+    fontSize: 18,
   },
   selectButton: {
     backgroundColor: '#f0f0f0',
     borderWidth: 1,
     borderColor: '#ddd',
-    padding: 10,
-    marginBottom: 15,
-    borderRadius: 5,
+    padding: 15,
+    marginBottom: 20,
+    borderRadius: 8,
   },
   disabledSelectButton: {
     backgroundColor: '#e0e0e0',
     borderColor: '#aaa',
   },
   selectButtonText: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#333',
+    textAlign: 'center',
   },
   dateButton: {
     backgroundColor: '#f0f0f0',
     padding: 15,
-    borderRadius: 5,
+    borderRadius: 8,
     marginBottom: 15,
   },
   dateButtonText: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#333',
     textAlign: 'center',
   },
@@ -903,11 +904,38 @@ const styles = StyleSheet.create({
     width: '90%',
     maxHeight: '90%',
   },
+  modalOptionText: {
+    fontSize: 18, // Increased font size for better readability
+    color: '#333',
+  },
+
+  modalCloseButton: {
+    marginTop: 15,
+    padding: 15,
+    backgroundColor: '#2196F3',
+    borderRadius: 8,
+  },
+  modalCloseButtonText: {
+    fontSize: 16,
+    color: '#fff',
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 15,
     textAlign: 'center',
+  },
+  modalOption: {
+    paddingVertical: 5, // Increased padding for easier tapping
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    borderRadius: 5,
+    backgroundColor: '#fff',
+    marginBottom: 10, // Added space between options for better readability
   },
   switchContainer: {
     flexDirection: 'row',
@@ -915,6 +943,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 15,
   },
+  formRow: {
+    marginBottom: 10,
+  }
 });
 
 export default HomeScreen;
