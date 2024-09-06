@@ -230,7 +230,7 @@ const ReportsScreen = () => {
   };
 
   const renderDateSelection = () => {
-    if (reportType === 'balance-sheet' || 'debt-reduction-projection'
+    if (reportType === 'balance-sheet' || reportType === 'debt-reduction-projection'
     ) {
       return null;
     }  else {
