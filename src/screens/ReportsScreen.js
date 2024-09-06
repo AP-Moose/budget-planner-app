@@ -148,7 +148,6 @@ const ReportsScreen = () => {
   
       switch (reportType) {
         case 'custom-range':
-          const budgetGoalsForRange = await getBudgetGoalsForRange(startDate, endDate);
           report = await generateCustomRangeReport(transactions, startDate, endDate, budgetGoalsForRange);
           break;
         case 'balance-sheet':
@@ -158,6 +157,7 @@ const ReportsScreen = () => {
           report = await generateCategoryBreakdown(transactions, startDate, endDate);
           break;
         case 'budget-vs-actual':
+          const budgetGoalsForRange = await getBudgetGoalsForRange( startDate, endDate);
           const budgetGoalsForSelectedMonths = await getBudgetGoalsForRange(startDate, endDate);
           report = await generateBudgetVsActual(transactions, startDate, endDate, budgetGoalsForSelectedMonths);
           break;
