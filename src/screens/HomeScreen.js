@@ -666,22 +666,37 @@ function HomeScreen({ navigation }) {
         title="Select Category"
       />
       <SelectModal
-        visible={showCreditCardModal}
-        onClose={() => setShowCreditCardModal(false)}
-        options={creditCards.map(card => ({ label: card.name, value: card.id }))}
-        onSelect={(option) => {
-          if (editingTransaction) {
-            setEditingTransaction(prev => ({
-              ...prev,
-              creditCardId: option.value,
-              creditCardName: creditCards.find(card => card.id === option.value)?.name // Ensure you store the name
-            }));
-          }
-          setShowCreditCardModal(false); // Close only credit card modal
-          setShowEditModal(true); // Ensure the edit modal reopens
-        }}
-        title="Select Credit Card"
-      />
+  visible={showCreditCardModal}
+  onClose={() => setShowCreditCardModal(false)}  // Only close credit card modal
+  options={creditCards.map(card => ({ label: card.name, value: card.id }))}
+  onSelect={(option) => {
+    const selectedCard = creditCards.find(card => card.id === option.value);  // Get selected credit card details
+
+    if (editingTransaction) {
+      // If you're editing an existing transaction, update editingTransaction state
+      setEditingTransaction(prev => ({
+        ...prev,
+        creditCardId: selectedCard.id,
+        creditCardName: selectedCard.name  // Store the credit card name for reference
+      }));
+      setShowEditModal(true);    // Reopen the edit modal
+    } else {
+      // If you're adding a new transaction, update newTransaction state
+      setNewTransaction(prev => ({
+        ...prev,
+        creditCardId: selectedCard.id,
+        creditCardName: selectedCard.name, // Store the credit card name for reference
+        isCardPayment: true                // Mark as a credit card payment
+      }));
+      setIsAddingTransaction(true); // Keep the "Add Transaction" modal open
+    }
+
+    // Close only the credit card modal
+    setShowCreditCardModal(false);
+  }}
+  title="Select Credit Card"
+/>
+
       <SelectModal
   visible={showLoanModal}
   onClose={() => setShowLoanModal(false)}  // Only close loan modal
