@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useFocusEffect } from '@react-navigation/native'; // Ensure this is from the correct library
 import { addCreditCard, updateCreditCard, deleteCreditCard, onCreditCardsUpdate, getTransactions } from '../services/FirebaseService';
 
 const CreditCardScreen = () => {
@@ -9,14 +10,23 @@ const CreditCardScreen = () => {
   const [editingCard, setEditingCard] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [transactions, setTransactions] = useState([]);
+  const [balance, setBalance] = useState(0); // Keep track of balance
   const [updatingCardIds, setUpdatingCardIds] = useState([]);
+
+  // Listen for focus and refresh transactions
+  useFocusEffect(
+    useCallback(() => {
+      // This will run when the screen is focused, ensuring that transactions are updated
+      loadTransactions(); // Ensure transactions and balances are refreshed when returning to the screen
+    }, [])
+  );
 
   useEffect(() => {
     const unsubscribe = onCreditCardsUpdate((updatedCards) => {
       setCreditCards(updatedCards);
     });
 
-    loadTransactions();
+    loadTransactions(); // Load transactions when the component mounts
 
     return () => unsubscribe();
   }, []);
@@ -25,6 +35,13 @@ const CreditCardScreen = () => {
     try {
       const fetchedTransactions = await getTransactions();
       setTransactions(fetchedTransactions);
+
+      // Recalculate the balance based on the updated transactions
+      const newBalance = fetchedTransactions.reduce((acc, transaction) => {
+        return acc + parseFloat(transaction.amount); // Adjust calculation logic as per your data structure
+      }, 0);
+
+      setBalance(newBalance); // Set the recalculated balance
     } catch (error) {
       console.error('Error loading transactions:', error);
     }
@@ -45,6 +62,7 @@ const CreditCardScreen = () => {
         startDate: newCard.startDate,
       });
       setNewCard({ name: '', limit: '', startingBalance: '', startDate: new Date(), interestRate: '' });
+      loadTransactions(); // Reload transactions after adding a new card
     } catch (error) {
       console.error('Error adding credit card:', error);
       Alert.alert('Error', 'Failed to add credit card. Please try again.');
@@ -69,8 +87,9 @@ const CreditCardScreen = () => {
 
       await updateCreditCard(id, cardToUpdate);
       setEditingCard(null);
-      
+
       Alert.alert('Success', 'Credit card updated successfully');
+      loadTransactions(); // Reload transactions after updating a card
     } catch (error) {
       console.error('Error updating credit card:', error);
       Alert.alert('Error', 'Failed to update credit card. Please try again.');
@@ -82,6 +101,7 @@ const CreditCardScreen = () => {
   const handleDeleteCard = async (id) => {
     try {
       await deleteCreditCard(id);
+      loadTransactions(); // Reload transactions after deleting a card
     } catch (error) {
       console.error('Error deleting credit card:', error);
       Alert.alert('Error', 'Failed to delete credit card. Please try again.');
@@ -98,7 +118,7 @@ const CreditCardScreen = () => {
               <TextInput
                 style={styles.input}
                 value={item.name}
-                onChangeText={(text) => setCreditCards(cards => cards.map(c => c.id === item.id ? {...c, name: text} : c))}
+                onChangeText={(text) => setCreditCards(cards => cards.map(c => c.id === item.id ? { ...c, name: text } : c))}
               />
             </View>
             <View style={styles.halfInput}>
@@ -106,7 +126,7 @@ const CreditCardScreen = () => {
               <TextInput
                 style={styles.input}
                 value={item.limit !== undefined ? item.limit.toString() : ''}
-                onChangeText={(text) => setCreditCards(cards => cards.map(c => c.id === item.id ? {...c, limit: text} : c))}
+                onChangeText={(text) => setCreditCards(cards => cards.map(c => c.id === item.id ? { ...c, limit: text } : c))}
                 keyboardType="numeric"
                 returnKeyType="done"
               />
@@ -118,7 +138,7 @@ const CreditCardScreen = () => {
               <TextInput
                 style={styles.input}
                 value={item.startingBalance !== undefined ? item.startingBalance.toString() : ''}
-                onChangeText={(text) => setCreditCards(cards => cards.map(c => c.id === item.id ? {...c, startingBalance: text} : c))}
+                onChangeText={(text) => setCreditCards(cards => cards.map(c => c.id === item.id ? { ...c, startingBalance: text } : c))}
                 keyboardType="numeric"
                 returnKeyType="done"
               />
@@ -136,7 +156,7 @@ const CreditCardScreen = () => {
               <TextInput
                 style={styles.input}
                 value={item.interestRate !== undefined ? item.interestRate.toString() : ''}
-                onChangeText={(text) => setCreditCards(cards => cards.map(c => c.id === item.id ? {...c, interestRate: text} : c))}
+                onChangeText={(text) => setCreditCards(cards => cards.map(c => c.id === item.id ? { ...c, interestRate: text } : c))}
                 keyboardType="numeric"
                 returnKeyType="done"
               />
@@ -150,7 +170,7 @@ const CreditCardScreen = () => {
               onChange={(event, selectedDate) => {
                 setShowDatePicker(false);
                 if (selectedDate) {
-                  setCreditCards(cards => cards.map(c => c.id === item.id ? {...c, startDate: selectedDate} : c));
+                  setCreditCards(cards => cards.map(c => c.id === item.id ? { ...c, startDate: selectedDate } : c));
                 }
               }}
             />
@@ -204,8 +224,8 @@ const CreditCardScreen = () => {
   );
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
+    <KeyboardAvoidingView
+      style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={100}
     >
