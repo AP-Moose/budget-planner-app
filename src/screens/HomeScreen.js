@@ -671,10 +671,14 @@ function HomeScreen({ navigation }) {
         options={creditCards.map(card => ({ label: card.name, value: card.id }))}
         onSelect={(option) => {
           if (editingTransaction) {
-            setEditingTransaction(prev => ({ ...prev, creditCardId: option.value }));
-          } else {
-            setNewTransaction(prev => ({ ...prev, creditCardId: option.value }));
+            setEditingTransaction(prev => ({
+              ...prev,
+              creditCardId: option.value,
+              creditCardName: creditCards.find(card => card.id === option.value)?.name // Ensure you store the name
+            }));
           }
+          setShowCreditCardModal(false); // Close only credit card modal
+          setShowEditModal(true); // Ensure the edit modal reopens
         }}
         title="Select Credit Card"
       />
@@ -685,20 +689,33 @@ function HomeScreen({ navigation }) {
   onSelect={(option) => {
     const selectedLoan = loans.find(loan => loan.id === option.value);  // Get selected loan details
 
-    // Update editingTransaction with the selected loan details
     if (editingTransaction) {
+      // If you're editing an existing transaction, update editingTransaction state
       setEditingTransaction(prev => ({
         ...prev,
         loanId: selectedLoan.id,
-        loanName: selectedLoan.name,  // Store the loan name for reference
+        loanName: selectedLoan.name  // Store the loan name for reference
       }));
+      setShowEditModal(true);    // Reopen the edit modal
+    } else {
+      // If you're adding a new transaction, update newTransaction state
+      setNewTransaction(prev => ({
+        ...prev,
+        loanId: selectedLoan.id,
+        loanName: selectedLoan.name, // Store the loan name for reference
+        isLoanPayment: true           // Mark as a loan payment
+      }));
+      setIsAddingTransaction(true); // Keep the "Add Transaction" modal open
     }
 
-    setShowLoanModal(false);  // Close the loan modal, but leave the edit modal open
-    setShowEditModal(true);  // Ensure that the edit modal is visible
+    // Close only the loan modal
+    setShowLoanModal(false);
   }}
   title="Select Loan"
 />
+
+
+
 
 
     </KeyboardAvoidingView>
