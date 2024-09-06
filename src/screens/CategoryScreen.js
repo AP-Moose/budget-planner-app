@@ -36,20 +36,26 @@ function CategoryScreen({ navigation }) {
       const totalIncome = totals.totalRegularIncome + totals.totalCreditCardIncome;
       const totalExpenses = totals.totalRegularExpenses + totals.totalCreditCardPurchases;
 
-      setExpenseCategories(categorizedTransactions.regularExpenses.reduce((acc, transaction) => {
-        acc[transaction.category] = (acc[transaction.category] || 0) + transaction.amount;
-        return acc;
-      }, {}));
-      setIncomeCategories(categorizedTransactions.regularIncome.reduce((acc, transaction) => {
-        acc[transaction.category] = (acc[transaction.category] || 0) + transaction.amount;
-        return acc;
-      }, {}));
-      setTotalExpenses(totalExpenses);
-      setTotalIncome(totalIncome);
-    } catch (error) {
-      console.error('Error loading transactions:', error);
-    }
-  }, [currentMonth]);
+      const mergedExpenses = categorizedTransactions.regularExpenses.concat(categorizedTransactions.creditCardPurchases);
+      const expenseCategories = mergedExpenses.reduce((acc, transaction) => {
+      acc[transaction.category] = (acc[transaction.category] || 0) + transaction.amount;
+      return acc;
+    }, {});
+
+    // Do the same for income if needed, but it looks fine for now
+    const incomeCategories = categorizedTransactions.regularIncome.reduce((acc, transaction) => {
+      acc[transaction.category] = (acc[transaction.category] || 0) + transaction.amount;
+      return acc;
+    }, {});
+
+    setExpenseCategories(expenseCategories);
+    setIncomeCategories(incomeCategories);
+    setTotalExpenses(totalExpenses);
+    setTotalIncome(totalIncome);
+  } catch (error) {
+    console.error('Error loading transactions:', error);
+  }
+}, [currentMonth]);
 
   useFocusEffect(
     useCallback(() => {
