@@ -6,8 +6,6 @@ import { EXPENSE_CATEGORIES } from '../utils/categories';
 import { useMonth } from '../context/MonthContext';
 import { Ionicons } from '@expo/vector-icons';
 import MonthNavigator from '../components/MonthNavigator';
-import { categorizeTransactions } from '../utils/reportUtils';
-import { calculateTotals } from '../utils/reportUtils';
 
 function BudgetGoalsScreen({ navigation }) {
   const { currentMonth, setCurrentMonth } = useMonth();
@@ -37,40 +35,47 @@ function BudgetGoalsScreen({ navigation }) {
         return existingGoal || { category, amount: '0', isRecurring: false };
       });
   
-      // Set debt payment goal with isRecurring defined
+      // Set debt payment goal
       const existingDebtGoal = fetchedGoals.find(g => g.category === 'Debt Payment');
       setDebtPaymentGoal(existingDebtGoal || { category: 'Debt Payment', amount: '0', isRecurring: false });
   
       setBudgetGoals(allCategories);
   
       // Fetch and categorize transactions
-      const transactions = await getTransactions();  // Fetch transactions for the user
-      const categorizedTransactions = categorizeTransactions(transactions);
-  
-      // Apply month filtering for both regular expenses and debt payments
-      const filteredTransactions = categorizedTransactions.regularExpenses.filter(t => {
+      const transactions = await getTransactions();
+      const currentMonthTransactions = transactions.filter(t => {
         const transactionDate = new Date(t.date);
-        return transactionDate.getFullYear() === year && transactionDate.getMonth() + 1 === month;
+        return transactionDate.getMonth() === currentMonth.getMonth() && 
+               transactionDate.getFullYear() === currentMonth.getFullYear();
       });
   
-      const filteredDebtPayments = categorizedTransactions.creditCardPayments.concat(categorizedTransactions.loanPayments).filter(t => {
-        const transactionDate = new Date(t.date);
-        return transactionDate.getFullYear() === year && transactionDate.getMonth() + 1 === month;
-      });
+      // Categorize expenses by category
+      const expenses = currentMonthTransactions.reduce((acc, t) => {
+        if (t.type === 'expense') {
+          acc[t.category] = (acc[t.category] || 0) + t.amount;
+        }
+        return acc;
+      }, {});
   
-      // Calculate totals for the selected month
-      const totalSpent = filteredTransactions.reduce((sum, t) => sum + Number(t.amount), 0);
-      const debtPaymentsSpent = filteredDebtPayments.reduce((sum, t) => sum + Number(t.amount), 0);
+      // Calculate debt payments
+      const debtPayments = currentMonthTransactions.reduce((acc, t) => {
+        if (t.isCardPayment || t.isLoanPayment) {
+          acc += t.amount;
+        }
+        return acc;
+      }, 0);
   
-      // Update the total spent (for regular expenses only)
-      setTotalSpent(totalSpent);
+      setActualExpenses({ regularExpenses: expenses, debtPayments });
   
-      // Set Debt Payments separately
-      setActualExpenses({
-        regularExpenses: totalSpent,
-        debtPayments: debtPaymentsSpent,  // Track debt payments spent separately
-      });
+      // Calculate total budget excluding Debt Payment
+      const total = allCategories.reduce((sum, goal) => {
+        return goal.category !== 'Debt Payment' ? sum + parseFloat(goal.amount) : sum;
+      }, 0);
+      setTotalBudget(total);
   
+      // Total spent for regular expenses only (excluding debt payments)
+      const spent = Object.values(expenses).reduce((sum, amount) => sum + amount, 0);
+      setTotalSpent(spent);
     } catch (error) {
       console.error('Error loading budget goals:', error);
       setError('Failed to load budget goals. Please try again.');
@@ -78,6 +83,7 @@ function BudgetGoalsScreen({ navigation }) {
       setIsLoading(false);
     }
   }, [currentMonth]);
+  
   
 
   useFocusEffect(
@@ -143,11 +149,12 @@ function BudgetGoalsScreen({ navigation }) {
     }
   };
   
-  
 
   const renderBudgetUsage = () => {
-    const percentUsed = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : (totalSpent > 0 ? 100 : 0);
-  
+    // Subtract debt payments from total spent
+    const adjustedSpent = totalSpent - (actualExpenses.debtPayments || 0);
+    const percentUsed = totalBudget > 0 ? (adjustedSpent / totalBudget) * 100 : (adjustedSpent > 0 ? 100 : 0);
+
     return (
       <View style={styles.budgetUsageContainer}>
         <Text style={styles.budgetUsageTitle}>Budget Usage</Text>
@@ -163,24 +170,25 @@ function BudgetGoalsScreen({ navigation }) {
           />
         </View>
         <Text style={styles.budgetUsageText}>
-          {formatCurrency(totalSpent)} / {formatCurrency(totalBudget)}
+          {formatCurrency(adjustedSpent)} / {formatCurrency(totalBudget)}
         </Text>
         <Text style={styles.budgetRemainingText}>
-          {totalBudget >= totalSpent 
-            ? `You have ${formatCurrency(totalBudget - totalSpent)} left in your budget.`
-            : `You are ${formatCurrency(totalSpent - totalBudget)} over budget.`
+          {totalBudget >= adjustedSpent 
+            ? `You have ${formatCurrency(totalBudget - adjustedSpent)} left in your budget.`
+            : `You are ${formatCurrency(adjustedSpent - totalBudget)} over budget.`
           }
         </Text>
       </View>
     );
-  };
-  
-  
+};
+
 
   const renderGoalItem = useCallback(({ item: goal }) => {
-    const spent = actualExpenses[goal.category] || 0;
+    // Get the spent amount for the current category from actualExpenses.regularExpenses
+    const spent = (actualExpenses.regularExpenses && actualExpenses.regularExpenses[goal.category]) || 0;
+
     const budgeted = parseFloat(goal.amount);
-    
+  
     let percentUsed;
     if (budgeted > 0) {
       percentUsed = (spent / budgeted) * 100;
@@ -228,6 +236,8 @@ function BudgetGoalsScreen({ navigation }) {
       </TouchableOpacity>
     );
   }, [actualExpenses, formatCurrency, getProgressColor, setSelectedGoal]);
+  
+  
 
   return (
     <KeyboardAvoidingView 
